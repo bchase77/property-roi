@@ -1,5 +1,32 @@
 import { sql } from '@vercel/postgres';
 
+export async function updateProperty(id, p) {
+  const { rows } = await sql/*sql*/`
+    UPDATE properties SET
+      address = ${p.address},
+      city = ${p.city},
+      state = ${p.state},
+      zip = ${p.zip},
+      purchase_price = ${p.purchasePrice},
+      down_payment_pct = ${p.downPct},
+      interest_apr_pct = ${p.rateApr},
+      loan_years = ${p.years},
+      monthly_rent = ${p.monthlyRent},
+      property_tax_pct = ${p.taxPct},
+      hoa_monthly = ${p.hoaMonthly},
+      insurance_monthly = ${p.insuranceMonthly},
+      maintenance_pct_rent = ${p.maintPctRent},
+      vacancy_pct_rent = ${p.vacancyPctRent},
+      management_pct_rent = ${p.mgmtPctRent},
+      other_monthly = ${p.otherMonthly},
+      zillow_zpid = ${p.zillowZpid ?? null},
+      crime_index = ${p.crimeIndex ?? null}
+    WHERE id = ${id}
+    RETURNING *;
+  `;
+  return rows[0];
+}
+
 // run on demand to ensure tables exist (safe to call on cold start)
 export async function init() {
   await sql/*sql*/`
