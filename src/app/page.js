@@ -13,50 +13,106 @@ export default function Home() {
   const [form, setForm] = useState(DEFAULTS);
   const [list, setList] = useState([]);
   const [selected, setSelected] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [errMsg, setErrMsg] = useState('');
 
   const set = (k) => (e) => {
     const v = e.target.value;
-    setForm({ ...form, [k]: v === '' ? '' : (isNaN(+v) ? v : +v) });
+    // keep strings as-is for address/city/state/zip; numeric for numeric fields
+    const numericKeys = new Set([
+      'purchasePrice','downPct','rateApr','years','monthlyRent','taxPct',
+      'hoaMonthly','insuranceMonthly','maintPctRent','vacancyPctRent','mgmtPctRent','otherMonthly'
+    ]);
+    setForm({ ...form, [k]: numericKeys.has(k) ? (v === '' ? '' : +v) : v });
   };
 
   async function load() {
-    const res = await fetch('/api/properties', { cache: 'no-store' });
-    setList(await res.json());
+    try {
+      const res = await fetch('/api/properties', { cache: 'no-store' });
+      if (!res.ok) throw new Error(await res.text());
+      setList(await res.json());
+    } catch (e) {
+      console.error(e);
+      setErrMsg('Failed to load properties.');
+    }
   }
   useEffect(() => { load(); }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
-    const res = await fetch('/api/properties', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    if (res.ok) { setForm(DEFAULTS); await load(); }
+    setErrMsg('');
+    const method = editingId ? 'PUT' : 'POST';
+    const url = editingId ? `/api/properties/${editingId}` : '/api/properties';
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setForm(DEFAULTS);
+      setEditingId(null);
+      await load();
+    } catch (err) {
+      console.error(err);
+      setErrMsg('Save failed.');
+    }
   }
+
+  const startEdit = (p) => {
+    setEditingId(p.id);
+    setForm({
+      address: p.address ?? '', city: p.city ?? '', state: p.state ?? '', zip: p.zip ?? '',
+      purchasePrice: +p.purchase_price, downPct: +p.down_payment_pct, rateApr: +p.interest_apr_pct,
+      years: +p.loan_years, monthlyRent: +p.monthly_rent, taxPct: +p.property_tax_pct,
+      hoaMonthly: +p.hoa_monthly, insuranceMonthly: +p.insurance_monthly,
+      maintPctRent: +p.maintenance_pct_rent, vacancyPctRent: +p.vacancy_pct_rent,
+      mgmtPctRent: +p.management_pct_rent, otherMonthly: +p.other_monthly,
+    });
+    // scroll to top of form if needed
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm(DEFAULTS);
+  };
 
   const toggleSelect = (id) =>
     setSelected((prev) => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
 
   const compareItems = list.filter(p => selected.includes(p.id));
 
+  // helper classes for readable inputs
+  const inputCls = "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/20";
+  const inputNarrow = "w-40 rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/20";
+
   return (
     <main className="mx-auto max-w-6xl p-6 space-y-8">
-      <header>
-        <h1 className="text-3xl font-semibold">Property ROI</h1>
-        <p className="text-sm text-gray-500">Save properties and compare ROI side-by-side.</p>
+      <header className="flex items-end justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold">Property ROI</h1>
+          <p className="text-sm text-gray-500">Save properties and compare ROI side-by-side.</p>
+        </div>
+        {editingId && (
+          <div className="text-xs text-gray-500">Editing ID: <span className="font-mono">{editingId}</span></div>
+        )}
       </header>
+
+      {errMsg && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errMsg}</div>}
 
       {/* Form */}
       <form onSubmit={onSubmit} className="grid md:grid-cols-2 gap-6">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="block text-sm">Address
-            <input className="mt-1 w-full rounded border px-2 py-1" value={form.address} onChange={set('address')} required />
+            <input className={inputCls} value={form.address} onChange={set('address')} required />
           </label>
           <div className="grid grid-cols-3 gap-2">
-            <input placeholder="City" className="rounded border px-2 py-1" value={form.city} onChange={set('city')} />
-            <input placeholder="State" className="rounded border px-2 py-1" value={form.state} onChange={set('state')} />
-            <input placeholder="ZIP" className="rounded border px-2 py-1" value={form.zip} onChange={set('zip')} />
+            <input placeholder="City" className={inputCls} value={form.city} onChange={set('city')} />
+            <input placeholder="State" className={inputCls} value={form.state} onChange={set('state')} />
+            <input placeholder="ZIP" className={inputCls} value={form.zip} onChange={set('zip')} />
           </div>
+
           {[
             ['purchasePrice','Purchase Price ($)'],
             ['downPct','Down (%)'],
@@ -73,11 +129,20 @@ export default function Home() {
           ].map(([k,label])=>(
             <label key={k} className="flex items-center justify-between gap-4">
               <span className="text-sm">{label}</span>
-              <input type="number" step="any" className="w-40 rounded border px-2 py-1"
-                     value={form[k]} onChange={set(k)} />
+              <input type="number" step="any" className={inputNarrow} value={form[k]} onChange={set(k)} />
             </label>
           ))}
-          <button className="mt-2 rounded bg-black text-white px-3 py-2">Save</button>
+
+          <div className="flex gap-2">
+            <button className="rounded bg-black text-white px-3 py-2">
+              {editingId ? 'Update Property' : 'Save Property'}
+            </button>
+            {editingId && (
+              <button type="button" className="rounded border px-3 py-2" onClick={cancelEdit}>
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Live preview of ROI for current inputs */}
@@ -89,18 +154,22 @@ export default function Home() {
         <h2 className="text-lg font-medium mb-2">Saved Properties</h2>
         <ul className="grid md:grid-cols-2 gap-3">
           {list.map(p => (
-            <li key={p.id} className="rounded border p-3">
-              <div className="flex items-center justify-between">
+            <li key={p.id} className="rounded border p-3 bg-white">
+              <div className="flex items-start justify-between">
                 <div>
                   <div className="font-medium">{p.address}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-[11px] text-gray-400">ID: <span className="font-mono">{p.id}</span></div>
+                  <div className="text-xs text-gray-500 mt-1">
                     ${Number(p.purchase_price).toLocaleString()} · Rent ${Number(p.monthly_rent).toLocaleString()}
                   </div>
                 </div>
-                <label className="text-sm">
-                  <input type="checkbox" className="mr-1" checked={selected.includes(p.id)} onChange={()=>toggleSelect(p.id)} />
-                  Compare
-                </label>
+                <div className="flex gap-2">
+                  <button className="text-xs rounded border px-2 py-1" onClick={()=>startEdit(p)}>Edit</button>
+                  <label className="text-xs rounded border px-2 py-1 flex items-center gap-1">
+                    <input type="checkbox" checked={selected.includes(p.id)} onChange={()=>toggleSelect(p.id)} />
+                    Compare
+                  </label>
+                </div>
               </div>
             </li>
           ))}
