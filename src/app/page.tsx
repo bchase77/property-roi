@@ -6,6 +6,7 @@ export default function Home() {
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
 
       <h1 className="text-3xl font-bold">Tailwind v4 is working</h1>
+      <h2 className="text-3xl font-bold">And git deploy worked too</h2>
 
         <Image
           className="dark:invert"
