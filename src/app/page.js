@@ -304,6 +304,7 @@ export default function Home() {
 
       {/* Comparison table */}
       {compareItems.length > 0 && <CompareGrid items={compareItems} />}
+      <CsvUploader />
     </main>
   );
 }
@@ -427,6 +428,133 @@ function YearlySummary({ form }) {
     </div>
   );
 }
+
+// (near top of page.js) add:
+// import { useState } from 'react';  // you already have this
+
+function CsvUploader() {
+  const [text, setText] = useState("");
+  const [msg, setMsg] = useState("");
+
+    function parseCsv(text) {
+      const raw = text.trim().replace(/\r\n?/g, "\n");
+      if (!raw) return [];
+
+      // Detect delimiter: tab if any tabs in header, else comma, else semicolon
+      const firstLine = raw.split("\n", 1)[0];
+      const delim = firstLine.includes("\t") ? "\t" : (firstLine.includes(";") ? ";" : ",");
+
+      const lines = raw.split("\n").filter(Boolean);
+      const headers = lines[0].split(delim).map(s => s.trim());
+
+      // Accept propertyId OR address headers
+      const has = (k) => headers.includes(k);
+      const idx = (k) => headers.indexOf(k);
+
+      const requiredAny = (has("propertyId") || has("address")) && has("year") && has("grossIncome") && has("totalExpenses");
+      if (!requiredAny) {
+        throw new Error('Header must include year,grossIncome,totalExpenses and either propertyId or address');
+      }
+
+      return lines.slice(1).map(line => {
+        const cells = line.split(delim).map(s => s.trim());
+
+        // Helper to safely get a number (empty -> 0)
+        const num = (i) => {
+          if (i < 0) return 0;
+          const v = cells[i] ?? "";
+          // remove any accidental thousands separators (just in case)
+          const cleaned = v.replace(/,/g, "");
+          return cleaned === "" ? 0 : Number(cleaned);
+        };
+
+        const row = {
+          propertyId: has("propertyId") ? Number(cells[idx("propertyId")] || 0) : undefined,
+          address: has("address") ? (cells[idx("address")] || "").trim() : undefined,
+          year: num(idx("year")),
+          grossIncome: num(idx("grossIncome")),
+          totalExpenses: num(idx("totalExpenses")),
+          depreciation: has("depreciation") ? num(idx("depreciation")) : 0,
+        };
+
+        return row;
+      }).filter(r => (r.propertyId || r.address) && r.year);
+    }
+
+  async function upload(rows) {
+    setMsg("Uploading...");
+    const res = await fetch("/api/actuals/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rows }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok) throw new Error(data?.error || res.statusText);
+    setMsg(`Uploaded ${data.count} rows`);
+  }
+
+  async function onUploadClick() {
+    try {
+      const rows = parseCsv(text);
+      if (!rows.length) { setMsg("No rows found."); return; }
+      await upload(rows);
+      setText("");
+    } catch (e) {
+      setMsg(`Error: ${e.message}`);
+    }
+  }
+
+  async function onFileChange(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const t = await f.text();
+    setText(t);
+  }
+
+  return (
+    <div className="rounded-2xl border p-4 bg-white shadow-sm space-y-3">
+      <h3 className="text-lg font-medium">Upload Actuals (CSV)</h3>
+      <p className="text-xs text-gray-600">
+        Columns: <code>propertyId,year,grossIncome,totalExpenses,depreciation</code>
+      </p>
+      <div className="flex items-center gap-3">
+        <input type="file" accept=".csv,text/csv" onChange={onFileChange}
+               className="text-sm" />
+        <button onClick={onUploadClick} className="rounded bg-black text-white px-3 py-2">
+          Upload CSV
+        </button>
+        {msg && <div className="text-sm text-gray-700">{msg}</div>}
+      </div>
+      <textarea
+        className="w-full h-40 rounded-md border border-gray-300 px-3 py-2 text-gray-900"
+        placeholder={
+`propertyId,year,grossIncome,totalExpenses,depreciation
+1,2016,26400,9200,10000
+1,2017,26800,9450,10000`
+        }
+        value={text}
+        onChange={(e)=>setText(e.target.value)}
+      />
+      <p className="text-xs text-gray-500">
+        Tip: If your numbers include commas (e.g., 26,400), remove commas or use a CSV that doesn’t include
+        thousands separators. This simple parser doesn’t handle quoted fields.
+      </p>
+    </div>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function YearlyRecords({ years = [], onSave, onDelete }) {
   const [editing, setEditing] = useState(null);
