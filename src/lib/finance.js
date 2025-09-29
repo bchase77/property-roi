@@ -8,9 +8,11 @@ export function mortgageMonthly(principal, aprPct, years) {
 export function analyze({
   purchasePrice, downPct, rateApr, years,
   monthlyRent, taxPct, hoaMonthly, insuranceMonthly,
-  maintPctRent, vacancyPctRent, mgmtPctRent, otherMonthly
+  maintPctRent, vacancyPctRent, mgmtPctRent, otherMonthly,
+  initialInvestment
 }) {
   const down = purchasePrice * (downPct / 100);
+  const invested = (initialInvestment ?? 0) > 0 ? initialInvestment : down;
   const loan = purchasePrice - down;
   const pAndI = mortgageMonthly(loan, rateApr, years);
 
@@ -26,7 +28,8 @@ export function analyze({
   const noiAnnual = noiMonthly * 12;
 
   const cashflowMonthly = monthlyRent - (pAndI + operatingExpenses);
-  const cashOnCash = ((cashflowMonthly * 12) / down) * 100;
+  const cashOnCash = invested > 0 ? ((cashflowMonthly * 12) / invested) * 100 : null;
+
   const capRate = (noiAnnual / purchasePrice) * 100;
   const dscr = pAndI ? (noiMonthly / pAndI) : Infinity;
   const grossYield = (monthlyRent * 12 / purchasePrice) * 100;
@@ -45,7 +48,7 @@ export function analyze({
     cashflowMonthly: round2(cashflowMonthly),
     metrics: {
       capRate: pct2(capRate),
-      cashOnCash: pct2(cashOnCash),
+      cashOnCash: cashOnCash == null ? 0 : Math.round(cashOnCash * 100) / 100,
       dscr: round2(dscr),
       grossYield: pct2(grossYield),
     },

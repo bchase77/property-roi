@@ -7,6 +7,8 @@ const DEFAULTS = {
   purchasePrice: 500000, downPct: 20, rateApr: 6.5, years: 30,
   monthlyRent: 2800, taxPct: 1.2, hoaMonthly: 0, insuranceMonthly: 120,
   maintPctRent: 5, vacancyPctRent: 5, mgmtPctRent: 8, otherMonthly: 0,
+  purchased: false, yearPurchased: '',
+  initialInvestment: 0
 };
 
 export default function Home() {
@@ -14,22 +16,39 @@ export default function Home() {
   const [list, setList] = useState([]);
   const [selected, setSelected] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [propertyYears, setPropertyYears] = useState([]);
   const [errMsg, setErrMsg] = useState('');
 
   const set = (k) => (e) => {
-    const v = e.target.value;
+    const t = e.target;
+    let v = t.type === 'checkbox' ? t.checked : t.value;
     // keep strings as-is for address/city/state/zip; numeric for numeric fields
     const numericKeys = new Set([
       'purchasePrice','downPct','rateApr','years','monthlyRent','taxPct',
-      'hoaMonthly','insuranceMonthly','maintPctRent','vacancyPctRent','mgmtPctRent','otherMonthly'
+      'hoaMonthly','insuranceMonthly','maintPctRent','vacancyPctRent','mgmtPctRent','otherMonthly','yearPurchased', 'initialInvestment'
     ]);
     setForm({ ...form, [k]: numericKeys.has(k) ? (v === '' ? '' : +v) : v });
   };
 
+  // Safely read error body from a Response. Some deployments may produce unreadable bodies
+  // so we catch and return a helpful string instead of throwing while trying to read it.
+  async function readErrorBody(res) {
+    try {
+      const text = await res.text();
+      if (text) return `${res.status} ${res.statusText}: ${text}`;
+      return `${res.status} ${res.statusText}`;
+    } catch (err) {
+      return `${res.status} ${res.statusText} (unable to read response body)`;
+    }
+  }
+
   async function load() {
     try {
       const res = await fetch('/api/properties', { cache: 'no-store' });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const body = await readErrorBody(res);
+        throw new Error(body);
+      }
       setList(await res.json());
     } catch (e) {
       console.error(e);
@@ -49,7 +68,10 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const body = await readErrorBody(res);
+        throw new Error(body);
+      }
       setForm(DEFAULTS);
       setEditingId(null);
       await load();
@@ -68,15 +90,72 @@ export default function Home() {
       hoaMonthly: +p.hoa_monthly, insuranceMonthly: +p.insurance_monthly,
       maintPctRent: +p.maintenance_pct_rent, vacancyPctRent: +p.vacancy_pct_rent,
       mgmtPctRent: +p.management_pct_rent, otherMonthly: +p.other_monthly,
+      purchased: !!p.purchased, yearPurchased: p.year_purchased ?? '',
+      initialInvestment: +p.initial_investment
     });
     // scroll to top of form if needed
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadYears(p.id);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setForm(DEFAULTS);
+    setPropertyYears([]);
   };
+
+  async function loadYears(id) {
+    try {
+      const res = await fetch(`/api/properties/${id}/years`, { cache: 'no-store' });
+      if (!res.ok) {
+        const body = await readErrorBody(res);
+        throw new Error(body);
+      }
+      setPropertyYears(await res.json());
+    } catch (e) {
+      console.error(e);
+      setErrMsg('Failed to load yearly records.');
+    }
+  }
+
+  async function saveYear(entry) {
+    if (!editingId) return;
+    try {
+      const res = await fetch(`/api/properties/${editingId}/years`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry)
+      });
+      if (!res.ok) {
+        const body = await readErrorBody(res);
+        throw new Error(body);
+      }
+      await loadYears(editingId);
+    } catch (e) {
+      console.error(e);
+      setErrMsg('Failed to save year.');
+    }
+  }
+
+  async function removeYear(year) {
+    if (!editingId) return;
+    try {
+      const res = await fetch(`/api/properties/${editingId}/years/${year}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await readErrorBody(res);
+        throw new Error(body);
+      }
+      await loadYears(editingId);
+    } catch (e) {
+      console.error(e);
+      setErrMsg('Failed to delete year.');
+    }
+  }
+
+  // compute ROI aggregates when editing
+  const totalInvested = (form.purchasePrice && form.downPct) ? (form.purchasePrice * (form.downPct/100)) : 0;
+  const sumPreTax = propertyYears.reduce((s, y) => s + (Number(y.income || 0) - Number(y.expenses || 0)), 0);
+  const sumAfterTax = propertyYears.reduce((s, y) => s + (Number(y.income || 0) - Number(y.expenses || 0) - Number(y.taxes || 0)), 0);
+  const preTaxROI = totalInvested ? (sumPreTax / totalInvested) : 0;
+  const afterTaxROI = totalInvested ? (sumAfterTax / totalInvested) : 0;
 
   const toggleSelect = (id) =>
     setSelected((prev) => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
@@ -113,6 +192,18 @@ export default function Home() {
             <input placeholder="ZIP" className={inputCls} value={form.zip} onChange={set('zip')} />
           </div>
 
+
+          <label className="flex items-center justify-between gap-4">
+            <span className="text-sm">Initial Investment ($)</span>
+            <input
+              type="number" step="any"
+              className={inputNarrow}
+              value={form.initialInvestment}
+              onChange={set('initialInvestment')}
+            />
+          </label>
+
+
           {[
             ['purchasePrice','Purchase Price ($)'],
             ['downPct','Down (%)'],
@@ -132,6 +223,12 @@ export default function Home() {
               <input type="number" step="any" className={inputNarrow} value={form[k]} onChange={set(k)} />
             </label>
           ))}
+
+          <label className="flex items-center gap-3">
+            <input type="checkbox" checked={!!form.purchased} onChange={set('purchased')} />
+            <span className="text-sm">Purchased</span>
+            <input type="number" placeholder="Year Purchased" className="w-32 rounded-md border px-2 py-1" value={form.yearPurchased} onChange={set('yearPurchased')} />
+          </label>
 
           <div className="flex gap-2">
             <button className="rounded bg-black text-white px-3 py-2">
@@ -154,7 +251,7 @@ export default function Home() {
         <h2 className="text-lg font-medium mb-2">Saved Properties</h2>
         <ul className="grid md:grid-cols-2 gap-3">
           {list.map(p => (
-            <li key={p.id} className="rounded border p-3 bg-white">
+            <li key={p.id} className="rounded border p-3 bg-black">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-medium">{p.address}</div>
@@ -165,6 +262,20 @@ export default function Home() {
                 </div>
                 <div className="flex gap-2">
                   <button className="text-xs rounded border px-2 py-1" onClick={()=>startEdit(p)}>Edit</button>
+                  <button className="text-xs rounded border px-2 py-1" onClick={async ()=>{
+                    // confirm and delete
+                    if(!confirm(`Delete property ${p.address || p.id}? This cannot be undone.`)) return;
+                    try {
+                      const res = await fetch(`/api/properties/${p.id}`, { method: 'DELETE' });
+                      if(!res.ok) throw new Error(await res.text());
+                      // remove from selected if present
+                      setSelected(prev => prev.filter(x=>x!==p.id));
+                      await load();
+                    } catch (e) {
+                      console.error(e);
+                      setErrMsg('Delete failed.');
+                    }
+                  }}>Delete</button>
                   <label className="text-xs rounded border px-2 py-1 flex items-center gap-1">
                     <input type="checkbox" checked={selected.includes(p.id)} onChange={()=>toggleSelect(p.id)} />
                     Compare
@@ -175,6 +286,21 @@ export default function Home() {
           ))}
         </ul>
       </section>
+
+      {/* Yearly records editor shown when editing a saved property */}
+      {editingId && (
+        <section className="mt-6">
+          <h2 className="text-lg font-medium mb-2">Yearly Records (historical income/expenses)</h2>
+          <YearlyRecords years={propertyYears} onSave={saveYear} onDelete={removeYear} />
+          <div className="mt-4 rounded-lg border p-3 bg-white">
+            <div className="text-sm">Total Invested (down payment): ${Number(totalInvested).toLocaleString()}</div>
+            <div className="text-sm">Sum Pre-Tax Net: ${Number(sumPreTax).toLocaleString()}</div>
+            <div className="text-sm">Sum After-Tax Net: ${Number(sumAfterTax).toLocaleString()}</div>
+            <div className="text-sm">Pre-Tax ROI: {(preTaxROI*100).toFixed(2)}%</div>
+            <div className="text-sm">After-Tax ROI: {(afterTaxROI*100).toFixed(2)}%</div>
+          </div>
+        </section>
+      )}
 
       {/* Comparison table */}
       {compareItems.length > 0 && <CompareGrid items={compareItems} />}
@@ -196,12 +322,13 @@ function Preview({ form }) {
     vacancyPctRent: +form.vacancyPctRent || 0,
     mgmtPctRent: +form.mgmtPctRent || 0,
     otherMonthly: +form.otherMonthly || 0,
+    initialInvestment: +form.initialInvestment || 0
   });
   const Money = (v) => `$${Number(v).toLocaleString()}`;
   const Pct = (v) => `${Number(v).toFixed(2)}%`;
 
   return (
-    <div className="rounded-2xl border p-4 shadow-sm bg-white">
+    <div className="rounded-2xl border p-4 shadow-sm bg-black">
       <h2 className="text-lg font-medium mb-2">Current Assumptions</h2>
       <ul className="space-y-1 text-sm">
         <li>Down Payment: {Money(r.down)}</li>
@@ -211,6 +338,7 @@ function Preview({ form }) {
         <li>NOI: {Money(r.noiMonthly)} /mo</li>
         <li>Cashflow: {Money(r.cashflowMonthly)} /mo</li>
       </ul>
+      {form.purchased && <YearlySummary form={form} />}
       <div className="mt-4 grid grid-cols-2 gap-3 text-center">
         <Metric label="Cap Rate" value={Pct(r.metrics.capRate)} />
         <Metric label="Cash-on-Cash" value={Pct(r.metrics.cashOnCash)} />
@@ -242,6 +370,7 @@ function CompareGrid({ items }) {
         hoaMonthly: +p.hoa_monthly, insuranceMonthly: +p.insurance_monthly,
         maintPctRent: +p.maintenance_pct_rent, vacancyPctRent: +p.vacancy_pct_rent,
         mgmtPctRent: +p.management_pct_rent, otherMonthly: +p.other_monthly,
+        initialInvestment: +p.initial_investment || 0
       });
     })()
   }));
@@ -282,6 +411,71 @@ function CompareGrid({ items }) {
         </table>
       </div>
     </section>
+  );
+}
+
+function YearlySummary({ form }) {
+  // This component shows a simple ROI estimate based on entered yearly records when editing a saved property.
+  // For the preview (unsaved), we can't fetch yearly records — this is a placeholder.
+  return (
+    <div className="rounded-lg border p-3 mt-3 bg-white text-black">
+      <div className="text-sm">Purchased: {form.purchased ? 'Yes' : 'No'}</div>
+      {form.purchased && form.yearPurchased && (
+        <div className="text-xs text-gray-600">Year Purchased: {form.yearPurchased}</div>
+      )}
+      <div className="text-sm mt-2">To see historical ROI, edit a saved property and add yearly income/expenses/taxes in the editor.</div>
+    </div>
+  );
+}
+
+function YearlyRecords({ years = [], onSave, onDelete }) {
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ year: '', income: '', expenses: '', taxes: '', notes: '' });
+
+  useEffect(()=>{
+    if (!editing) setForm({ year: '', income: '', expenses: '', taxes: '', notes: '' });
+  }, [editing, years]);
+
+  const startEdit = (y) => {
+    setEditing(y.year);
+    setForm({ year: y.year, income: y.income, expenses: y.expenses, taxes: y.taxes, notes: y.notes });
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!onSave) return;
+    await onSave({ year: form.year, income: Number(form.income||0), expenses: Number(form.expenses||0), taxes: Number(form.taxes||0), notes: form.notes });
+    setEditing(null);
+  };
+
+  return (
+    <div>
+      <form onSubmit={submit} className="grid grid-cols-6 gap-2 mb-3">
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Year" value={form.year} onChange={(e)=>setForm({...form, year: e.target.value})} required />
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Income" value={form.income} onChange={(e)=>setForm({...form, income: e.target.value})} />
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Expenses" value={form.expenses} onChange={(e)=>setForm({...form, expenses: e.target.value})} />
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Taxes" value={form.taxes} onChange={(e)=>setForm({...form, taxes: e.target.value})} />
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Notes" value={form.notes} onChange={(e)=>setForm({...form, notes: e.target.value})} />
+        <div className="col-span-1">
+          <button className="rounded bg-black text-white px-3 py-1 text-sm">Save</button>
+        </div>
+      </form>
+
+      <ul className="space-y-2">
+        {years.map(y=> (
+          <li key={y.year} className="flex items-center justify-between rounded border p-2 bg-white">
+            <div>
+              <div className="font-medium">{y.year}</div>
+              <div className="text-xs text-gray-500">Income: ${Number(y.income).toLocaleString()} · Expenses: ${Number(y.expenses).toLocaleString()} · Taxes: ${Number(y.taxes).toLocaleString()}</div>
+            </div>
+            <div className="flex gap-2">
+              <button className="text-sm rounded border px-2 py-1" onClick={()=>startEdit(y)}>Edit</button>
+              <button className="text-sm rounded border px-2 py-1 bg-red-50 text-red-700" onClick={()=>onDelete(y.year)}>Delete</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
