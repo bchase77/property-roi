@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { analyze } from '@/lib/finance';
+import { createRoot } from 'react-dom/client';
 
 const DEFAULTS = {
   address: '', city: '', state: '', zip: '',
@@ -39,12 +40,25 @@ export default function Home() {
 
     comparisonWindow.document.close();
 
+
+    const root = createRoot(comparisonWindow.document.getElementById('comparison-root'));
+    root.render(<ComparisonWindow items={compareItems} />);
+
     // Assuming you are using ReactDOM to render components
-    ReactDOM.render(<ComparisonWindow items={compareItems} />, comparisonWindow.document.getElementById('comparison-root'));
+    //ReactDOM.render(<ComparisonWindow items={compareItems} />, comparisonWindow.document.getElementById('comparison-root'));
   }
 
   <button onClick={() => openComparisonWindow(compareItems)}>Open Comparison Grid</button>
 
+  function ComparisonWindow({ items }) {
+    return (
+      <div>
+        <h1>Comparison Grid</h1>
+        {/* Render your CompareGrid here */}
+        <CompareGrid items={items} />
+      </div>
+    );
+  }
   // Safely read error body from a Response. Some deployments may produce unreadable bodies
   // so we catch and return a helpful string instead of throwing while trying to read it.
   async function readErrorBody(res) {
@@ -70,7 +84,7 @@ export default function Home() {
       setErrMsg('Failed to load properties.');
     }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   async function onSubmit(e) {
     e.preventDefault();
