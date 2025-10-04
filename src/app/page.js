@@ -30,6 +30,21 @@ export default function Home() {
     setForm({ ...form, [k]: numericKeys.has(k) ? (v === '' ? '' : +v) : v });
   };
 
+  function openComparisonWindow(compareItems) {
+    const comparisonWindow = window.open("", "ComparisonWindow", "width=800,height=600");
+    comparisonWindow.document.write("<!DOCTYPE html>");
+    comparisonWindow.document.write("<html><head><title>Comparison Grid</title></head><body>");
+    comparisonWindow.document.write("<div id='comparison-root'></div>");
+    comparisonWindow.document.write("</body></html>");
+
+    comparisonWindow.document.close();
+
+    // Assuming you are using ReactDOM to render components
+    ReactDOM.render(<ComparisonWindow items={compareItems} />, comparisonWindow.document.getElementById('comparison-root'));
+  }
+
+  <button onClick={() => openComparisonWindow(compareItems)}>Open Comparison Grid</button>
+
   // Safely read error body from a Response. Some deployments may produce unreadable bodies
   // so we catch and return a helpful string instead of throwing while trying to read it.
   async function readErrorBody(res) {
@@ -153,7 +168,7 @@ export default function Home() {
   // compute ROI aggregates when editing
   const totalInvested = (form.purchasePrice && form.downPct) ? (form.purchasePrice * (form.downPct/100)) : 0;
   const sumPreTax = propertyYears.reduce((s, y) => s + (Number(y.income || 0) - Number(y.expenses || 0)), 0);
-  const sumAfterTax = propertyYears.reduce((s, y) => s + (Number(y.income || 0) - Number(y.expenses || 0) - Number(y.taxes || 0)), 0);
+  const sumAfterTax = propertyYears.reduce((s, y) => s + (Number(y.income || 0) - Number(y.expenses || 0) - Number(y.depreciation || 0)), 0);
   const preTaxROI = totalInvested ? (sumPreTax / totalInvested) : 0;
   const afterTaxROI = totalInvested ? (sumAfterTax / totalInvested) : 0;
 
@@ -192,7 +207,6 @@ export default function Home() {
             <input placeholder="ZIP" className={inputCls} value={form.zip} onChange={set('zip')} />
           </div>
 
-
           <label className="flex items-center justify-between gap-4">
             <span className="text-sm">Initial Investment ($)</span>
             <input
@@ -202,7 +216,6 @@ export default function Home() {
               onChange={set('initialInvestment')}
             />
           </label>
-
 
           {[
             ['purchasePrice','Purchase Price ($)'],
@@ -247,55 +260,57 @@ export default function Home() {
       </form>
 
       {/* List & select */}
-      <section>
-        <h2 className="text-lg font-medium mb-2">Saved Properties</h2>
-        <ul className="grid md:grid-cols-2 gap-3">
-          {list.map(p => (
-            <li key={p.id} className="rounded border p-3 bg-black">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="font-medium">{p.address}</div>
-                  <div className="text-[11px] text-gray-400">ID: <span className="font-mono">{p.id}</span></div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    ${Number(p.purchase_price).toLocaleString()} · Rent ${Number(p.monthly_rent).toLocaleString()}
+      {list.length > 0 && (
+        <section>
+          <h2 className="text-lg font-medium mb-2">Saved Properties</h2>
+          <ul className="grid md:grid-cols-2 gap-3">
+            {list.map(p => (
+              <li key={p.id} className="rounded border p-3 bg-black">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-medium">{p.address}</div>
+                    <div className="text-[11px] text-black-400">ID: <span className="font-mono">{p.id}</span></div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      ${Number(p.purchase_price).toLocaleString('en-US')} · Rent ${Number(p.monthly_rent).toLocaleString('en-US')}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="text-xs rounded border px-2 py-1" onClick={()=>startEdit(p)}>Edit</button>
+                    <button className="text-xs rounded border px-2 py-1" onClick={async ()=>{
+                      // confirm and delete
+                      if(!confirm(`Delete property ${p.address || p.id}? This cannot be undone.`)) return;
+                      try {
+                        const res = await fetch(`/api/properties/${p.id}`, { method: 'DELETE' });
+                        if(!res.ok) throw new Error(await res.text());
+                        // remove from selected if present
+                        setSelected(prev => prev.filter(x=>x!==p.id));
+                        await load();
+                      } catch (e) {
+                        console.error(e);
+                        setErrMsg('Delete failed.');
+                      }
+                    }}>Delete</button>
+                    <label className="text-xs rounded border px-2 py-1 flex items-center gap-1">
+                      <input type="checkbox" checked={selected.includes(p.id)} onChange={()=>toggleSelect(p.id)} />
+                      <span className="text-white-800 font-medium">Compare</span>
+                    </label>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button className="text-xs rounded border px-2 py-1" onClick={()=>startEdit(p)}>Edit</button>
-                  <button className="text-xs rounded border px-2 py-1" onClick={async ()=>{
-                    // confirm and delete
-                    if(!confirm(`Delete property ${p.address || p.id}? This cannot be undone.`)) return;
-                    try {
-                      const res = await fetch(`/api/properties/${p.id}`, { method: 'DELETE' });
-                      if(!res.ok) throw new Error(await res.text());
-                      // remove from selected if present
-                      setSelected(prev => prev.filter(x=>x!==p.id));
-                      await load();
-                    } catch (e) {
-                      console.error(e);
-                      setErrMsg('Delete failed.');
-                    }
-                  }}>Delete</button>
-                  <label className="text-xs rounded border px-2 py-1 flex items-center gap-1">
-                    <input type="checkbox" checked={selected.includes(p.id)} onChange={()=>toggleSelect(p.id)} />
-                    Compare
-                  </label>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Yearly records editor shown when editing a saved property */}
       {editingId && (
         <section className="mt-6">
           <h2 className="text-lg font-medium mb-2">Yearly Records (historical income/expenses)</h2>
           <YearlyRecords years={propertyYears} onSave={saveYear} onDelete={removeYear} />
-          <div className="mt-4 rounded-lg border p-3 bg-white">
-            <div className="text-sm">Total Invested (down payment): ${Number(totalInvested).toLocaleString()}</div>
-            <div className="text-sm">Sum Pre-Tax Net: ${Number(sumPreTax).toLocaleString()}</div>
-            <div className="text-sm">Sum After-Tax Net: ${Number(sumAfterTax).toLocaleString()}</div>
+          <div className="mt-4 rounded-lg border p-3 bg-red">
+            <div className="text-sm text-black-400">Total Invested (down payment): ${Number(totalInvested).toLocaleString('en-US')}</div>
+            <div className="text-sm">Sum Pre-Tax Net: ${Number(sumPreTax).toLocaleString('en-US')}</div>
+            <div className="text-sm">Sum After-Tax Net: ${Number(sumAfterTax).toLocaleString('en-US')}</div>
             <div className="text-sm">Pre-Tax ROI: {(preTaxROI*100).toFixed(2)}%</div>
             <div className="text-sm">After-Tax ROI: {(afterTaxROI*100).toFixed(2)}%</div>
           </div>
@@ -304,7 +319,6 @@ export default function Home() {
 
       {/* Comparison table */}
       {compareItems.length > 0 && <CompareGrid items={compareItems} />}
-      <CsvUploader />
     </main>
   );
 }
@@ -325,7 +339,7 @@ function Preview({ form }) {
     otherMonthly: +form.otherMonthly || 0,
     initialInvestment: +form.initialInvestment || 0
   });
-  const Money = (v) => `$${Number(v).toLocaleString()}`;
+  const Money = (v) => `$${Number(v).toLocaleString('en-US')}`;
   const Pct = (v) => `${Number(v).toFixed(2)}%`;
 
   return (
@@ -349,6 +363,7 @@ function Preview({ form }) {
     </div>
   );
 }
+
 function Metric({ label, value }) {
   return (
     <div className="rounded-lg border p-3">
@@ -376,14 +391,14 @@ function CompareGrid({ items }) {
     })()
   }));
 
-  const Money = (v) => `$${Number(v).toLocaleString()}`;
+  const Money = (v) => `$${Number(v).toLocaleString('en-US')}`;
   const Pct = (v) => `${Number(v).toFixed(2)}%`;
 
   return (
     <section className="rounded-2xl border p-4 bg-white shadow-sm">
-      <h2 className="text-lg font-medium mb-3">Comparison</h2>
+      <h2 className="text-lg font-medium mb-3 text-black">Comparison</h2>
       <div className="overflow-x-auto">
-        <table className="min-w-[700px] w-full text-sm">
+        <table className="min-w-[700px] w-full text-sm text-black">
           <thead className="text-left">
             <tr>
               <th className="p-2">Property</th>
@@ -428,9 +443,6 @@ function YearlySummary({ form }) {
     </div>
   );
 }
-
-// (near top of page.js) add:
-// import { useState } from 'react';  // you already have this
 
 function CsvUploader() {
   const [text, setText] = useState("");
@@ -512,9 +524,9 @@ function CsvUploader() {
   }
 
   return (
-    <div className="rounded-2xl border p-4 bg-white shadow-sm space-y-3">
+    <div className="rounded-2xl border p-4 bg-white shadow-sm text-black">
       <h3 className="text-lg font-medium">Upload Actuals (CSV)</h3>
-      <p className="text-xs text-gray-600">
+      <p className="text-sm text-black-700">
         Columns: <code>propertyId,year,grossIncome,totalExpenses,depreciation</code>
       </p>
       <div className="flex items-center gap-3">
@@ -523,7 +535,7 @@ function CsvUploader() {
         <button onClick={onUploadClick} className="rounded bg-black text-white px-3 py-2">
           Upload CSV
         </button>
-        {msg && <div className="text-sm text-gray-700">{msg}</div>}
+        {msg && <div className="text-sm text-gray-800">{msg}</div>}
       </div>
       <textarea
         className="w-full h-40 rounded-md border border-gray-300 px-3 py-2 text-gray-900"
@@ -535,70 +547,67 @@ function CsvUploader() {
         value={text}
         onChange={(e)=>setText(e.target.value)}
       />
-      <p className="text-xs text-gray-500">
-        Tip: If your numbers include commas (e.g., 26,400), remove commas or use a CSV that doesn’t include
-        thousands separators. This simple parser doesn’t handle quoted fields.
+      <p className="text-sm text-gray-600">
+        Tip: If your numbers include commas (e.g., 26,400), remove commas or use a CSV that doesn't include
+        thousands separators. This simple parser doesn't handle quoted fields.
       </p>
     </div>
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 function YearlyRecords({ years = [], onSave, onDelete }) {
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ year: '', income: '', expenses: '', taxes: '', notes: '' });
+  const [form, setForm] = useState({ year: '', income: 0, expenses: 0, depreciation: 0, notes: '' });
 
-  useEffect(()=>{
-    if (!editing) setForm({ year: '', income: '', expenses: '', taxes: '', notes: '' });
+  useEffect(() => {
+    if (!editing) {
+      setForm({ year: '', income: 0, expenses: 0, depreciation: 0, notes: '' });
+    } else {
+      setForm({
+        year: editing.year || '',
+        income: editing.income || 0,
+        expenses: editing.expenses || 0,
+        depreciation: editing.depreciation || 0,
+        notes: editing.notes || ''
+      });
+    }
   }, [editing, years]);
 
   const startEdit = (y) => {
     setEditing(y.year);
-    setForm({ year: y.year, income: y.income, expenses: y.expenses, taxes: y.taxes, notes: y.notes });
+    setForm({ year: y.year, income: y.income, expenses: y.expenses, depreciation: y.depreciation, notes: y.notes });
   };
 
   const submit = async (e) => {
     e.preventDefault();
     if (!onSave) return;
-    await onSave({ year: form.year, income: Number(form.income||0), expenses: Number(form.expenses||0), taxes: Number(form.taxes||0), notes: form.notes });
+    await onSave({ year: form.year, income: Number(form.income || 0), expenses: Number(form.expenses || 0), depreciation: Number(form.depreciation || 0), notes: form.notes });
     setEditing(null);
   };
 
   return (
     <div>
       <form onSubmit={submit} className="grid grid-cols-6 gap-2 mb-3">
-        <input className="col-span-1 rounded border px-2 py-1" placeholder="Year" value={form.year} onChange={(e)=>setForm({...form, year: e.target.value})} required />
-        <input className="col-span-1 rounded border px-2 py-1" placeholder="Income" value={form.income} onChange={(e)=>setForm({...form, income: e.target.value})} />
-        <input className="col-span-1 rounded border px-2 py-1" placeholder="Expenses" value={form.expenses} onChange={(e)=>setForm({...form, expenses: e.target.value})} />
-        <input className="col-span-1 rounded border px-2 py-1" placeholder="Taxes" value={form.taxes} onChange={(e)=>setForm({...form, taxes: e.target.value})} />
-        <input className="col-span-1 rounded border px-2 py-1" placeholder="Notes" value={form.notes} onChange={(e)=>setForm({...form, notes: e.target.value})} />
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Year" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} required />
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Income" value={form.income} onChange={(e) => setForm({ ...form, income: e.target.value })} />
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Expenses" value={form.expenses} onChange={(e) => setForm({ ...form, expenses: e.target.value })} />
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Depreciation" value={form.depreciation} onChange={(e) => setForm({ ...form, depreciation: e.target.value })} />
+        <input className="col-span-1 rounded border px-2 py-1" placeholder="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
         <div className="col-span-1">
           <button className="rounded bg-black text-white px-3 py-1 text-sm">Save</button>
         </div>
       </form>
 
       <ul className="space-y-2">
-        {years.map(y=> (
+        {years.map(y => (
           <li key={y.year} className="flex items-center justify-between rounded border p-2 bg-white">
             <div>
-              <div className="font-medium">{y.year}</div>
-              <div className="text-xs text-gray-500">Income: ${Number(y.income).toLocaleString()} · Expenses: ${Number(y.expenses).toLocaleString()} · Taxes: ${Number(y.taxes).toLocaleString()}</div>
+              <div className="font-medium text-gray-800">{y.year}</div>
+              <div className="text-xs text-gray-800">Income: ${Number(y.income).toLocaleString('en-US')} · Expenses: ${Number(y.expenses).toLocaleString('en-US')} · Depreciation: ${Number(y.depreciation).toLocaleString('en-US')}</div>
             </div>
             <div className="flex gap-2">
-              <button className="text-sm rounded border px-2 py-1" onClick={()=>startEdit(y)}>Edit</button>
-              <button className="text-sm rounded border px-2 py-1 bg-red-50 text-red-700" onClick={()=>onDelete(y.year)}>Delete</button>
+              <button className="text-sm rounded border px-2 py-1 text-gray-800" onClick={() => startEdit(y)}>Edit</button>
+              <button className="text-sm rounded border px-2 py-1 bg-red-50 text-red-700" onClick={() => onDelete(y.year)}>Delete</button>
             </div>
           </li>
         ))}
@@ -606,4 +615,3 @@ function YearlyRecords({ years = [], onSave, onDelete }) {
     </div>
   );
 }
-

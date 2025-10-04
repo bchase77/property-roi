@@ -65,21 +65,6 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS purchased BOOLEAN DEFAULT false;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS year_purchased INT;`;
 
-  // create property_years table for storing per-year income/expenses/taxes
-  await sql/*sql*/`
-    CREATE TABLE IF NOT EXISTS property_years (
-      id SERIAL PRIMARY KEY,
-      property_id INT REFERENCES properties(id) ON DELETE CASCADE,
-      year INT NOT NULL,
-      income NUMERIC DEFAULT 0,
-      expenses NUMERIC DEFAULT 0,
-      taxes NUMERIC DEFAULT 0,
-      notes TEXT,
-      created_at TIMESTAMPTZ DEFAULT now(),
-      UNIQUE(property_id, year)
-    );
-  `;
-
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
       id SERIAL PRIMARY KEY,
@@ -139,30 +124,6 @@ export async function addProperty(p) {
   return rows[0];
 }
 
-// property_years table: store yearly income/expenses/taxes for purchased properties
-export async function addPropertyYear(propertyId, year, income = 0, expenses = 0, taxes = 0, notes = null) {
-  const { rows } = await sql/*sql*/`
-    INSERT INTO property_years (property_id, year, income, expenses, taxes, notes)
-    VALUES (${propertyId}, ${year}, ${income}, ${expenses}, ${taxes}, ${notes})
-    ON CONFLICT (property_id, year) DO UPDATE SET income = EXCLUDED.income, expenses = EXCLUDED.expenses, taxes = EXCLUDED.taxes, notes = EXCLUDED.notes
-    RETURNING *;
-  `;
-  return rows[0];
-}
-
-export async function listPropertyYears(propertyId) {
-  const { rows } = await sql/*sql*/`
-    SELECT * FROM property_years WHERE property_id = ${propertyId} ORDER BY year ASC;
-  `;
-  return rows;
-}
-
-export async function deletePropertyYear(propertyId, year) {
-  const { rows } = await sql/*sql*/`
-    DELETE FROM property_years WHERE property_id = ${propertyId} AND year = ${year} RETURNING *;
-  `;
-  return rows[0];
-}
 
 // soft-delete: mark a property deleted instead of removing it
 export async function softDeleteProperty(id, opts = {}) {
@@ -207,17 +168,34 @@ export async function listDeletedProperties(limit = 200) {
 
 export async function addActualsBulk(rows) {
   // rows: [{ propertyId, year, grossIncome, totalExpenses, depreciation }]
-  const values = rows.map(r => sql`(${r.propertyId}, ${r.year}, ${r.grossIncome}, ${r.totalExpenses}, ${r.depreciation ?? 0})`);
-  // upsert by (property_id, year)
-  for (const r of rows) {
-    await sql`
+  if (!rows || rows.length === 0) return;
+
+  // chunk the rows to avoid huge single statements and to isolate failures
+  const maxParams = 65535; // Postgres parameter limit
+  const paramsPerRow = 5; // Each row has 5 parameters (propertyId, year, grossIncome, totalExpenses, depreciation)
+  const maxRowsPerChunk = Math.floor(maxParams / paramsPerRow);
+  const chunkSize = Math.min(500, maxRowsPerChunk); // Adjust chunk size dynamically
+
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const placeholders = chunk.map((_, idx) => `($${idx * paramsPerRow + 1}, $${idx * paramsPerRow + 2}, $${idx * paramsPerRow + 3}, $${idx * paramsPerRow + 4}, $${idx * paramsPerRow + 5})`).join(', ');
+    const params = chunk.flatMap(r => [r.propertyId, r.year, r.grossIncome, r.totalExpenses, r.depreciation ?? 0]);
+    const query = `
       INSERT INTO property_actuals (property_id, year, gross_income, total_expenses, depreciation)
-      VALUES (${r.propertyId}, ${r.year}, ${r.grossIncome}, ${r.totalExpenses}, ${r.depreciation ?? 0})
+      VALUES ${placeholders}
       ON CONFLICT (property_id, year) DO UPDATE
       SET gross_income = EXCLUDED.gross_income,
           total_expenses = EXCLUDED.total_expenses,
           depreciation = EXCLUDED.depreciation;
     `;
+    try {
+      console.debug('Executing multi-row insert:', { query, params });
+      await sql.query(query, params);
+    } catch (err) {
+      console.error(`addActualsBulk: failed at chunk starting index ${i}`, { chunkLength: chunk.length, sample: chunk.slice(0, 3), error: err.message });
+      err._bulkContext = { chunkStartIndex: i, chunkLength: chunk.length, sample: chunk.slice(0, 3) };
+      throw err;
+    }
   }
 }
 
@@ -235,4 +213,32 @@ export async function getActualsForState(state) {
     ORDER BY p.id, pa.year;
   `;
   return rows;
+}
+
+export async function listPropertyActuals(propertyId) {
+  const { rows: actuals } = await sql/*sql*/`
+    SELECT year, gross_income AS income, total_expenses AS expenses, depreciation
+    FROM property_actuals
+    WHERE property_id = ${propertyId}
+    ORDER BY year ASC;
+  `;
+  return actuals;
+}
+
+export async function addPropertyActual(propertyId, yearData) {
+  // Only update fields that are explicitly provided (not undefined/null)
+  const income = yearData.income !== undefined ? Number(yearData.income) : null;
+  const expenses = yearData.expenses !== undefined ? Number(yearData.expenses) : null;
+  const depreciation = yearData.depreciation !== undefined ? Number(yearData.depreciation) : null;
+
+  const { rows } = await sql/*sql*/`
+    INSERT INTO property_actuals (property_id, year, gross_income, total_expenses, depreciation)
+    VALUES (${propertyId}, ${yearData.year}, ${income ?? 0}, ${expenses ?? 0}, ${depreciation ?? 0})
+    ON CONFLICT (property_id, year) DO UPDATE
+    SET gross_income = CASE WHEN ${income} IS NOT NULL THEN ${income} ELSE property_actuals.gross_income END,
+        total_expenses = CASE WHEN ${expenses} IS NOT NULL THEN ${expenses} ELSE property_actuals.total_expenses END,
+        depreciation = CASE WHEN ${depreciation} IS NOT NULL THEN ${depreciation} ELSE property_actuals.depreciation END
+    RETURNING *;
+  `;
+  return rows[0];
 }
