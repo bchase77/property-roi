@@ -85,7 +85,7 @@ export default function Home() {
       setErrMsg('Failed to load properties.');
     }
   }
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
