@@ -124,6 +124,14 @@ export async function addProperty(p) {
   return rows[0];
 }
 
+export async function deletePropertyYear(propertyId, year) {
+  const { rows } = await sql/*sql*/`
+    DELETE FROM property_actuals
+    WHERE property_id = ${propertyId} AND year = ${year}
+    RETURNING *;
+  `;
+  return rows[0];
+}
 
 // soft-delete: mark a property deleted instead of removing it
 export async function softDeleteProperty(id, opts = {}) {
