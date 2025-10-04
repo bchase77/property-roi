@@ -27,10 +27,17 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
   await init();
+  
   const id = Number(params.id);
-  if (!id) return NextResponse.json({ error: 'bad id' }, { status: 400 });
+  if (!id) {
+    return NextResponse.json({ error: 'Bad ID' }, { status: 400 });
+  }
+
   const deleted = await softDeleteProperty(id);
-  if (!deleted) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  if (!deleted) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+  
   return NextResponse.json({ success: true });
 }
 
