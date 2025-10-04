@@ -66,6 +66,7 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS purchased BOOLEAN DEFAULT false;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS year_purchased INT;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS mortgage_free BOOLEAN DEFAULT false;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS mortgage_payoff_date DATE;`;
 
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
@@ -252,3 +253,9 @@ export async function addPropertyActual(propertyId, yearData) {
   `;
   return rows[0];
 }
+
+
+
+
+
+

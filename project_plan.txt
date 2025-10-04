@@ -1,0 +1,35 @@
+## Project Overview
+
+This project involves creating a property investment analysis tool which allows the user to enter, analyze, and compare various properties, including existing investments and potential future purchases.
+
+### 1. Database Schema Update
+   - **Objective**: Add mortgage payoff dates to the existing database.
+   - **Database table to modify**: `properties`
+   - **New column**: `mortgage_payoff_date` of type `DATE`.
+   - **Migration Script**: Should ensure that existing properties retain data while adding the new column.
+
+### 2. API Update
+   - Modify existing API endpoints that handle property data to include the `mortgage_payoff_date` field.
+   - Ensure that property retrieval and updates return and accept this new information.
+
+### 3. Update Existing Data
+   - If applicable, populate payoff dates for existing properties. This could be done via an admin panel or directly in the database if data is known.
+
+### 4. Create Analysis Dashboard
+   - Develop a UI to visualize historical metrics for each property based on existing and new data.
+   - Metrics might include ROI, cash flow, adherence to investment strategies, etc.
+   - Use a charting library for graphical representation.
+
+### Next Steps
+   - Transition to GPT-4o for enhanced support on complex implementation tasks.
+   - Focus on database schema changes, API integration, and dashboard construction as priority tasks.
+   
+### Requirements and Components
+1. **Data Entry Component**: For entering and editing property data, including new mortgage information.
+2. **Analysis Dashboard Component**: To display ROI, cash flow, and other metrics visually.
+3. **Graphical Visualization Component**: To render and project financial data over time.
+4. **Edit Component**: For updating existing property data, such as income and expenses.
+
+### Additional Thoughts
+- Consider tracking the specific payoff dates for mortgages with regards to different loan structures and strategies.
+- Make provisions for potentially expanding the tool to include comparative analyses against other investment classes (e.g., stocks, crypto).
