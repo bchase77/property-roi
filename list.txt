@@ -1,6 +1,6 @@
-4 lexie
-5 Midsummer
-6 Kingswood
-7 Hunters
-8 TrailLake
-9 HMT
+4 lexie     5.25%  63000  850 ins: 34.33
+5 Midsummer 5.125% 70700 1020 ins: 44
+6 Kingswood 4.625% 87900 1295 ins: 50.25
+7 Hunters   3.75%  87600 1475 ins: 98.42
+8 TrailLake 4.00%  94100 1515 ins: 98.42
+9 HMT 
