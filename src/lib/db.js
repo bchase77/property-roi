@@ -21,7 +21,8 @@ export async function updateProperty(id, p) {
       other_monthly = ${p.otherMonthly},
       zillow_zpid = ${p.zillowZpid ?? null},
       crime_index = ${p.crimeIndex ?? null},
-      initial_investment = ${p.initialInvestment ?? 0}
+      initial_investment = ${p.initialInvestment ?? 0},
+      mortgage_free = ${p.mortgageFree ?? false}
     WHERE id = ${id}
     RETURNING *;
   `;
@@ -64,6 +65,7 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS deleted_reason TEXT;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS purchased BOOLEAN DEFAULT false;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS year_purchased INT;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS mortgage_free BOOLEAN DEFAULT false;`;
 
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
@@ -111,14 +113,14 @@ export async function addProperty(p) {
       purchase_price, down_payment_pct, interest_apr_pct, loan_years,
       monthly_rent, property_tax_pct, hoa_monthly, insurance_monthly,
       maintenance_pct_rent, vacancy_pct_rent, management_pct_rent, other_monthly,
-      zillow_zpid, crime_index, purchased, year_purchased, initial_investment
+      zillow_zpid, crime_index, purchased, year_purchased, initial_investment, mortgage_free
     ) VALUES (
       ${p.address}, ${p.city}, ${p.state}, ${p.zip},
       ${p.purchasePrice}, ${p.downPct}, ${p.rateApr}, ${p.years},
       ${p.monthlyRent}, ${p.taxPct}, ${p.hoaMonthly}, ${p.insuranceMonthly},
       ${p.maintPctRent}, ${p.vacancyPctRent}, ${p.mgmtPctRent}, ${p.otherMonthly},
       ${p.zillowZpid ?? null}, ${p.crimeIndex ?? null}, ${p.purchased ?? false}, ${p.yearPurchased ?? null},
-      ${p.initialInvestment ?? 0}
+      ${p.initialInvestment ?? 0}, ${p.mortgageFree ?? false}
     ) RETURNING *;
   `;
   return rows[0];

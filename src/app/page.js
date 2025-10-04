@@ -9,7 +9,7 @@ const DEFAULTS = {
   monthlyRent: 2800, taxPct: 1.2, hoaMonthly: 0, insuranceMonthly: 120,
   maintPctRent: 5, vacancyPctRent: 5, mgmtPctRent: 8, otherMonthly: 0,
   purchased: false, yearPurchased: '',
-  initialInvestment: 0
+  initialInvestment: 0, mortgageFree: false
 };
 
 export default function Home() {
@@ -121,7 +121,7 @@ export default function Home() {
       maintPctRent: +p.maintenance_pct_rent, vacancyPctRent: +p.vacancy_pct_rent,
       mgmtPctRent: +p.management_pct_rent, otherMonthly: +p.other_monthly,
       purchased: !!p.purchased, yearPurchased: p.year_purchased ?? '',
-      initialInvestment: +p.initial_investment
+      initialInvestment: +p.initial_investment, mortgageFree: !!p.mortgage_free
     });
     // scroll to top of form if needed
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -258,6 +258,11 @@ export default function Home() {
             <input type="number" placeholder="Year Purchased" className="w-32 rounded-md border px-2 py-1" value={form.yearPurchased} onChange={set('yearPurchased')} />
           </label>
 
+          <label className="flex items-center gap-3">
+            <input type="checkbox" checked={!!form.mortgageFree} onChange={set('mortgageFree')} />
+            <span className="text-sm">Mortgage-Free (owned outright)</span>
+          </label>
+
           <div className="flex gap-2">
             <button className="rounded bg-black text-white px-3 py-2">
               {editingId ? 'Update Property' : 'Save Property'}
@@ -352,7 +357,8 @@ function Preview({ form }) {
     vacancyPctRent: +form.vacancyPctRent || 0,
     mgmtPctRent: +form.mgmtPctRent || 0,
     otherMonthly: +form.otherMonthly || 0,
-    initialInvestment: +form.initialInvestment || 0
+    initialInvestment: +form.initialInvestment || 0,
+    mortgageFree: !!form.mortgageFree
   });
   const Money = (v) => `$${Number(v).toLocaleString('en-US')}`;
   const Pct = (v) => `${Number(v).toFixed(2)}%`;
@@ -393,6 +399,7 @@ function CompareGrid({ items }) {
   const rows = items.map(p => ({
     id: p.id,
     address: p.address,
+    mortgageFree: !!p.mortgage_free,
     m: (()=>{
       return analyze({
         purchasePrice: +p.purchase_price, downPct: +p.down_payment_pct,
@@ -401,7 +408,8 @@ function CompareGrid({ items }) {
         hoaMonthly: +p.hoa_monthly, insuranceMonthly: +p.insurance_monthly,
         maintPctRent: +p.maintenance_pct_rent, vacancyPctRent: +p.vacancy_pct_rent,
         mgmtPctRent: +p.management_pct_rent, otherMonthly: +p.other_monthly,
-        initialInvestment: +p.initial_investment || 0
+        initialInvestment: +p.initial_investment || 0,
+        mortgageFree: !!p.mortgage_free
       });
     })()
   }));
@@ -422,15 +430,16 @@ function CompareGrid({ items }) {
           </thead>
           <tbody>
             {[
+              ['Ownership Status', (r)=>r.mortgageFree ? 'Owned Outright' : 'Financed'],
               ['Price', (r)=>Money(r.m.loan + r.m.down)],
               ['Down Payment', (r)=>Money(r.m.down)],
-              ['Mortgage (P&I) /mo', (r)=>Money(r.m.pAndI)],
+              ['Mortgage (P&I) /mo', (r)=>r.mortgageFree ? 'N/A' : Money(r.m.pAndI)],
               ['Operating Exp /mo', (r)=>Money(r.m.operatingExpenses)],
               ['NOI /mo', (r)=>Money(r.m.noiMonthly)],
               ['Cashflow /mo', (r)=>Money(r.m.cashflowMonthly)],
               ['Cap Rate', (r)=>Pct(r.m.metrics.capRate)],
               ['Cash-on-Cash', (r)=>Pct(r.m.metrics.cashOnCash)],
-              ['DSCR', (r)=>r.m.metrics.dscr],
+              ['DSCR', (r)=>r.mortgageFree ? 'N/A' : r.m.metrics.dscr],
               ['Gross Yield', (r)=>Pct(r.m.metrics.grossYield)],
             ].map(([label, fn])=>(
               <tr key={label} className="border-t">
