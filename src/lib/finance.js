@@ -9,12 +9,12 @@ export function analyze({
   purchasePrice, downPct, rateApr, years,
   monthlyRent, taxPct, hoaMonthly, insuranceMonthly,
   maintPctRent, vacancyPctRent, mgmtPctRent, otherMonthly,
-  initialInvestment
+  initialInvestment, mortgageFree
 }) {
-  const down = purchasePrice * (downPct / 100);
+  const down = mortgageFree ? purchasePrice : purchasePrice * (downPct / 100);
   const invested = (initialInvestment ?? 0) > 0 ? initialInvestment : down;
-  const loan = purchasePrice - down;
-  const pAndI = mortgageMonthly(loan, rateApr, years);
+  const loan = mortgageFree ? 0 : purchasePrice - down;
+  const pAndI = mortgageFree ? 0 : mortgageMonthly(loan, rateApr, years);
 
   const taxesMonthly = (purchasePrice * (taxPct / 100)) / 12;
   const maint = monthlyRent * (maintPctRent / 100);
