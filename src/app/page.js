@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { analyze } from '@/lib/finance';
 import { createRoot } from 'react-dom/client';
+import { Herr_Von_Muellerhoff } from 'next/font/google';
 
 const DEFAULTS = {
   address: '', city: '', state: '', zip: '',
@@ -9,7 +10,20 @@ const DEFAULTS = {
   monthlyRent: 2800, taxPct: 1.2, hoaMonthly: 0, insuranceMonthly: 120,
   maintPctRent: 5, vacancyPctRent: 5, mgmtPctRent: 8, otherMonthly: 0,
   purchased: false, yearPurchased: '',
-  initialInvestment: 0, mortgageFree: false
+  initialInvestment: 0, mortgageFree: false,
+  mortgagePayoffDate: ''  // New field
+};
+
+const set = (k) => (e) => {
+  const t = e.target;
+  let v = t.type === 'checkbox' ? t.checked : t.value;
+  const numericKeys = new Set([
+    'purchasePrice', 'downPct', 'rateApr', 'years', 'monthlyRent', 
+    'taxPct', 'hoaMonthly', 'insuranceMonthly', 'maintPctRent', 
+    'vacancyPctRent', 'mgmtPctRent', 'otherMonthly', 'yearPurchased', 
+    'initialInvestment'
+  ]);
+  setForm({ ...form, [k]: numericKeys.has(k) ? (v === '' ? '' : +v) : v });
 };
 
 export default function Home() {
@@ -464,117 +478,6 @@ function YearlySummary({ form }) {
         <div className="text-xs text-gray-600">Year Purchased: {form.yearPurchased}</div>
       )}
       <div className="text-sm mt-2">To see historical ROI, edit a saved property and add yearly income/expenses/taxes in the editor.</div>
-    </div>
-  );
-}
-
-function CsvUploader() {
-  const [text, setText] = useState("");
-  const [msg, setMsg] = useState("");
-
-    function parseCsv(text) {
-      const raw = text.trim().replace(/\r\n?/g, "\n");
-      if (!raw) return [];
-
-      // Detect delimiter: tab if any tabs in header, else comma, else semicolon
-      const firstLine = raw.split("\n", 1)[0];
-      const delim = firstLine.includes("\t") ? "\t" : (firstLine.includes(";") ? ";" : ",");
-
-      const lines = raw.split("\n").filter(Boolean);
-      const headers = lines[0].split(delim).map(s => s.trim());
-
-      // Accept propertyId OR address headers
-      const has = (k) => headers.includes(k);
-      const idx = (k) => headers.indexOf(k);
-
-      const requiredAny = (has("propertyId") || has("address")) && has("year") && has("grossIncome") && has("totalExpenses");
-      if (!requiredAny) {
-        throw new Error('Header must include year,grossIncome,totalExpenses and either propertyId or address');
-      }
-
-      return lines.slice(1).map(line => {
-        const cells = line.split(delim).map(s => s.trim());
-
-        // Helper to safely get a number (empty -> 0)
-        const num = (i) => {
-          if (i < 0) return 0;
-          const v = cells[i] ?? "";
-          // remove any accidental thousands separators (just in case)
-          const cleaned = v.replace(/,/g, "");
-          return cleaned === "" ? 0 : Number(cleaned);
-        };
-
-        const row = {
-          propertyId: has("propertyId") ? Number(cells[idx("propertyId")] || 0) : undefined,
-          address: has("address") ? (cells[idx("address")] || "").trim() : undefined,
-          year: num(idx("year")),
-          grossIncome: num(idx("grossIncome")),
-          totalExpenses: num(idx("totalExpenses")),
-          depreciation: has("depreciation") ? num(idx("depreciation")) : 0,
-        };
-
-        return row;
-      }).filter(r => (r.propertyId || r.address) && r.year);
-    }
-
-  async function upload(rows) {
-    setMsg("Uploading...");
-    const res = await fetch("/api/actuals/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows }),
-    });
-    const data = await res.json().catch(()=>({}));
-    if (!res.ok) throw new Error(data?.error || res.statusText);
-    setMsg(`Uploaded ${data.count} rows`);
-  }
-
-  async function onUploadClick() {
-    try {
-      const rows = parseCsv(text);
-      if (!rows.length) { setMsg("No rows found."); return; }
-      await upload(rows);
-      setText("");
-    } catch (e) {
-      setMsg(`Error: ${e.message}`);
-    }
-  }
-
-  async function onFileChange(e) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const t = await f.text();
-    setText(t);
-  }
-
-  return (
-    <div className="rounded-2xl border p-4 bg-white shadow-sm text-black">
-      <h3 className="text-lg font-medium">Upload Actuals (CSV)</h3>
-      <p className="text-sm text-black-700">
-        Columns: <code>propertyId,year,grossIncome,totalExpenses,depreciation</code>
-      </p>
-      <div className="flex items-center gap-3">
-        <input type="file" accept=".csv,text/csv" onChange={onFileChange}
-               className="text-sm" />
-        <button onClick={onUploadClick} className="rounded bg-black text-white px-3 py-2">
-          Upload CSV
-        </button>
-        {msg && <div className="text-sm text-gray-800">{msg}</div>}
-      </div>
-      <textarea
-        className="w-full h-40 rounded-md border border-gray-300 px-3 py-2 text-gray-900"
-        placeholder={
-`propertyId,year,grossIncome,totalExpenses,depreciation
-1,2016,26400,9200,10000
-1,2017,26800,9450,10000`
-        }
-        value={text}
-        onChange={(e)=>setText(e.target.value)}
-      />
-      <p className="text-sm text-gray-600">
-        Tip: If your numbers include commas (e.g., 26,400), remove commas or use a CSV that does not include
-        thousands separators. This simple parser does not handle quoted fields.
-      </p>
     </div>
   );
 }
