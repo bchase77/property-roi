@@ -22,7 +22,9 @@ export async function updateProperty(id, p) {
       zillow_zpid = ${p.zillowZpid ?? null},
       crime_index = ${p.crimeIndex ?? null},
       initial_investment = ${p.initialInvestment ?? 0},
-      mortgage_free = ${p.mortgageFree ?? false}
+      mortgage_free = ${p.mortgageFree ?? false},
+      purchased = ${p.purchased ?? false},
+      year_purchased = ${p.yearPurchased ?? null}
     WHERE id = ${id}
     RETURNING *;
   `;
