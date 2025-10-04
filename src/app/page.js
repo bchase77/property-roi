@@ -67,6 +67,7 @@ export default function Home() {
       if (text) return `${res.status} ${res.statusText}: ${text}`;
       return `${res.status} ${res.statusText}`;
     } catch (err) {
+      // eslint-disable-next-line no-unused-vars
       return `${res.status} ${res.statusText} (unable to read response body)`;
     }
   }
@@ -562,8 +563,8 @@ function CsvUploader() {
         onChange={(e)=>setText(e.target.value)}
       />
       <p className="text-sm text-gray-600">
-        Tip: If your numbers include commas (e.g., 26,400), remove commas or use a CSV that doesn't include
-        thousands separators. This simple parser doesn't handle quoted fields.
+        Tip: If your numbers include commas (e.g., 26,400), remove commas or use a CSV that does not include
+        thousands separators. This simple parser does not handle quoted fields.
       </p>
     </div>
   );
