@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { analyze } from '@/lib/finance';
+import { analyze, analyzeWithCurrentValues } from '@/lib/finance';
 
 export default function Dashboard() {
   const [properties, setProperties] = useState([]);
@@ -29,24 +29,16 @@ export default function Dashboard() {
   
   const totalPortfolioValue = ownedProperties.reduce((sum, p) => sum + Number(p.purchase_price), 0);
   const totalMonthlyRent = ownedProperties.reduce((sum, p) => sum + Number(p.monthly_rent), 0);
+  
+  // Calculate total net income (cash flow) from all owned properties using current values
+  const totalNetIncome = ownedProperties.reduce((sum, p) => {
+    const metrics = analyzeWithCurrentValues(p);
+    return sum + metrics.cashflowMonthly;
+  }, 0);
+  
   const avgCapRate = ownedProperties.length > 0 
     ? ownedProperties.reduce((sum, p) => {
-        const metrics = analyze({
-          purchasePrice: Number(p.purchase_price),
-          downPct: Number(p.down_payment_pct),
-          rateApr: Number(p.interest_apr_pct),
-          years: Number(p.loan_years),
-          monthlyRent: Number(p.monthly_rent),
-          taxPct: Number(p.property_tax_pct),
-          hoaMonthly: Number(p.hoa_monthly),
-          insuranceMonthly: Number(p.insurance_monthly),
-          maintPctRent: Number(p.maintenance_pct_rent),
-          vacancyPctRent: Number(p.vacancy_pct_rent),
-          mgmtPctRent: Number(p.management_pct_rent),
-          otherMonthly: Number(p.other_monthly),
-          initialInvestment: Number(p.initial_investment) || 0,
-          mortgageFree: Boolean(p.mortgage_free)
-        });
+        const metrics = analyzeWithCurrentValues(p);
         return sum + metrics.metrics.capRate;
       }, 0) / ownedProperties.length
     : 0;
@@ -67,7 +59,7 @@ export default function Dashboard() {
       </header>
 
       {/* Key Metrics */}
-      <section className="grid md:grid-cols-4 gap-6">
+      <section className="grid md:grid-cols-5 gap-6">
         <MetricCard 
           title="Owned Properties" 
           value={`${ownedProperties.length} / ${properties.length}`} 
@@ -82,6 +74,11 @@ export default function Dashboard() {
           title="Monthly Rent" 
           value={`$${totalMonthlyRent.toLocaleString()}`}
           subtitle="From owned properties"
+        />
+        <MetricCard 
+          title="Net Income" 
+          value={`$${totalNetIncome.toLocaleString()}`}
+          subtitle="Monthly cash flow"
         />
         <MetricCard 
           title="Avg Cap Rate" 

@@ -21,7 +21,14 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
     initialInvestment: property.initial_investment || 0,
     mortgageFree: property.mortgage_free || false,
     purchased: property.purchased || false,
-    yearPurchased: property.year_purchased || ''
+    yearPurchased: property.year_purchased || '',
+    monthPurchased: property.month_purchased || '',
+    zillowZpid: property.zillow_zpid || '',
+    bedrooms: property.bedrooms || '',
+    bathrooms: property.bathrooms || '',
+    squareFootage: property.square_footage || '',
+    yearBuilt: property.year_built || '',
+    abbreviation: property.abbreviation || ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -31,10 +38,31 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
     setSaving(true);
     
     try {
+      // Preserve all current values when updating basic property details
+      const updateData = {
+        ...form,
+        // Preserve current values
+        currentRentMonthly: property.current_rent_monthly,
+        currentInsuranceAnnual: property.current_insurance_annual,
+        currentCountyTaxRate: property.current_county_tax_rate,
+        currentCityTaxRate: property.current_city_tax_rate,
+        currentAppraisalValue: property.current_appraisal_value,
+        currentExpensesAnnual: property.current_expenses_annual,
+        currentManagementPct: property.current_management_pct,
+        currentHoaMonthly: property.current_hoa_monthly,
+        currentMarketValue: property.current_market_value,
+        marketValueUpdatedAt: property.market_value_updated_at,
+        assessmentPercentage: property.assessment_percentage,
+        currentMortgageBalance: property.current_mortgage_balance,
+        currentMortgageRate: property.current_mortgage_rate,
+        currentMortgagePayment: property.current_mortgage_payment,
+        currentMortgageTermRemaining: property.current_mortgage_term_remaining
+      };
+      
       const res = await fetch(`/api/properties/${property.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(updateData),
       });
       
       if (!res.ok) {
@@ -71,6 +99,20 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
           />
         </div>
 
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Chart Abbreviation</label>
+          <input 
+            className={inputCls}
+            value={form.abbreviation}
+            onChange={handleChange('abbreviation')}
+            placeholder="e.g., TLK, Hunt, Kings"
+            maxLength="10"
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            Short name for charts (optional). If empty, house number will be used.
+          </div>
+        </div>
+
         <div className="grid grid-cols-3 gap-2">
           <input 
             placeholder="City"
@@ -102,14 +144,73 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
           />
         </div>
 
+        {/* Property Characteristics */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
+            <input 
+              type="number"
+              min="0"
+              className={inputCls}
+              value={form.bedrooms}
+              onChange={handleChange('bedrooms')}
+              placeholder="3"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bathrooms</label>
+            <input 
+              type="number"
+              step="0.5"
+              min="0"
+              className={inputCls}
+              value={form.bathrooms}
+              onChange={handleChange('bathrooms')}
+              placeholder="2.5"
+            />
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Square Footage</label>
+            <input 
+              type="number"
+              min="0"
+              className={inputCls}
+              value={form.squareFootage}
+              onChange={handleChange('squareFootage')}
+              placeholder="2000"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Year Built</label>
+            <input 
+              type="number"
+              min="1800"
+              max="2030"
+              className={inputCls}
+              value={form.yearBuilt}
+              onChange={handleChange('yearBuilt')}
+              placeholder="1995"
+            />
+          </div>
+        </div>
+
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Rent ($)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Zillow ZPID</label>
           <input 
-            type="number"
+            type="text"
             className={inputCls}
-            value={form.monthlyRent}
-            onChange={handleChange('monthlyRent')}
+            value={form.zillowZpid}
+            onChange={handleChange('zillowZpid')}
+            placeholder="123456789"
           />
+          <div className="text-xs text-gray-500 mt-1">
+            8-10 digit ID from Zillow URL (e.g., zillow.com/homedetails/123456789_zpid/)
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -127,17 +228,41 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
           </div>
 
           {form.purchased && (
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Year Purchased</label>
-              <input 
-                type="number"
-                min="1900"
-                max="2030"
-                className="w-32 rounded-md border text-gray-600 border-gray-300 px-3 py-2"
-                value={form.yearPurchased}
-                onChange={handleChange('yearPurchased')}
-                placeholder="2023"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Year Purchased</label>
+                <input 
+                  type="number"
+                  min="1900"
+                  max="2030"
+                  className="w-full rounded-md border text-gray-600 border-gray-300 px-3 py-2"
+                  value={form.yearPurchased}
+                  onChange={handleChange('yearPurchased')}
+                  placeholder="2023"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Month Purchased</label>
+                <select 
+                  className="w-full rounded-md border text-gray-600 border-gray-300 px-3 py-2"
+                  value={form.monthPurchased}
+                  onChange={handleChange('monthPurchased')}
+                >
+                  <option value="">Select month</option>
+                  <option value="1">January</option>
+                  <option value="2">February</option>
+                  <option value="3">March</option>
+                  <option value="4">April</option>
+                  <option value="5">May</option>
+                  <option value="6">June</option>
+                  <option value="7">July</option>
+                  <option value="8">August</option>
+                  <option value="9">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+              </div>
             </div>
           )}
 

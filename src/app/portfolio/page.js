@@ -2,7 +2,9 @@
 import { useEffect, useState } from 'react';
 import PropertyEditor from '@/components/forms/PropertyEditor';
 import YearlyDataEditor from '@/components/forms/YearlyDataEditor';
+import CurrentValuesEditor from '@/components/forms/CurrentValuesEditor';
 import PropertyList from '@/components/ui/PropertyList';
+import { analyzeWithCurrentValues } from '@/lib/finance';
 
 export default function Portfolio() {
   const [properties, setProperties] = useState([]);
@@ -85,7 +87,8 @@ export default function Portfolio() {
     <main className="mx-auto max-w-7xl p-6 space-y-8">
       <header>
         <h1 className="text-3xl font-bold mb-2">Property Portfolio</h1>
-        <p className="text-gray-600">Manage your existing properties and update historical data</p>
+        <p className="text-gray-600">Manage your existing properties and update historical data. </p>
+        Select a property from the list to edit its details and add yearly financial data
       </header>
 
       {errMsg && (
@@ -139,6 +142,15 @@ export default function Portfolio() {
                 onCancel={cancelEdit}
               />
               
+              {/* Only show current values editor for owned properties */}
+              {editingProperty.purchased && (
+                <CurrentValuesEditor 
+                  property={editingProperty}
+                  onUpdate={handlePropertyUpdate}
+                  onCancel={cancelEdit}
+                />
+              )}
+              
               <YearlyDataEditor 
                 property={editingProperty}
                 onUpdate={loadProperties}
@@ -166,21 +178,22 @@ function PortfolioSummary({ properties }) {
   // Only include purchased properties in portfolio summary
   const purchasedProperties = properties.filter(p => p.purchased);
   
-  const totalValue = purchasedProperties.reduce((sum, p) => sum + Number(p.purchase_price), 0);
-  const totalRent = purchasedProperties.reduce((sum, p) => sum + Number(p.monthly_rent), 0);
+  const totalValue = purchasedProperties.reduce((sum, p) => sum + Number(p.current_market_value || p.purchase_price), 0);
+  const totalRent = purchasedProperties.reduce((sum, p) => sum + Number(p.current_rent_monthly || p.monthly_rent), 0);
   const ownedOutright = purchasedProperties.filter(p => p.mortgage_free).length;
   const financed = purchasedProperties.length - ownedOutright;
+  
+  // Calculate total annual net cash flow
+  const totalNetCashFlow = purchasedProperties.reduce((sum, p) => {
+    const metrics = analyzeWithCurrentValues(p);
+    return sum + (metrics.cashflowMonthly * 12);
+  }, 0);
 
   return (
     <section className="bg-white rounded-lg border p-6">
       <h2 className="text-xl font-semibold mb-4 text-gray-900">Portfolio Summary</h2>
       
       <div className="grid md:grid-cols-4 gap-6">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-gray-900">{purchasedProperties.length}</div>
-          <div className="text-sm text-gray-500">Owned Properties</div>
-        </div>
-        
         <div className="text-center">
           <div className="text-2xl font-bold text-gray-900">
             ${totalValue.toLocaleString()}
@@ -193,6 +206,13 @@ function PortfolioSummary({ properties }) {
             ${totalRent.toLocaleString()}
           </div>
           <div className="text-sm text-gray-500">Monthly Rent</div>
+        </div>
+        
+        <div className="text-center">
+          <div className={`text-2xl font-bold ${totalNetCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            ${totalNetCashFlow.toLocaleString()}
+          </div>
+          <div className="text-sm text-gray-500">Annual Net Cash Flow</div>
         </div>
         
         <div className="text-center">
