@@ -24,7 +24,28 @@ export async function updateProperty(id, p) {
       initial_investment = ${p.initialInvestment ?? 0},
       mortgage_free = ${p.mortgageFree ?? false},
       purchased = ${p.purchased ?? false},
-      year_purchased = ${p.yearPurchased ?? null}
+      year_purchased = ${p.yearPurchased ?? null},
+      month_purchased = ${p.monthPurchased ?? null},
+      current_rent_monthly = ${p.currentRentMonthly ?? null},
+      current_insurance_annual = ${p.currentInsuranceAnnual ?? null},
+      current_county_tax_rate = ${p.currentCountyTaxRate ?? null},
+      current_city_tax_rate = ${p.currentCityTaxRate ?? null},
+      current_appraisal_value = ${p.currentAppraisalValue ?? null},
+      current_expenses_annual = ${p.currentExpensesAnnual ?? null},
+      current_management_pct = ${p.currentManagementPct ?? null},
+      current_hoa_monthly = ${p.currentHoaMonthly ?? null},
+      current_market_value = ${p.currentMarketValue ?? null},
+      market_value_updated_at = ${p.marketValueUpdatedAt ?? null},
+      assessment_percentage = ${p.assessmentPercentage ?? 25},
+      bedrooms = ${p.bedrooms ?? null},
+      bathrooms = ${p.bathrooms ?? null},
+      square_footage = ${p.squareFootage ?? null},
+      year_built = ${p.yearBuilt ?? null},
+      current_mortgage_balance = ${p.currentMortgageBalance ?? null},
+      current_mortgage_rate = ${p.currentMortgageRate ?? null},
+      current_mortgage_payment = ${p.currentMortgagePayment ?? null},
+      current_mortgage_term_remaining = ${p.currentMortgageTermRemaining ?? null},
+      abbreviation = ${p.abbreviation ?? null}
     WHERE id = ${id}
     RETURNING *;
   `;
@@ -67,8 +88,37 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS deleted_reason TEXT;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS purchased BOOLEAN DEFAULT false;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS year_purchased INT;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS month_purchased INT;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS mortgage_free BOOLEAN DEFAULT false;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS mortgage_payoff_date DATE;`;
+
+  // Current values tracking (separate from historical data)
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_rent_monthly NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_insurance_annual NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_county_tax_rate NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_city_tax_rate NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_appraisal_value NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_expenses_annual NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_management_pct NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_hoa_monthly NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_market_value NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS market_value_updated_at TIMESTAMPTZ;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS assessment_percentage NUMERIC DEFAULT 25;`;
+  
+  // Property characteristics
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS bedrooms INT;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS bathrooms NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS square_footage INT;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS year_built INT;`;
+  
+  // Current mortgage tracking (for properties with mortgages)
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_mortgage_balance NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_mortgage_rate NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_mortgage_payment NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_mortgage_term_remaining INT;`;
+
+  // Property abbreviation for chart display
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS abbreviation TEXT;`;
 
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
@@ -116,14 +166,16 @@ export async function addProperty(p) {
       purchase_price, down_payment_pct, interest_apr_pct, loan_years,
       monthly_rent, property_tax_pct, hoa_monthly, insurance_monthly,
       maintenance_pct_rent, vacancy_pct_rent, management_pct_rent, other_monthly,
-      zillow_zpid, crime_index, purchased, year_purchased, initial_investment, mortgage_free
+      zillow_zpid, crime_index, purchased, year_purchased, month_purchased, initial_investment, mortgage_free,
+      bedrooms, bathrooms, square_footage, year_built, abbreviation
     ) VALUES (
       ${p.address}, ${p.city}, ${p.state}, ${p.zip},
       ${p.purchasePrice}, ${p.downPct}, ${p.rateApr}, ${p.years},
       ${p.monthlyRent}, ${p.taxPct}, ${p.hoaMonthly}, ${p.insuranceMonthly},
       ${p.maintPctRent}, ${p.vacancyPctRent}, ${p.mgmtPctRent}, ${p.otherMonthly},
-      ${p.zillowZpid ?? null}, ${p.crimeIndex ?? null}, ${p.purchased ?? false}, ${p.yearPurchased ?? null},
-      ${p.initialInvestment ?? 0}, ${p.mortgageFree ?? false}
+      ${p.zillowZpid ?? null}, ${p.crimeIndex ?? null}, ${p.purchased ?? false}, ${p.yearPurchased ?? null}, ${p.monthPurchased ?? null},
+      ${p.initialInvestment ?? 0}, ${p.mortgageFree ?? false},
+      ${p.bedrooms ?? null}, ${p.bathrooms ?? null}, ${p.squareFootage ?? null}, ${p.yearBuilt ?? null}, ${p.abbreviation ?? null}
     ) RETURNING *;
   `;
   return rows[0];

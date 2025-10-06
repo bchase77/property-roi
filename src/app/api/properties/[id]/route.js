@@ -4,11 +4,14 @@ import { init, updateProperty, softDeleteProperty } from '@/lib/db';
 export async function PUT(req, { params }) {
   await init();
   try {
-    const id = Number(params.id);
+    const { id: paramId } = await params;
+    const id = Number(paramId);
     if (!id) return NextResponse.json({ error: 'bad id' }, { status: 400 });
     const body = await req.json();
+    console.log('Updating property with data:', body);
     if (body.yearPurchased === '') body.yearPurchased = null;
     if (body.initialInvestment === '') body.initialInvestment = 0;
+    if (body.zillowZpid === '') body.zillowZpid = null;
     // basic validation for required numeric fields
     const requiredNums = ['purchasePrice','downPct','rateApr','years','monthlyRent','taxPct','hoaMonthly','insuranceMonthly','maintPctRent','vacancyPctRent','mgmtPctRent','otherMonthly'];
     for (const k of requiredNums) {
@@ -28,7 +31,8 @@ export async function PUT(req, { params }) {
 export async function DELETE(req, { params }) {
   await init();
   
-  const id = Number(params.id);
+  const { id: paramId } = await params;
+  const id = Number(paramId);
   if (!id) {
     return NextResponse.json({ error: 'Bad ID' }, { status: 400 });
   }

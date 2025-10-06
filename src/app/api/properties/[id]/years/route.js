@@ -3,7 +3,7 @@ import { init, listPropertyActuals, addPropertyActual } from '@/lib/db';
 
 export async function GET(req, { params }) {
   await init();
-  const { id } = params;
+  const { id } = await params;
   if (!id) return NextResponse.json([], { status: 400 });
 
   const propertyId = Number(id);
@@ -14,7 +14,7 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   await init();
   try {
-    const { id } = params;
+    const { id } = await params;
     if (!id) return NextResponse.json({ error: 'Property ID required' }, { status: 400 });
 
     const propertyId = Number(id);

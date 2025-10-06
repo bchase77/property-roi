@@ -4,6 +4,7 @@ import { init, addProperty, listProperties } from '@/lib/db';
 export async function GET() {
   await init();
   const rows = await listProperties(200);
+  console.log('🔍 Properties from database:', rows.map(r => ({ id: r.id, address: r.address, abbreviation: r.abbreviation })));
   return NextResponse.json(rows);
 }
 

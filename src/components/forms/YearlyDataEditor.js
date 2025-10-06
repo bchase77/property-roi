@@ -125,7 +125,7 @@ export default function YearlyDataEditor({ property, onUpdate }) {
                   Expenses: ${Number(data.expenses || 0).toLocaleString()} • 
                   Depreciation: ${Number(data.depreciation || 0).toLocaleString()}
                 </div>
-                <div className="text-sm font-medium">
+                <div className="text-sm font-medium text-gray-400">
                   Net: ${(Number(data.income || 0) - Number(data.expenses || 0)).toLocaleString()}
                 </div>
               </div>
