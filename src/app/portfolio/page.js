@@ -4,6 +4,7 @@ import PropertyEditor from '@/components/forms/PropertyEditor';
 import YearlyDataEditor from '@/components/forms/YearlyDataEditor';
 import CurrentValuesEditor from '@/components/forms/CurrentValuesEditor';
 import PropertyList from '@/components/ui/PropertyList';
+import PageHeader from '@/components/ui/PageHeader';
 import { analyzeWithCurrentValues } from '@/lib/finance';
 
 export default function Portfolio() {
@@ -85,11 +86,11 @@ export default function Portfolio() {
 
   return (
     <main className="mx-auto max-w-7xl p-6 space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold mb-2">Property Portfolio</h1>
-        <p className="text-gray-600">Manage your existing properties and update historical data. </p>
-        Select a property from the list to edit its details and add yearly financial data
-      </header>
+      <PageHeader 
+        title="Property Portfolio"
+        subtitle="Manage your existing properties and update historical data. Select a property from the list to edit its details and add yearly financial data"
+        currentPage="/portfolio"
+      />
 
       {errMsg && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

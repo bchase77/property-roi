@@ -47,7 +47,10 @@ function PropertyCard({ property, onEdit, onDelete, isEditing }) {
     <div className={`rounded-lg border p-4 ${isEditing ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}`}>
       <div className="flex justify-between items-start">
         <div className="flex-1">
-          <h3 className="font-medium text-gray-900">{property.address}</h3>
+          <h3 className="font-medium text-gray-900">
+            {property.address}
+            {property.abbreviation && <span className="ml-2 text-blue-600">({property.abbreviation})</span>}
+          </h3>
           <p className="text-sm text-gray-500 mb-2">
             {property.city}, {property.state} {property.zip}
           </p>

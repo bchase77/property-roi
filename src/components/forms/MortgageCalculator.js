@@ -32,6 +32,10 @@ export default function MortgageCalculator({ form, updateForm }) {
     setScenarios(scenarios.filter(s => s.id !== id));
   };
 
+  const updateScenario = (id, updatedScenario) => {
+    setScenarios(scenarios.map(s => s.id === id ? updatedScenario : s));
+  };
+
   const applyScenario = (scenario) => {
     updateForm({
       downPct: scenario.downPct,
@@ -52,7 +56,7 @@ export default function MortgageCalculator({ form, updateForm }) {
 
   return (
     <div className="bg-white rounded-lg border p-6">
-      <h2 className="text-xl font-semibold mb-4">Mortgage & Investment</h2>
+      <h2 className="text-xl font-semibold mb-4 text-gray-800">Mortgage & Investment</h2>
       
       <div className="space-y-4">
         {/* Mortgage Free Toggle */}
@@ -86,7 +90,7 @@ export default function MortgageCalculator({ form, updateForm }) {
                 onChange={set('downPct')}
                 placeholder="20"
               />
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-gray-600 mt-1">
                 ${((form.purchasePrice || 0) * ((form.downPct || 0) / 100)).toLocaleString()} down payment
               </div>
             </div>
@@ -128,7 +132,7 @@ export default function MortgageCalculator({ form, updateForm }) {
             {/* Mortgage Summary */}
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="text-sm font-medium text-gray-900 mb-2">Mortgage Summary</h3>
-              <div className="space-y-1 text-sm">
+              <div className="space-y-1 text-sm text-gray-700">
                 <div className="flex justify-between">
                   <span>Loan Amount:</span>
                   <span>${loanAmount.toLocaleString()}</span>
@@ -159,7 +163,7 @@ export default function MortgageCalculator({ form, updateForm }) {
             onChange={set('initialInvestment')}
             placeholder={form.mortgageFree ? form.purchasePrice : (form.purchasePrice || 0) * ((form.downPct || 0) / 100)}
           />
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-gray-600 mt-1">
             Include down payment, closing costs, repairs, etc.
           </div>
         </div>
@@ -183,6 +187,7 @@ export default function MortgageCalculator({ form, updateForm }) {
               purchasePrice={form.purchasePrice}
               onApply={() => applyScenario(scenario)}
               onRemove={() => removeScenario(scenario.id)}
+              onUpdate={updateScenario}
             />
           ))}
         </div>
@@ -191,14 +196,25 @@ export default function MortgageCalculator({ form, updateForm }) {
   );
 }
 
-function ScenarioCard({ scenario, purchasePrice, onApply, onRemove }) {
+function ScenarioCard({ scenario, purchasePrice, onApply, onRemove, onUpdate }) {
   const loanAmount = purchasePrice - (purchasePrice * (scenario.downPct / 100));
   const monthlyPayment = mortgageMonthly(loanAmount, scenario.rateApr, scenario.years);
+
+  const handleChange = (field, value) => {
+    onUpdate(scenario.id, { ...scenario, [field]: Number(value) });
+  };
+
+  const inputCls = "w-full text-xs px-2 py-1 border border-gray-300 rounded";
 
   return (
     <div className="bg-gray-50 rounded-lg p-3 mb-2">
       <div className="flex justify-between items-start mb-2">
-        <h4 className="text-sm font-medium">{scenario.name}</h4>
+        <input 
+          type="text"
+          value={scenario.name}
+          onChange={(e) => onUpdate(scenario.id, { ...scenario, name: e.target.value })}
+          className="text-sm font-medium bg-transparent border-none p-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+        />
         <div className="flex space-x-1">
           <button 
             onClick={onApply}
@@ -217,17 +233,38 @@ function ScenarioCard({ scenario, purchasePrice, onApply, onRemove }) {
       
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div>
-          <div className="text-gray-500">Down:</div>
-          <div>{scenario.downPct}%</div>
+          <div className="text-gray-600 mb-1">Down %:</div>
+          <input 
+            type="number"
+            step="0.5"
+            value={scenario.downPct}
+            onChange={(e) => handleChange('downPct', e.target.value)}
+            className={inputCls}
+          />
         </div>
         <div>
-          <div className="text-gray-500">Rate:</div>
-          <div>{scenario.rateApr}%</div>
+          <div className="text-gray-600 mb-1">Rate %:</div>
+          <input 
+            type="number"
+            step="0.125"
+            value={scenario.rateApr}
+            onChange={(e) => handleChange('rateApr', e.target.value)}
+            className={inputCls}
+          />
         </div>
         <div>
-          <div className="text-gray-500">Payment:</div>
-          <div>${monthlyPayment.toLocaleString()}</div>
+          <div className="text-gray-600 mb-1">Years:</div>
+          <input 
+            type="number"
+            value={scenario.years}
+            onChange={(e) => handleChange('years', e.target.value)}
+            className={inputCls}
+          />
         </div>
+      </div>
+      
+      <div className="mt-2 text-xs text-gray-600 text-center">
+        Payment: <span className="font-medium">${monthlyPayment.toLocaleString()}</span>
       </div>
     </div>
   );

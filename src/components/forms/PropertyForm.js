@@ -5,7 +5,7 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     const numericKeys = new Set([
       'purchasePrice', 'downPct', 'rateApr', 'years', 'monthlyRent', 
-      'taxPct', 'hoaMonthly', 'insuranceMonthly', 'maintPctRent', 
+      'taxPct', 'taxAnnual', 'hoaMonthly', 'insuranceMonthly', 'maintPctRent', 
       'vacancyPctRent', 'mgmtPctRent', 'otherMonthly', 'yearPurchased', 
       'initialInvestment'
     ]);
@@ -21,7 +21,7 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
 
   return (
     <div className="bg-white rounded-lg border p-6">
-      <h2 className="text-xl font-semibold mb-4">Property Details</h2>
+      <h2 className="text-xl font-semibold mb-4 text-gray-800">Property Details</h2>
       
       <form onSubmit={onSubmit} className="space-y-4">
         {/* Address */}
@@ -166,28 +166,73 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-gray-900">Operating Expenses</h3>
           
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Property Tax (%)</label>
-              <input 
-                type="number" 
-                step="0.1"
-                className={inputCls} 
-                value={form.taxPct} 
-                onChange={set('taxPct')}
-                placeholder="1.2"
-              />
+          {/* Property Tax Input Mode Toggle */}
+          <div>
+            <label className="block text-xs text-gray-600 mb-2">Property Tax</label>
+            <div className="flex items-center gap-4 mb-2">
+              <label className="flex items-center">
+                <input 
+                  type="radio" 
+                  name="taxInputMode"
+                  value="percentage" 
+                  checked={form.taxInputMode === 'percentage'}
+                  onChange={set('taxInputMode')}
+                  className="mr-2"
+                />
+                <span className="text-sm">Percentage</span>
+              </label>
+              <label className="flex items-center">
+                <input 
+                  type="radio" 
+                  name="taxInputMode"
+                  value="annual" 
+                  checked={form.taxInputMode === 'annual'}
+                  onChange={set('taxInputMode')}
+                  className="mr-2"
+                />
+                <span className="text-sm">Annual Amount</span>
+              </label>
             </div>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Insurance ($/mo)</label>
-              <input 
-                type="number" 
-                step="10"
-                className={inputCls} 
-                value={form.insuranceMonthly} 
-                onChange={set('insuranceMonthly')}
-                placeholder="120"
-              />
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                {form.taxInputMode === 'percentage' ? (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Tax Rate (%)</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      className={inputCls} 
+                      value={form.taxPct} 
+                      onChange={set('taxPct')}
+                      placeholder="1.2"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Annual Tax ($)</label>
+                    <input 
+                      type="number" 
+                      step="100"
+                      className={inputCls} 
+                      value={form.taxAnnual} 
+                      onChange={set('taxAnnual')}
+                      placeholder="6000"
+                    />
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Insurance ($/mo)</label>
+                <input 
+                  type="number" 
+                  step="10"
+                  className={inputCls} 
+                  value={form.insuranceMonthly} 
+                  onChange={set('insuranceMonthly')}
+                  placeholder="120"
+                />
+              </div>
             </div>
           </div>
 

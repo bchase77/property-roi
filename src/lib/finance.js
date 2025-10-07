@@ -152,7 +152,7 @@ export function calculateHoldVsSell(property, marketReturn = 10) {
 
 export function analyze({
   purchasePrice, downPct, rateApr, years,
-  monthlyRent, taxPct, hoaMonthly, insuranceMonthly,
+  monthlyRent, taxPct, taxAnnual, taxInputMode, hoaMonthly, insuranceMonthly,
   maintPctRent, vacancyPctRent, mgmtPctRent, otherMonthly,
   initialInvestment, mortgageFree,
   // New parameters for current values
@@ -165,8 +165,15 @@ export function analyze({
   // Use current mortgage payment if available, otherwise calculate
   const pAndI = mortgageFree ? 0 : (currentMortgagePayment || mortgageMonthly(loan, rateApr, years));
 
-  // Use current taxes if available, otherwise calculate from purchase price
-  const taxesMonthly = currentTaxesAnnual ? (currentTaxesAnnual / 12) : ((purchasePrice * (taxPct / 100)) / 12);
+  // Use current taxes if available, otherwise calculate based on input mode
+  let taxesMonthly;
+  if (currentTaxesAnnual) {
+    taxesMonthly = currentTaxesAnnual / 12;
+  } else if (taxInputMode === 'annual' && taxAnnual) {
+    taxesMonthly = taxAnnual / 12;
+  } else {
+    taxesMonthly = (purchasePrice * (taxPct / 100)) / 12;
+  }
   
   // Use current expenses if explicitly set and non-zero, otherwise calculate from percentages
   const maint = (currentExpensesAnnual !== null && currentExpensesAnnual !== undefined && currentExpensesAnnual > 0) ? (currentExpensesAnnual / 12) : (monthlyRent * (maintPctRent / 100));
