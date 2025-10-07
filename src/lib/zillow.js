@@ -63,7 +63,7 @@ async function fetchFromRapidAPI(zpid) {
   }
 }
 
-async function fetchFromZillowWeb(zpid) {
+async function fetchFromZillowWeb() {
   try {
     // Alternative: Use a web scraping service or build our own
     // Note: This is less reliable and may break if Zillow changes their structure

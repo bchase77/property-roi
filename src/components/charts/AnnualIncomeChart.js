@@ -200,7 +200,7 @@ export default function AnnualIncomeChart({ properties }) {
             <Legend 
               iconType="line"
               wrapperStyle={{ paddingTop: '2px' }}
-              content={(props) => {
+              content={() => {
                 // Group legend entries by property
                 const propertyGroups = {};
                 properties.forEach((property, index) => {

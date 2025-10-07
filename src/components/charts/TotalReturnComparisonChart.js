@@ -22,7 +22,7 @@ const BENCHMARK_DATA = {
   }
 };
 
-export default function TotalReturnComparisonChart({ properties, timeRange }) {
+export default function TotalReturnComparisonChart({ properties }) {
   const [visibleSeries, setVisibleSeries] = useState(
     properties.reduce((acc, prop) => ({ ...acc, [prop.id]: true }), {
       'S&P 500': true,

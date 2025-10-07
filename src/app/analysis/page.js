@@ -7,15 +7,14 @@ import AnnualIncomeChart from '@/components/charts/AnnualIncomeChart';
 import MetricsGrid from '@/components/ui/MetricsGrid';
 import PropertySelector from '@/components/ui/PropertySelector';
 import PageHeader from '@/components/ui/PageHeader';
-import { analyzeWithCurrentValues, calculateCAGR, calculateHoldVsSell, calculateMarketComparison } from '@/lib/finance';
+import { analyzeWithCurrentValues, calculateCAGR, calculateHoldVsSell } from '@/lib/finance';
 import { calculateMarketInvestmentValue } from '@/lib/marketData';
 
 function AnalysisContent() {
   const searchParams = useSearchParams();
   const [properties, setProperties] = useState([]);
   const [selectedProperties, setSelectedProperties] = useState([]);
-  const [timeRange, setTimeRange] = useState('5y'); // 2y, 5y, 10y
-  const [primaryMetric, setPrimaryMetric] = useState('totalReturn');
+  const [timeRange] = useState('5y'); // 2y, 5y, 10y
   const [loading, setLoading] = useState(true);
 
 
@@ -113,7 +112,7 @@ function AnalysisContent() {
   );
 }
 
-function DetailedAnalysisTable({ properties, timeRange }) {
+function DetailedAnalysisTable({ properties }) {
   return (
     <section className="bg-white rounded-lg border p-6">
       <h2 className="text-xl font-semibold mb-4 text-gray-600">Advanced Investment Analysis</h2>
@@ -229,7 +228,7 @@ function DetailedAnalysisTable({ properties, timeRange }) {
       </div>
       
       <div className="mt-4 text-xs text-gray-600 space-y-1">
-        <div><strong>Market Cap Rate:</strong> NOI ÷ Current Market Value (what you're earning on the asset today)</div>
+        <div><strong>Market Cap Rate:</strong> NOI ÷ Current Market Value (what you&apos;re earning on the asset today)</div>
         <div><strong>Purchase Cap Rate:</strong> NOI ÷ Original Purchase Price (return on total property value)</div>
         <div><strong>Cash-on-Cash:</strong> NOI ÷ Initial Cash Investment (return on actual cash you invested, excludes appreciation)</div>
         <div><strong>CAGR:</strong> Compound Annual Growth Rate from initial investment to current equity value (includes property appreciation, excludes cash flow)</div>

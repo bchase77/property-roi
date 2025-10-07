@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { analyze } from '@/lib/finance';
 import PropertyForm from '@/components/forms/PropertyForm';
 import MortgageCalculator from '@/components/forms/MortgageCalculator';
 import FinancialPreview from '@/components/ui/FinancialPreview';
