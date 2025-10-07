@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { analyzeWithCurrentValues, calculateCAGR, calculateEquityAtYear, calculateIRR } from '@/lib/finance';
 
-export default function MetricsGrid({ properties, timeRange }) {
+export default function MetricsGrid({ properties }) {
   const [historicalData, setHistoricalData] = useState({});
 
   // Fetch historical actuals data for IRR and NPV calculations

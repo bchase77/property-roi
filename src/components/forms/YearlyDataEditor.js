@@ -1,17 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 export default function YearlyDataEditor({ property, onUpdate }) {
   const [yearlyData, setYearlyData] = useState([]);
   const [form, setForm] = useState({ year: '', income: '', expenses: '', depreciation: '' });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (property) {
-      loadYearlyData();
-    }
-  }, [property]);
-
-  async function loadYearlyData() {
+  const loadYearlyData = useCallback(async () => {
     try {
       const res = await fetch(`/api/properties/${property.id}/years`);
       if (res.ok) {
@@ -22,7 +16,13 @@ export default function YearlyDataEditor({ property, onUpdate }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [property]);
+
+  useEffect(() => {
+    if (property) {
+      loadYearlyData();
+    }
+  }, [property, loadYearlyData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

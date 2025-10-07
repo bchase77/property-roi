@@ -22,12 +22,10 @@ export default function PerformanceMetricsChart({ properties }) {
     const fetchHistoricalData = async () => {
       try {
         const propertyIds = properties.map(p => p.id).join(',');
-        // console.log('🔍 Properties array with abbreviations:', properties.map(p => ({ id: p.id, address: p.address, abbreviation: p.abbreviation })));
         const response = await fetch(`/api/properties/actuals?ids=${propertyIds}`);
         
         if (response.ok) {
           const data = await response.json();
-          // console.log('🔍 Historical data fetched:', data);
           setHistoricalData(data);
         } else {
           console.error('Failed to fetch historical data:', response.status, response.statusText);
@@ -84,11 +82,10 @@ export default function PerformanceMetricsChart({ properties }) {
         if (yearsOwned >= 1) { // Need at least 1 year for meaningful percentages
           const purchasePrice = Number(property.purchase_price) || 0;
           const currentValue = Number(property.current_market_value) || purchasePrice;
-          const currentMortgage = Number(property.current_mortgage_balance) || 0;
           const initialInvestment = Number(property.initial_investment) || 
             (purchasePrice * (Number(property.down_payment_pct) || 20) / 100);
           
-          let netIncome, cagr, cashOnCash, purchaseCapRate, marketCapRate, totalReturnPct, irrPct;
+          let netIncome, cagr, cashOnCash, irrPct;
           
           // Calculate property value for this year using real Zillow data
           let historicalValue;
@@ -131,24 +128,15 @@ export default function PerformanceMetricsChart({ properties }) {
           }
           
           // Calculate accurate equity using mortgage payoff date
-          console.log('About to call calculateEquityAtYear for year:', year);
           const historicalEquity = calculateEquityAtYear(property, year, historicalValue);
-          console.log('calculateEquityAtYear returned:', historicalEquity, 'for year:', year);
           
           if (yearData) {
             // Use real historical data for income
             netIncome = yearData.netIncome; // grossIncome - totalExpenses
             cashOnCash = initialInvestment > 0 ? (netIncome / initialInvestment) * 100 : 0;
             
-            // Calculate cumulative income through this year
-            let cumulativeIncome = 0;
+            // Calculate cumulative income through this year (used in IRR calculation)
             const allHistoricalData = historicalData[property.id] || [];
-            for (let incomeYear = property.year_purchased; incomeYear <= year; incomeYear++) {
-              const incomeYearData = allHistoricalData.find(d => d.year === incomeYear);
-              if (incomeYearData) {
-                cumulativeIncome += incomeYearData.netIncome;
-              }
-            }
             
             // IRR calculation using cash flows
             if (yearsOwned >= 1) {
@@ -283,7 +271,7 @@ export default function PerformanceMetricsChart({ properties }) {
             <Legend 
               iconType="line"
               wrapperStyle={{ paddingTop: '2px' }}
-              content={(props) => {
+              content={() => {
                 // Group legend entries by property
                 const propertyGroups = {};
                 properties.forEach((property, index) => {

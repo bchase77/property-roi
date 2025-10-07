@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { analyzeWithCurrentValues, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
-import { zhviData, getAnnualZHVI } from '@/lib/zhviData';
+import { getAnnualZHVI } from '@/lib/zhviData';
 
 export default function AssetValueChart({ properties }) {
   const [visibleProperties, setVisibleProperties] = useState(
@@ -274,7 +274,7 @@ export default function AssetValueChart({ properties }) {
             <Legend 
               iconType="line"
               wrapperStyle={{ paddingTop: '2px' }}
-              content={(props) => {
+              content={() => {
                 // Group legend entries by property
                 const propertyGroups = {};
                 properties.forEach((property, index) => {

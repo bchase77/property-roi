@@ -41,11 +41,11 @@ export default function Portfolio() {
     setErrMsg('');
   };
 
-  const handlePropertyUpdate = async (updatedProperty) => {
+  const handlePropertyUpdate = async () => {
     try {
       await loadProperties(); // Refresh the list
       setEditingProperty(null);
-    } catch (error) {
+    } catch {
       setErrMsg('Failed to update property');
     }
   };
