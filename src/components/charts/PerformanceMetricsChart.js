@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { analyzeWithCurrentValues, calculateCAGR, calculateIRR, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
 
-export default function PerformanceMetricsChart({ properties, timeRange }) {
+export default function PerformanceMetricsChart({ properties }) {
   const [visibleProperties, setVisibleProperties] = useState(
     properties.reduce((acc, prop) => ({ ...acc, [prop.id]: true }), {})
   );
@@ -12,6 +12,7 @@ export default function PerformanceMetricsChart({ properties, timeRange }) {
     CoC: true,
     IRR: true
   });
+  const [timeRange, setTimeRange] = useState('10y');
   const [historicalData, setHistoricalData] = useState({});
   
   // Fetch historical actuals data
@@ -21,7 +22,7 @@ export default function PerformanceMetricsChart({ properties, timeRange }) {
     const fetchHistoricalData = async () => {
       try {
         const propertyIds = properties.map(p => p.id).join(',');
-        console.log('🔍 Properties array with abbreviations:', properties.map(p => ({ id: p.id, address: p.address, abbreviation: p.abbreviation })));
+        // console.log('🔍 Properties array with abbreviations:', properties.map(p => ({ id: p.id, address: p.address, abbreviation: p.abbreviation })));
         const response = await fetch(`/api/properties/actuals?ids=${propertyIds}`);
         
         if (response.ok) {
@@ -56,9 +57,16 @@ export default function PerformanceMetricsChart({ properties, timeRange }) {
   // Generate historical performance data using real data
   const generateChartData = () => {
     const currentYear = new Date().getFullYear();
-    const startYear = 2012;
-    const years = [];
+    let startYear;
     
+    if (timeRange === 'all') {
+      startYear = 2012;
+    } else {
+      const yearsBack = timeRange === '2y' ? 2 : timeRange === '5y' ? 5 : 10;
+      startYear = currentYear - yearsBack;
+    }
+    
+    const years = [];
     for (let year = startYear; year <= currentYear; year++) {
       years.push(year);
     }
@@ -191,7 +199,24 @@ export default function PerformanceMetricsChart({ properties, timeRange }) {
     <div className="bg-white rounded-lg border p-6">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-gray-600">Perf Metrics</h3>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          {/* Time Range Selector */}
+          <div className="flex gap-1">
+            {['2y', '5y', '10y', 'all'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-2 py-1 text-xs rounded ${
+                  timeRange === range
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+          
           {/* Metric Toggles */}
           <div className="flex gap-2">
             {Object.keys(visibleMetrics).map((metric) => (
@@ -208,6 +233,7 @@ export default function PerformanceMetricsChart({ properties, timeRange }) {
               </button>
             ))}
           </div>
+          
           {/* Property Toggles */}
           <div className="flex flex-wrap gap-2">
             {properties.map((property, index) => (

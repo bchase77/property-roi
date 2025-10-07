@@ -3,10 +3,15 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { analyzeWithCurrentValues } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
 
-export default function AnnualIncomeChart({ properties, timeRange }) {
+export default function AnnualIncomeChart({ properties }) {
   const [visibleProperties, setVisibleProperties] = useState(
     properties.reduce((acc, prop) => ({ ...acc, [prop.id]: true }), {})
   );
+  const [visibleMetrics, setVisibleMetrics] = useState({
+    NOI: true,
+    CashFlow: true
+  });
+  const [timeRange, setTimeRange] = useState('10y');
   const [historicalData, setHistoricalData] = useState({});
   
   // Fetch historical actuals data
@@ -37,14 +42,28 @@ export default function AnnualIncomeChart({ properties, timeRange }) {
     }));
   };
 
+  const toggleMetric = (metric) => {
+    setVisibleMetrics(prev => ({
+      ...prev,
+      [metric]: !prev[metric]
+    }));
+  };
+
   // Generate historical income data using real data
   const generateChartData = () => {
     const currentYear = new Date().getFullYear();
-    const yearsBack = timeRange === '2y' ? 2 : timeRange === '5y' ? 5 : 10;
-    const years = [];
+    let startYear;
     
-    for (let i = yearsBack; i >= 0; i--) {
-      years.push(currentYear - i);
+    if (timeRange === 'all') {
+      startYear = 2012;
+    } else {
+      const yearsBack = timeRange === '2y' ? 2 : timeRange === '5y' ? 5 : 10;
+      startYear = currentYear - yearsBack;
+    }
+    
+    const years = [];
+    for (let year = startYear; year <= currentYear; year++) {
+      years.push(year);
     }
 
     return years.map(year => {
@@ -109,23 +128,60 @@ export default function AnnualIncomeChart({ properties, timeRange }) {
     <div className="bg-white rounded-lg border p-6">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-gray-600">Inc Over Time</h3>
-        <div className="flex flex-wrap gap-2">
-          {properties.map((property, index) => (
-            <button
-              key={property.id}
-              onClick={() => toggleProperty(property.id)}
-              className={`px-2 py-1 text-xs rounded ${
-                visibleProperties[property.id]
-                  ? 'bg-blue-100 text-blue-800'
-                  : 'bg-gray-100 text-gray-500'
-              }`}
-              style={{
-                borderLeft: `4px solid ${colors[index % colors.length]}`
-              }}
-            >
-              {getPropertyDisplayLabel(property)}
-            </button>
-          ))}
+        <div className="flex items-center gap-4">
+          {/* Time Range Selector */}
+          <div className="flex gap-1">
+            {['2y', '5y', '10y', 'all'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-2 py-1 text-xs rounded ${
+                  timeRange === range
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+          
+          {/* Metric Toggles */}
+          <div className="flex gap-2">
+            {Object.keys(visibleMetrics).map((metric) => (
+              <button
+                key={metric}
+                onClick={() => toggleMetric(metric)}
+                className={`px-2 py-1 text-xs rounded border ${
+                  visibleMetrics[metric]
+                    ? 'bg-green-100 text-green-800 border-green-300'
+                    : 'bg-gray-100 text-gray-500 border-gray-300'
+                }`}
+              >
+                {metric}
+              </button>
+            ))}
+          </div>
+          
+          {/* Property Toggles */}
+          <div className="flex flex-wrap gap-2">
+            {properties.map((property, index) => (
+              <button
+                key={property.id}
+                onClick={() => toggleProperty(property.id)}
+                className={`px-2 py-1 text-xs rounded ${
+                  visibleProperties[property.id]
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-gray-100 text-gray-500'
+                }`}
+                style={{
+                  borderLeft: `4px solid ${colors[index % colors.length]}`
+                }}
+              >
+                {getPropertyDisplayLabel(property)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       
@@ -141,7 +197,64 @@ export default function AnnualIncomeChart({ properties, timeRange }) {
               formatter={(value, name) => [`$${value.toLocaleString()}`, name]}
               labelFormatter={(year) => `Year: ${year}`}
             />
-            <Legend />
+            <Legend 
+              iconType="line"
+              wrapperStyle={{ paddingTop: '2px' }}
+              content={(props) => {
+                // Group legend entries by property
+                const propertyGroups = {};
+                properties.forEach((property, index) => {
+                  if (visibleProperties[property.id]) {
+                    const displayLabel = getPropertyDisplayLabel(property);
+                    const color = colors[index % colors.length];
+                    propertyGroups[displayLabel] = { color };
+                  }
+                });
+
+                return (
+                  <div className="flex flex-wrap gap-4 justify-center items-center">
+                    {Object.entries(propertyGroups).map(([propertyLabel, data]) => (
+                      <div key={propertyLabel} className="flex items-center gap-2">
+                        <span className="text-sm font-semibold" style={{ color: data.color }}>
+                          {propertyLabel}:
+                        </span>
+                        {visibleMetrics.NOI && (
+                          <div className="flex items-center gap-1">
+                            <svg width="16" height="3">
+                              <line
+                                x1="0"
+                                y1="1.5"
+                                x2="16"
+                                y2="1.5"
+                                stroke={data.color}
+                                strokeWidth="2"
+                              />
+                            </svg>
+                            <span className="text-xs" style={{ color: data.color }}>NOI</span>
+                          </div>
+                        )}
+                        {visibleMetrics.CashFlow && (
+                          <div className="flex items-center gap-1">
+                            <svg width="16" height="3">
+                              <line
+                                x1="0"
+                                y1="1.5"
+                                x2="16"
+                                y2="1.5"
+                                stroke={data.color}
+                                strokeWidth="2"
+                                strokeDasharray="5 5"
+                              />
+                            </svg>
+                            <span className="text-xs" style={{ color: data.color }}>Cash Flow</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              }}
+            />
             
             {properties.map((property, index) => {
               if (!visibleProperties[property.id]) return null;
@@ -150,23 +263,27 @@ export default function AnnualIncomeChart({ properties, timeRange }) {
               
               return (
                 <React.Fragment key={property.id}>
-                  <Line
-                    type="monotone"
-                    dataKey={`${displayLabel}_noi`}
-                    stroke={color}
-                    strokeWidth={2}
-                    name={`${displayLabel} - NOI`}
-                    connectNulls={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey={`${displayLabel}_cashflow`}
-                    stroke={color}
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    name={`${displayLabel} - Cash Flow`}
-                    connectNulls={false}
-                  />
+                  {visibleMetrics.NOI && (
+                    <Line
+                      type="monotone"
+                      dataKey={`${displayLabel}_noi`}
+                      stroke={color}
+                      strokeWidth={2}
+                      name={`${displayLabel} - NOI`}
+                      connectNulls={false}
+                    />
+                  )}
+                  {visibleMetrics.CashFlow && (
+                    <Line
+                      type="monotone"
+                      dataKey={`${displayLabel}_cashflow`}
+                      stroke={color}
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name={`${displayLabel} - Cash Flow`}
+                      connectNulls={false}
+                    />
+                  )}
                 </React.Fragment>
               );
             })}

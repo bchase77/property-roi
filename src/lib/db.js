@@ -13,6 +13,8 @@ export async function updateProperty(id, p) {
       loan_years = ${p.years},
       monthly_rent = ${p.monthlyRent},
       property_tax_pct = ${p.taxPct},
+      tax_annual = ${p.taxAnnual ?? 0},
+      tax_input_mode = ${p.taxInputMode ?? 'percentage'},
       hoa_monthly = ${p.hoaMonthly},
       insurance_monthly = ${p.insuranceMonthly},
       maintenance_pct_rent = ${p.maintPctRent},
@@ -119,6 +121,10 @@ export async function init() {
 
   // Property abbreviation for chart display
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS abbreviation TEXT;`;
+  
+  // Property tax input mode and annual amount
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS tax_annual NUMERIC DEFAULT 0;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS tax_input_mode TEXT DEFAULT 'percentage';`;
 
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
@@ -164,14 +170,14 @@ export async function addProperty(p) {
     INSERT INTO properties (
       address, city, state, zip,
       purchase_price, down_payment_pct, interest_apr_pct, loan_years,
-      monthly_rent, property_tax_pct, hoa_monthly, insurance_monthly,
+      monthly_rent, property_tax_pct, tax_annual, tax_input_mode, hoa_monthly, insurance_monthly,
       maintenance_pct_rent, vacancy_pct_rent, management_pct_rent, other_monthly,
       zillow_zpid, crime_index, purchased, year_purchased, month_purchased, initial_investment, mortgage_free,
       bedrooms, bathrooms, square_footage, year_built, abbreviation
     ) VALUES (
       ${p.address}, ${p.city}, ${p.state}, ${p.zip},
       ${p.purchasePrice}, ${p.downPct}, ${p.rateApr}, ${p.years},
-      ${p.monthlyRent}, ${p.taxPct}, ${p.hoaMonthly}, ${p.insuranceMonthly},
+      ${p.monthlyRent}, ${p.taxPct}, ${p.taxAnnual ?? 0}, ${p.taxInputMode ?? 'percentage'}, ${p.hoaMonthly}, ${p.insuranceMonthly},
       ${p.maintPctRent}, ${p.vacancyPctRent}, ${p.mgmtPctRent}, ${p.otherMonthly},
       ${p.zillowZpid ?? null}, ${p.crimeIndex ?? null}, ${p.purchased ?? false}, ${p.yearPurchased ?? null}, ${p.monthPurchased ?? null},
       ${p.initialInvestment ?? 0}, ${p.mortgageFree ?? false},

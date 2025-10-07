@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function AdminPage() {
   const [list, setList] = useState([]);
@@ -45,7 +46,11 @@ export default function AdminPage() {
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      <h1 className="text-2xl font-semibold mb-4">Admin — Deleted Properties</h1>
+      <PageHeader 
+        title="Admin — Deleted Properties"
+        subtitle="Manage deleted properties: restore or permanently purge"
+        currentPage="/admin"
+      />
       {err && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 mb-4">{err}</div>}
       {loading && <div className="text-sm text-gray-500 mb-4">Loading...</div>}
       <ul className="space-y-3">

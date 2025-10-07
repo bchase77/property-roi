@@ -5,11 +5,12 @@ import { analyze } from '@/lib/finance';
 import PropertyForm from '@/components/forms/PropertyForm';
 import MortgageCalculator from '@/components/forms/MortgageCalculator';
 import FinancialPreview from '@/components/ui/FinancialPreview';
+import PageHeader from '@/components/ui/PageHeader';
 
 const DEFAULTS = {
   address: '', city: '', state: '', zip: '',
   purchasePrice: 500000, downPct: 20, rateApr: 6.5, years: 30,
-  monthlyRent: 2800, taxPct: 1.2, hoaMonthly: 0, insuranceMonthly: 120,
+  monthlyRent: 2800, taxPct: 1.2, taxAnnual: 6000, taxInputMode: 'percentage', hoaMonthly: 0, insuranceMonthly: 120,
   maintPctRent: 5, vacancyPctRent: 5, mgmtPctRent: 8, otherMonthly: 0,
   purchased: false, yearPurchased: '',
   initialInvestment: 0, mortgageFree: false,
@@ -60,10 +61,11 @@ export default function DataEntry() {
 
   return (
     <main className="mx-auto max-w-7xl p-6 space-y-8">
-      <header className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Property Analysis Tool</h1>
-        <p className="text-gray-600">Enter property details to analyze investment potential</p>
-      </header>
+      <PageHeader 
+        title="Property Analysis Tool"
+        subtitle="Enter property details to analyze investment potential"
+        currentPage="/data-entry"
+      />
 
       {errMsg && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

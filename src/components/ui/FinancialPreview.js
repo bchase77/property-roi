@@ -10,6 +10,8 @@ export default function FinancialPreview({ form }) {
     years: Number(form.years) || 0,
     monthlyRent: Number(form.monthlyRent) || 0,
     taxPct: Number(form.taxPct) || 0,
+    taxAnnual: Number(form.taxAnnual) || 0,
+    taxInputMode: form.taxInputMode || 'percentage',
     hoaMonthly: Number(form.hoaMonthly) || 0,
     insuranceMonthly: Number(form.insuranceMonthly) || 0,
     maintPctRent: Number(form.maintPctRent) || 0,
@@ -34,7 +36,7 @@ export default function FinancialPreview({ form }) {
 
   return (
     <div className="bg-white rounded-lg border p-6">
-      <h2 className="text-xl font-semibold mb-4">Financial Analysis</h2>
+      <h2 className="text-xl font-semibold mb-4 text-gray-800">Financial Analysis</h2>
       
       {/* Property Chart */}
       {form.purchasePrice && (
@@ -76,12 +78,12 @@ export default function FinancialPreview({ form }) {
         <h3 className="text-sm font-medium text-gray-900">Monthly Cash Flow</h3>
         
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
+          <div className="flex justify-between text-gray-700">
             <span>Gross Rent:</span>
             <span className="text-green-600">{Money(form.monthlyRent || 0)}</span>
           </div>
           
-          <div className="flex justify-between text-gray-600">
+          <div className="flex justify-between text-gray-700">
             <span>Operating Expenses:</span>
             <span className="text-red-600">-{Money(metrics.operatingExpenses)}</span>
           </div>
@@ -112,7 +114,7 @@ export default function FinancialPreview({ form }) {
           </div>
 
           <div className="border-t pt-2">
-            <div className="flex justify-between font-medium">
+            <div className="flex justify-between font-medium text-gray-700">
               <span>Net Operating Income:</span>
               <span className={metrics.noiMonthly >= 0 ? 'text-green-600' : 'text-red-600'}>
                 {Money(metrics.noiMonthly)}
@@ -121,14 +123,14 @@ export default function FinancialPreview({ form }) {
           </div>
 
           {!form.mortgageFree && (
-            <div className="flex justify-between text-gray-600">
+            <div className="flex justify-between text-gray-700">
               <span>Mortgage Payment (P&I):</span>
               <span className="text-red-600">-{Money(metrics.pAndI)}</span>
             </div>
           )}
 
           <div className="border-t pt-2">
-            <div className="flex justify-between font-semibold text-lg">
+            <div className="flex justify-between font-semibold text-lg text-gray-800">
               <span>Cash Flow:</span>
               <span className={metrics.cashflowMonthly >= 0 ? 'text-green-600' : 'text-red-600'}>
                 {Money(metrics.cashflowMonthly)}
@@ -141,7 +143,7 @@ export default function FinancialPreview({ form }) {
       {/* Investment Summary */}
       <div className="mt-6 pt-4 border-t">
         <h3 className="text-sm font-medium text-gray-900 mb-2">Investment Summary</h3>
-        <div className="space-y-1 text-sm">
+        <div className="space-y-1 text-sm text-gray-700">
           <div className="flex justify-between">
             <span>Purchase Price:</span>
             <span>{Money(form.purchasePrice || 0)}</span>
@@ -170,9 +172,9 @@ function MetricCard({ label, value, description, color }) {
 
   return (
     <div className={`rounded-lg border p-3 ${colorClasses[color]}`}>
-      <div className="text-xs opacity-75 mb-1">{label}</div>
+      <div className="text-xs text-gray-600 mb-1">{label}</div>
       <div className="text-lg font-bold">{value}</div>
-      <div className="text-xs opacity-75 mt-1">{description}</div>
+      <div className="text-xs text-gray-600 mt-1">{description}</div>
     </div>
   );
 }

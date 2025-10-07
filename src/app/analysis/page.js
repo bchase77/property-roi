@@ -6,6 +6,7 @@ import PerformanceMetricsChart from '@/components/charts/PerformanceMetricsChart
 import AnnualIncomeChart from '@/components/charts/AnnualIncomeChart';
 import MetricsGrid from '@/components/ui/MetricsGrid';
 import PropertySelector from '@/components/ui/PropertySelector';
+import PageHeader from '@/components/ui/PageHeader';
 import { analyzeWithCurrentValues, calculateCAGR, calculateHoldVsSell, calculateMarketComparison } from '@/lib/finance';
 import { calculateMarketInvestmentValue } from '@/lib/marketData';
 
@@ -16,6 +17,7 @@ function AnalysisContent() {
   const [timeRange, setTimeRange] = useState('5y'); // 2y, 5y, 10y
   const [primaryMetric, setPrimaryMetric] = useState('totalReturn');
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     loadProperties();
@@ -68,39 +70,11 @@ function AnalysisContent() {
 
   return (
     <main className="mx-auto max-w-7xl p-6 space-y-8">
-      <header className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Investment Analysis</h1>
-          <p className="text-gray-600">Performance charts, projections, and market comparisons</p>
-        </div>
-        
-        {/* View Controls */}
-        <div className="flex space-x-4">
-          <select 
-            value={timeRange} 
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="border rounded-md px-3 py-2"
-          >
-            <option value="2y">2 Years</option>
-            <option value="5y">5 Years</option>
-            <option value="10y">10 Years</option>
-          </select>
-          
-          <select 
-            value={primaryMetric} 
-            onChange={(e) => setPrimaryMetric(e.target.value)}
-            className="border rounded-md px-3 py-2"
-          >
-            <option value="totalReturn">Total Return</option>
-            <option value="irr">IRR</option>
-            <option value="npv">NPV</option>
-            <option value="cagr">CAGR</option>
-            <option value="cashFlow">Cash Flow</option>
-            <option value="capRate">Purchase Cap Rate</option>
-            <option value="cashOnCash">Cash-on-Cash</option>
-          </select>
-        </div>
-      </header>
+      <PageHeader 
+        title="Investment Analysis"
+        subtitle="Performance charts, projections, and market comparisons"
+        currentPage="/analysis"
+      />
 
       {/* Property Selection */}
       <PropertySelector 
@@ -119,17 +93,14 @@ function AnalysisContent() {
       <div className="space-y-8">
         <AssetValueChart 
           properties={selectedProperties}
-          timeRange={timeRange}
         />
         
         <PerformanceMetricsChart 
           properties={selectedProperties}
-          timeRange={timeRange}
         />
         
         <AnnualIncomeChart 
           properties={selectedProperties}
-          timeRange={timeRange}
         />
       </div>
 

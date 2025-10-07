@@ -2,10 +2,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { analyze, analyzeWithCurrentValues } from '@/lib/finance';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function Dashboard() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     loadProperties();
@@ -53,10 +55,11 @@ export default function Dashboard() {
 
   return (
     <main className="mx-auto max-w-7xl p-6 space-y-8">
-      <header className="text-center">
-        <h1 className="text-4xl font-bold mb-2">Property Investment Dashboard</h1>
-        <p className="text-gray-600">Analyze, compare, and track your real estate investments</p>
-      </header>
+      <PageHeader 
+        title="Property Investment Dashboard"
+        subtitle="Analyze, compare, and track your real estate investments"
+        currentPage="/dashboard"
+      />
 
       {/* Key Metrics */}
       <section className="grid md:grid-cols-5 gap-6">
@@ -171,6 +174,8 @@ function PropertySummaryCard({ property }) {
     years: Number(property.loan_years),
     monthlyRent: Number(property.monthly_rent),
     taxPct: Number(property.property_tax_pct),
+    taxAnnual: Number(property.tax_annual) || 0,
+    taxInputMode: property.tax_input_mode || 'percentage',
     hoaMonthly: Number(property.hoa_monthly),
     insuranceMonthly: Number(property.insurance_monthly),
     maintPctRent: Number(property.maintenance_pct_rent),
