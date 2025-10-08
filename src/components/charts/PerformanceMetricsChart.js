@@ -110,7 +110,7 @@ export default function PerformanceMetricsChart({ properties }) {
           const initialInvestment = Number(property.initial_investment) || 
             (purchasePrice * (Number(property.down_payment_pct) || 20) / 100);
           
-          let netIncome, cagr, cashOnCash, irrPct;
+          let netIncome, cagr = 0, cashOnCash = 0, irrPct = 0;
           
           // Calculate property value for this year using real Zillow data
           let historicalValue;
@@ -226,25 +226,32 @@ export default function PerformanceMetricsChart({ properties }) {
             
             // Calculate projected metrics
             cashOnCash = initialInvestment > 0 ? (projectedNOI / initialInvestment) * 100 : 0;
-            cagr = calculateCAGR(initialInvestment, projectedEquity, year - property.year_purchased);
+            const projectedYearsOwned = year - property.year_purchased;
+            cagr = calculateCAGR(initialInvestment, projectedEquity, projectedYearsOwned) || 0;
             
             // For IRR, we'd need to calculate cumulative cash flows through projection
             // For now, use CAGR as approximation for projections
-            irrPct = cagr;
+            irrPct = cagr || 0;
             
             historicalEquity = projectedEquity;
+          } else {
+            // Calculate CAGR using accurate equity progression for historical data
+            cagr = calculateCAGR(initialInvestment, historicalEquity, yearsOwned);
           }
-          
-          // Calculate CAGR using accurate equity progression
-          cagr = calculateCAGR(initialInvestment, historicalEquity, yearsOwned);
           
           // Debug logging removed - CAGR issue resolved
           
-          // Only show CAGR after 3+ years to avoid meaningless early high numbers
+          // Only show CAGR after 3+ years to avoid meaningless early high numbers, but allow projections
           const displayLabel = getPropertyDisplayLabel(property);
-          dataPoint[`${displayLabel}_cagr`] = (cagr && yearsOwned >= 3) ? Number(cagr.toFixed(1)) : null;
-          dataPoint[`${displayLabel}_coc`] = Number(cashOnCash.toFixed(1));
-          dataPoint[`${displayLabel}_irr`] = (irrPct && yearsOwned >= 2) ? Number(irrPct.toFixed(1)) : null;
+          const effectiveYearsOwned = isProjectionYear ? year - property.year_purchased : yearsOwned;
+          
+          // Ensure we show data for projections even if historical requirements aren't met
+          const minYearsForCAGR = isProjectionYear ? 1 : 3;
+          const minYearsForIRR = isProjectionYear ? 1 : 2;
+          
+          dataPoint[`${displayLabel}_cagr`] = (cagr && !isNaN(cagr) && effectiveYearsOwned >= minYearsForCAGR) ? Number(cagr.toFixed(1)) : null;
+          dataPoint[`${displayLabel}_coc`] = (cashOnCash && !isNaN(cashOnCash)) ? Number(cashOnCash.toFixed(1)) : null;
+          dataPoint[`${displayLabel}_irr`] = (irrPct && !isNaN(irrPct) && effectiveYearsOwned >= minYearsForIRR) ? Number(irrPct.toFixed(1)) : null;
         }
       });
       
