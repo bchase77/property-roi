@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { analyzeWithCurrentValues, calculateCAGR, calculateIRR, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
+import { projectRent, createPayoffScenarios } from '@/lib/rentProjections';
 
 export default function PerformanceMetricsChart({ properties }) {
   const [visibleProperties, setVisibleProperties] = useState(
@@ -14,6 +15,9 @@ export default function PerformanceMetricsChart({ properties }) {
   });
   const [timeRange, setTimeRange] = useState('10y');
   const [historicalData, setHistoricalData] = useState({});
+  const [showProjections, setShowProjections] = useState(false);
+  const [selectedPayoffScenario, setSelectedPayoffScenario] = useState('current');
+  const [rentAnalysis, setRentAnalysis] = useState({});
   
   // Fetch historical actuals data
   useEffect(() => {
@@ -38,6 +42,23 @@ export default function PerformanceMetricsChart({ properties }) {
     fetchHistoricalData();
   }, [properties]);
 
+  // Fetch rent analysis data
+  useEffect(() => {
+    const fetchRentAnalysis = async () => {
+      try {
+        const response = await fetch('/api/rent-analysis');
+        if (response.ok) {
+          const data = await response.json();
+          setRentAnalysis(data.analysis || {});
+        }
+      } catch (error) {
+        console.error('Failed to fetch rent analysis:', error);
+      }
+    };
+    
+    fetchRentAnalysis();
+  }, []);
+
   const toggleProperty = (propertyId) => {
     setVisibleProperties(prev => ({
       ...prev,
@@ -55,7 +76,7 @@ export default function PerformanceMetricsChart({ properties }) {
   // Generate historical performance data using real data
   const generateChartData = () => {
     const currentYear = new Date().getFullYear();
-    let startYear;
+    let startYear, endYear;
     
     if (timeRange === 'all') {
       startYear = 2012;
@@ -64,8 +85,11 @@ export default function PerformanceMetricsChart({ properties }) {
       startYear = currentYear - yearsBack;
     }
     
+    // Extend to include projections if enabled
+    endYear = showProjections ? currentYear + 5 : currentYear;
+    
     const years = [];
-    for (let year = startYear; year <= currentYear; year++) {
+    for (let year = startYear; year <= endYear; year++) {
       years.push(year);
     }
 
@@ -75,6 +99,7 @@ export default function PerformanceMetricsChart({ properties }) {
       properties.forEach(property => {
         if (!visibleProperties[property.id]) return;
         
+        const isProjectionYear = year > currentYear;
         const propertyHistoricalData = historicalData[property.id] || [];
         const yearData = propertyHistoricalData.find(d => d.year === year);
         const yearsOwned = property.year_purchased ? year - property.year_purchased : 0;
@@ -128,7 +153,7 @@ export default function PerformanceMetricsChart({ properties }) {
           }
           
           // Calculate accurate equity using mortgage payoff date
-          const historicalEquity = calculateEquityAtYear(property, year, historicalValue);
+          let historicalEquity = calculateEquityAtYear(property, year, historicalValue);
           
           if (yearData) {
             // Use real historical data for income
@@ -161,6 +186,53 @@ export default function PerformanceMetricsChart({ properties }) {
             
             // Simple IRR estimation for missing data
             irrPct = yearsOwned >= 2 ? calculateCAGR(initialInvestment, historicalEquity, yearsOwned) : null;
+          }
+          
+          // Handle projections for future years
+          if (isProjectionYear && showProjections) {
+            const currentRent = Number(property.current_rent_monthly || property.monthly_rent) || 0;
+            const stateData = rentAnalysis[property.state];
+            const rentProjections = projectRent(currentRent, property.state, stateData);
+            
+            const projectionIndex = year - currentYear - 1;
+            const projectedRent = rentProjections[projectionIndex]?.projectedRent || currentRent;
+            
+            // Calculate projected metrics
+            const metrics = analyzeWithCurrentValues(property);
+            const currentNOI = metrics.noiAnnual;
+            const currentGrossRent = currentRent * 12;
+            const currentExpenses = currentGrossRent - currentNOI;
+            
+            const projectedGrossRent = projectedRent * 12;
+            const inflationRate = 0.02;
+            const projectedExpenses = currentExpenses * Math.pow(1 + inflationRate, year - currentYear);
+            const projectedNOI = projectedGrossRent - projectedExpenses;
+            
+            // Projected property value (3% appreciation)
+            const projectedValue = currentValue * Math.pow(1.03, year - currentYear);
+            
+            // Check if mortgage is paid off in scenario
+            const scenarios = createPayoffScenarios(property);
+            const scenario = scenarios.find(s => s.name.toLowerCase().includes(selectedPayoffScenario));
+            const mortgagePaidOff = scenario && year >= scenario.payoffYear;
+            
+            // Calculate projected equity
+            let projectedEquity;
+            if (mortgagePaidOff) {
+              projectedEquity = projectedValue; // Full ownership
+            } else {
+              projectedEquity = calculateEquityAtYear(property, year, projectedValue);
+            }
+            
+            // Calculate projected metrics
+            cashOnCash = initialInvestment > 0 ? (projectedNOI / initialInvestment) * 100 : 0;
+            cagr = calculateCAGR(initialInvestment, projectedEquity, year - property.year_purchased);
+            
+            // For IRR, we'd need to calculate cumulative cash flows through projection
+            // For now, use CAGR as approximation for projections
+            irrPct = cagr;
+            
+            historicalEquity = projectedEquity;
           }
           
           // Calculate CAGR using accurate equity progression
@@ -220,6 +292,32 @@ export default function PerformanceMetricsChart({ properties }) {
                 {metric}
               </button>
             ))}
+          </div>
+          
+          {/* Projection Controls */}
+          <div className="flex gap-2 items-center">
+            <label className="flex items-center gap-1 text-xs">
+              <input
+                type="checkbox"
+                checked={showProjections}
+                onChange={(e) => setShowProjections(e.target.checked)}
+                className="w-3 h-3"
+              />
+              <span className="text-gray-600">5yr Projections</span>
+            </label>
+            
+            {showProjections && (
+              <select
+                value={selectedPayoffScenario}
+                onChange={(e) => setSelectedPayoffScenario(e.target.value)}
+                className="text-xs border rounded px-2 py-1 bg-white"
+              >
+                <option value="current">Current Schedule</option>
+                <option value="1">1 Year Early</option>
+                <option value="3">3 Years Early</option>
+                <option value="5">5 Years Early</option>
+              </select>
+            )}
           </div>
           
           {/* Property Toggles */}

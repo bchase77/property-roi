@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { analyzeWithCurrentValues } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
+import { projectRent, createPayoffScenarios } from '@/lib/rentProjections';
 
 export default function AnnualIncomeChart({ properties }) {
   const [visibleProperties, setVisibleProperties] = useState(
@@ -13,6 +14,9 @@ export default function AnnualIncomeChart({ properties }) {
   });
   const [timeRange, setTimeRange] = useState('10y');
   const [historicalData, setHistoricalData] = useState({});
+  const [showProjections, setShowProjections] = useState(false);
+  const [selectedPayoffScenario, setSelectedPayoffScenario] = useState('current');
+  const [rentAnalysis, setRentAnalysis] = useState({});
   
   // Fetch historical actuals data
   useEffect(() => {

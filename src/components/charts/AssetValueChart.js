@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { analyzeWithCurrentValues, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
 import { getAnnualZHVI } from '@/lib/zhviData';
+import { projectRent, createPayoffScenarios, calculateProjectedMetrics } from '@/lib/rentProjections';
 
 export default function AssetValueChart({ properties }) {
   const [visibleProperties, setVisibleProperties] = useState(
@@ -15,6 +16,9 @@ export default function AssetValueChart({ properties }) {
     'Memphis, TN': false
   });
   const [viewMode, setViewMode] = useState('market'); // 'market' or 'equity'
+  const [showProjections, setShowProjections] = useState(false);
+  const [selectedPayoffScenario, setSelectedPayoffScenario] = useState('current');
+  const [rentAnalysis, setRentAnalysis] = useState({});
 
   // Fetch historical actuals data
   useEffect(() => {
@@ -37,6 +41,23 @@ export default function AssetValueChart({ properties }) {
     fetchHistoricalData();
   }, [properties]);
 
+  // Fetch rent analysis data
+  useEffect(() => {
+    const fetchRentAnalysis = async () => {
+      try {
+        const response = await fetch('/api/rent-analysis');
+        if (response.ok) {
+          const data = await response.json();
+          setRentAnalysis(data.analysis || {});
+        }
+      } catch (error) {
+        console.error('Failed to fetch rent analysis:', error);
+      }
+    };
+    
+    fetchRentAnalysis();
+  }, []);
+
   const toggleProperty = (propertyId) => {
     setVisibleProperties(prev => ({
       ...prev,
@@ -54,7 +75,7 @@ export default function AssetValueChart({ properties }) {
   // Generate historical data points using real data
   const generateChartData = () => {
     const currentYear = new Date().getFullYear();
-    let startYear;
+    let startYear, endYear;
     
     if (timeRange === 'all') {
       startYear = 2012;
@@ -63,8 +84,11 @@ export default function AssetValueChart({ properties }) {
       startYear = currentYear - yearsBack;
     }
     
+    // Extend to include projections if enabled
+    endYear = showProjections ? currentYear + 5 : currentYear;
+    
     const years = [];
-    for (let year = startYear; year <= currentYear; year++) {
+    for (let year = startYear; year <= endYear; year++) {
       years.push(year);
     }
 
@@ -74,6 +98,7 @@ export default function AssetValueChart({ properties }) {
       properties.forEach(property => {
         if (!visibleProperties[property.id]) return;
         
+        const isProjectionYear = year > currentYear;
         const propertyHistoricalData = historicalData[property.id] || [];
         const yearData = propertyHistoricalData.find(d => d.year === year);
         const yearsOwned = property.year_purchased ? year - property.year_purchased : 0;
@@ -122,27 +147,70 @@ export default function AssetValueChart({ properties }) {
             }
           }
           
+          // Handle projections for future years
+          if (isProjectionYear && showProjections) {
+            // Project property value with 3% annual appreciation (conservative)
+            const yearsFromNow = year - currentYear;
+            const appreciationRate = 0.03;
+            propertyValue = currentValue * Math.pow(1 + appreciationRate, yearsFromNow);
+          }
+          
           // Calculate cumulative income through this year
           let cumulativeIncome = 0;
           const allHistoricalData = historicalData[property.id] || [];
           
           for (let incomeYear = property.year_purchased; incomeYear <= year; incomeYear++) {
-            const incomeYearData = allHistoricalData.find(d => d.year === incomeYear);
-            if (incomeYearData) {
-              // Calculate NOI by excluding depreciation from total expenses
-              // NOI = grossIncome - (totalExpenses - depreciation)
-              const noi = incomeYearData.grossIncome - (incomeYearData.totalExpenses - (incomeYearData.depreciation || 0));
-              cumulativeIncome += noi;
-            } else if (incomeYear >= property.year_purchased) {
-              // Estimate income for missing years
+            if (incomeYear <= currentYear) {
+              // Historical data
+              const incomeYearData = allHistoricalData.find(d => d.year === incomeYear);
+              if (incomeYearData) {
+                // Calculate NOI by excluding depreciation from total expenses
+                // NOI = grossIncome - (totalExpenses - depreciation)
+                const noi = incomeYearData.grossIncome - (incomeYearData.totalExpenses - (incomeYearData.depreciation || 0));
+                cumulativeIncome += noi;
+              } else if (incomeYear >= property.year_purchased) {
+                // Estimate income for missing years
+                const metrics = analyzeWithCurrentValues(property);
+                const estimatedAnnualIncome = metrics.noiAnnual;
+                cumulativeIncome += estimatedAnnualIncome;
+              }
+            } else if (showProjections) {
+              // Projected income with rent increases
+              const currentRent = Number(property.current_rent_monthly || property.monthly_rent) || 0;
+              const stateData = rentAnalysis[property.state];
+              const rentProjections = projectRent(currentRent, property.state, stateData);
+              
+              const projectionIndex = incomeYear - currentYear - 1;
+              const projectedRent = rentProjections[projectionIndex]?.projectedRent || currentRent;
+              
+              // Project NOI with rent increase but expenses growing at inflation (2%)
               const metrics = analyzeWithCurrentValues(property);
-              const estimatedAnnualIncome = metrics.noiAnnual;
-              cumulativeIncome += estimatedAnnualIncome;
+              const currentNOI = metrics.noiAnnual;
+              const currentGrossRent = currentRent * 12;
+              const currentExpenses = currentGrossRent - currentNOI;
+              
+              const projectedGrossRent = projectedRent * 12;
+              const inflationRate = 0.02;
+              const projectedExpenses = currentExpenses * Math.pow(1 + inflationRate, incomeYear - currentYear);
+              const projectedNOI = projectedGrossRent - projectedExpenses;
+              
+              cumulativeIncome += projectedNOI;
             }
           }
           
-          // Calculate equity for this year
-          const equity = calculateEquityAtYear(property, year, propertyValue);
+          // Calculate equity for this year with payoff scenarios
+          let equity = calculateEquityAtYear(property, year, propertyValue);
+          
+          if (isProjectionYear && showProjections && selectedPayoffScenario !== 'current') {
+            // Apply early payoff scenario
+            const scenarios = createPayoffScenarios(property);
+            const scenario = scenarios.find(s => s.name.toLowerCase().includes(selectedPayoffScenario));
+            
+            if (scenario && year >= scenario.payoffYear) {
+              // Mortgage is paid off early, so equity = full property value
+              equity = propertyValue;
+            }
+          }
           
           const displayLabel = getPropertyDisplayLabel(property);
           dataPoint[`${displayLabel}_value`] = Math.round(propertyValue);
@@ -223,6 +291,32 @@ export default function AssetValueChart({ properties }) {
                 {market}
               </button>
             ))}
+          </div>
+          
+          {/* Projection Controls */}
+          <div className="flex gap-2 items-center">
+            <label className="flex items-center gap-1 text-xs">
+              <input
+                type="checkbox"
+                checked={showProjections}
+                onChange={(e) => setShowProjections(e.target.checked)}
+                className="w-3 h-3"
+              />
+              <span className="text-gray-600">5yr Projections</span>
+            </label>
+            
+            {showProjections && (
+              <select
+                value={selectedPayoffScenario}
+                onChange={(e) => setSelectedPayoffScenario(e.target.value)}
+                className="text-xs border rounded px-2 py-1 bg-white"
+              >
+                <option value="current">Current Schedule</option>
+                <option value="1">1 Year Early</option>
+                <option value="3">3 Years Early</option>
+                <option value="5">5 Years Early</option>
+              </select>
+            )}
           </div>
           
           {/* Property Toggles */}
