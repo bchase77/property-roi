@@ -104,7 +104,7 @@ export default function PerformanceMetricsChart({ properties }) {
         const yearData = propertyHistoricalData.find(d => d.year === year);
         const yearsOwned = property.year_purchased ? year - property.year_purchased : 0;
         
-        if (yearsOwned >= 1) { // Need at least 1 year for meaningful percentages
+        if (yearsOwned >= 1 || isProjectionYear) { // Need at least 1 year for meaningful percentages
           const purchasePrice = Number(property.purchase_price) || 0;
           const currentValue = Number(property.current_market_value) || purchasePrice;
           const initialInvestment = Number(property.initial_investment) || 
@@ -249,9 +249,28 @@ export default function PerformanceMetricsChart({ properties }) {
           const minYearsForCAGR = isProjectionYear ? 1 : 3;
           const minYearsForIRR = isProjectionYear ? 1 : 2;
           
-          dataPoint[`${displayLabel}_cagr`] = (cagr && !isNaN(cagr) && effectiveYearsOwned >= minYearsForCAGR) ? Number(cagr.toFixed(1)) : null;
-          dataPoint[`${displayLabel}_coc`] = (cashOnCash && !isNaN(cashOnCash)) ? Number(cashOnCash.toFixed(1)) : null;
-          dataPoint[`${displayLabel}_irr`] = (irrPct && !isNaN(irrPct) && effectiveYearsOwned >= minYearsForIRR) ? Number(irrPct.toFixed(1)) : null;
+          const cagrValue = (cagr && !isNaN(cagr) && effectiveYearsOwned >= minYearsForCAGR) ? Number(cagr.toFixed(1)) : null;
+          const cocValue = (cashOnCash && !isNaN(cashOnCash)) ? Number(cashOnCash.toFixed(1)) : null;
+          const irrValue = (irrPct && !isNaN(irrPct) && effectiveYearsOwned >= minYearsForIRR) ? Number(irrPct.toFixed(1)) : null;
+          
+          // Debug logging for first property and year 2024+ to see what's happening
+          if (property.id === properties[0]?.id && year >= 2024) {
+            console.log(`Debug ${displayLabel} ${year}:`, {
+              isProjectionYear, 
+              effectiveYearsOwned, 
+              minYearsForCAGR, 
+              cagr, 
+              cashOnCash, 
+              irrPct,
+              cagrValue,
+              cocValue,
+              irrValue
+            });
+          }
+          
+          dataPoint[`${displayLabel}_cagr`] = cagrValue;
+          dataPoint[`${displayLabel}_coc`] = cocValue;
+          dataPoint[`${displayLabel}_irr`] = irrValue;
         }
       });
       
@@ -317,7 +336,7 @@ export default function PerformanceMetricsChart({ properties }) {
               <select
                 value={selectedPayoffScenario}
                 onChange={(e) => setSelectedPayoffScenario(e.target.value)}
-                className="text-xs border rounded px-2 py-1 bg-white"
+                className="text-xs border rounded px-2 py-1 bg-white text-gray-800"
               >
                 <option value="current">Current Schedule</option>
                 <option value="1">1 Year Early</option>
