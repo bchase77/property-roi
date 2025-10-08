@@ -309,7 +309,7 @@ export default function AssetValueChart({ properties }) {
               <select
                 value={selectedPayoffScenario}
                 onChange={(e) => setSelectedPayoffScenario(e.target.value)}
-                className="text-xs border rounded px-2 py-1 bg-white"
+                className="text-xs border rounded px-2 py-1 bg-white text-gray-800"
               >
                 <option value="current">Current Schedule</option>
                 <option value="1">1 Year Early</option>
