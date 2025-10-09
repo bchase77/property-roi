@@ -75,7 +75,8 @@ export default function PerformanceMetricsChart({ properties }) {
 
   // Generate historical performance data using real data
   const generateChartData = () => {
-    const currentYear = new Date().getFullYear();
+    // Use a consistent year to avoid hydration mismatches
+    const currentYear = 2024;
     let startYear, endYear;
     
     if (timeRange === 'all') {

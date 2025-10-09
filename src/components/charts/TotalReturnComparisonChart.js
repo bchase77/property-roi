@@ -77,7 +77,8 @@ export default function TotalReturnComparisonChart({ properties }) {
 
   // Generate chart data
   const generateChartData = () => {
-    const currentYear = new Date().getFullYear();
+    // Use a consistent year to avoid hydration mismatches
+    const currentYear = 2024;
     const startYear = 2012;
     const years = [];
     
