@@ -1,16 +1,19 @@
 'use client';
+import { useState, useEffect } from 'react';
 
 export default function PageHeader({ title, subtitle, currentPage }) {
-  // Generate version string with current date/time
-  const getVersionString = () => {
+  const [versionString, setVersionString] = useState('v1.0.loading');
+  
+  // Generate version string with current date/time (client-side only to avoid hydration issues)
+  useEffect(() => {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     const hour = String(now.getHours()).padStart(2, '0');
     const minute = String(now.getMinutes()).padStart(2, '0');
-    return `v1.0.${year}${month}${day}${hour}${minute}`;
-  };
+    setVersionString(`v1.0.${year}${month}${day}${hour}${minute}`);
+  }, []);
 
   const pages = [
     { name: 'Dashboard', path: '/dashboard', icon: '🏠' },
@@ -33,7 +36,7 @@ export default function PageHeader({ title, subtitle, currentPage }) {
       
       <div className="text-right">
         {/* Version Number */}
-        <div className="text-sm text-gray-500 font-mono mb-3">{getVersionString()}</div>
+        <div className="text-sm text-gray-500 font-mono mb-3">{versionString}</div>
         
         {/* Navigation Buttons */}
         <div className="flex flex-wrap gap-2">

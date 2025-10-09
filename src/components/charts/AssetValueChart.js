@@ -74,7 +74,8 @@ export default function AssetValueChart({ properties }) {
 
   // Generate historical data points using real data
   const generateChartData = () => {
-    const currentYear = new Date().getFullYear();
+    // Use a consistent year to avoid hydration mismatches
+    const currentYear = 2024;
     let startYear, endYear;
     
     if (timeRange === 'all') {
