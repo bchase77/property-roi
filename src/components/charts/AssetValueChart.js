@@ -160,7 +160,9 @@ export default function AssetValueChart({ properties }) {
           let cumulativeIncome = 0;
           const allHistoricalData = historicalData[property.id] || [];
           
-          for (let incomeYear = property.year_purchased; incomeYear <= year; incomeYear++) {
+          // Only calculate cumulative income if property has a purchase year
+          if (property.year_purchased) {
+            for (let incomeYear = property.year_purchased; incomeYear <= year; incomeYear++) {
             if (incomeYear <= currentYear) {
               // Historical data
               const incomeYearData = allHistoricalData.find(d => d.year === incomeYear);
@@ -196,6 +198,7 @@ export default function AssetValueChart({ properties }) {
               const projectedNOI = projectedGrossRent - projectedExpenses;
               
               cumulativeIncome += projectedNOI;
+            }
             }
           }
           
