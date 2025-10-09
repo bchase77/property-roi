@@ -7,7 +7,7 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
       'purchasePrice', 'downPct', 'rateApr', 'years', 'monthlyRent', 
       'taxPct', 'taxAnnual', 'hoaMonthly', 'insuranceMonthly', 'maintPctRent', 
       'vacancyPctRent', 'mgmtPctRent', 'otherMonthly', 'yearPurchased', 
-      'initialInvestment'
+      'initialInvestment', 'bedrooms', 'bathrooms', 'squareFootage', 'yearBuilt'
     ]);
     
     const processedValue = numericKeys.has(key) 
@@ -36,6 +36,21 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
             placeholder="123 Main Street"
             required 
           />
+        </div>
+
+        {/* Chart Abbreviation */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Chart Abbreviation</label>
+          <input 
+            className={inputCls}
+            value={form.abbreviation || ''}
+            onChange={set('abbreviation')}
+            placeholder="e.g., TLK, Hunt, Kings"
+            maxLength="10"
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            Short name for charts (optional). If empty, house number will be used.
+          </div>
         </div>
 
         {/* City, State, ZIP */}
@@ -314,19 +329,74 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
           </div>
 
           {form.purchased && (
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Year Purchased</label>
-              <input 
-                type="number" 
-                min="1900"
-                max="2030"
-                className="w-32 rounded-md border border-gray-300 text-gray-600 px-3 py-2" 
-                value={form.yearPurchased} 
-                onChange={set('yearPurchased')}
-                placeholder="2023"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Year Purchased</label>
+                <input 
+                  type="number" 
+                  min="1900"
+                  max="2030"
+                  className="w-full rounded-md border border-gray-300 text-gray-600 px-3 py-2" 
+                  value={form.yearPurchased} 
+                  onChange={set('yearPurchased')}
+                  placeholder="2023"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Month Purchased</label>
+                <select 
+                  className="w-full rounded-md border text-gray-600 border-gray-300 px-3 py-2"
+                  value={form.monthPurchased || ''}
+                  onChange={set('monthPurchased')}
+                >
+                  <option value="">Select month</option>
+                  <option value="1">January</option>
+                  <option value="2">February</option>
+                  <option value="3">March</option>
+                  <option value="4">April</option>
+                  <option value="5">May</option>
+                  <option value="6">June</option>
+                  <option value="7">July</option>
+                  <option value="8">August</option>
+                  <option value="9">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+              </div>
             </div>
           )}
+
+          <div className="flex items-center space-x-3">
+            <input 
+              type="checkbox" 
+              id="mortgageFree"
+              checked={form.mortgageFree} 
+              onChange={set('mortgageFree')}
+              className="rounded border-gray-300"
+            />
+            <label htmlFor="mortgageFree" className="text-sm font-medium text-gray-700">
+              Mortgage-Free (Owned Outright)
+            </label>
+          </div>
+        </div>
+
+        {/* Initial Investment */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Initial Investment ($)
+          </label>
+          <input 
+            type="number" 
+            step="1000"
+            className={inputCls} 
+            value={form.initialInvestment} 
+            onChange={set('initialInvestment')}
+            placeholder={form.mortgageFree ? form.purchasePrice : (form.purchasePrice || 0) * ((form.downPct || 0) / 100)}
+          />
+          <div className="text-xs text-gray-600 mt-1">
+            Include down payment, closing costs, repairs, etc.
+          </div>
         </div>
 
         {/* Action Buttons */}
