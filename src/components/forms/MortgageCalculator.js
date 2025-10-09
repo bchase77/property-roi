@@ -135,7 +135,7 @@ export default function MortgageCalculator({ form, updateForm }) {
               <div className="space-y-1 text-sm text-gray-700">
                 <div className="flex justify-between">
                   <span>Loan Amount:</span>
-                  <span>${loanAmount.toLocaleString()}</span>
+                  <span>${loanAmount.toFixed(2).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Monthly P&I:</span>
@@ -143,7 +143,7 @@ export default function MortgageCalculator({ form, updateForm }) {
                 </div>
                 <div className="flex justify-between">
                   <span>Total Interest:</span>
-                  <span>${((monthlyPayment * (form.years || 0) * 12) - loanAmount).toLocaleString()}</span>
+                  <span>${((monthlyPayment * (form.years || 0) * 12) - loanAmount).toFixed(2).toLocaleString()}</span>
                 </div>
               </div>
             </div>

@@ -84,6 +84,37 @@ export default function Portfolio() {
     );
   }
 
+  // If editing a property, show full-width editor
+  if (editingProperty) {
+    return (
+      <>
+        {/* Property Editor - Full Width */}
+        <PropertyEditor 
+          property={editingProperty}
+          onUpdate={handlePropertyUpdate}
+          onCancel={cancelEdit}
+        />
+        
+        {/* Additional Editors */}
+        <div className="mx-auto max-w-7xl p-6 space-y-8">
+          {/* Only show current values editor for owned properties */}
+          {editingProperty.purchased && (
+            <CurrentValuesEditor 
+              property={editingProperty}
+              onUpdate={handlePropertyUpdate}
+              onCancel={cancelEdit}
+            />
+          )}
+          
+          <YearlyDataEditor 
+            property={editingProperty}
+            onUpdate={loadProperties}
+          />
+        </div>
+      </>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-7xl p-6 space-y-8">
       <PageHeader 
@@ -98,73 +129,27 @@ export default function Portfolio() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-8">
-        {/* Property List */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-semibold">Your Properties</h2>
-          
-          {properties.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-500 mb-4">No properties found</p>
-              <a 
-                href="/data-entry" 
-                className="text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Add your first property →
-              </a>
-            </div>
-          ) : (
-            <PropertyList 
-              properties={properties}
-              onEdit={startEdit}
-              onDelete={handlePropertyDelete}
-              editingId={editingProperty?.id}
-            />
-          )}
-        </div>
-
-        {/* Property Editor */}
-        <div className="space-y-6">
-          {editingProperty ? (
-            <>
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Edit Property</h2>
-                <button 
-                  onClick={cancelEdit}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  Cancel
-                </button>
-              </div>
-              
-              <PropertyEditor 
-                property={editingProperty}
-                onUpdate={handlePropertyUpdate}
-                onCancel={cancelEdit}
-              />
-              
-              {/* Only show current values editor for owned properties */}
-              {editingProperty.purchased && (
-                <CurrentValuesEditor 
-                  property={editingProperty}
-                  onUpdate={handlePropertyUpdate}
-                  onCancel={cancelEdit}
-                />
-              )}
-              
-              <YearlyDataEditor 
-                property={editingProperty}
-                onUpdate={loadProperties}
-              />
-            </>
-          ) : (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-500">
-                Select a property from the list to edit its details and add yearly financial data
-              </p>
-            </div>
-          )}
-        </div>
+      <div className="space-y-6">
+        <h2 className="text-xl font-semibold">Your Properties</h2>
+        
+        {properties.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-lg">
+            <p className="text-gray-500 mb-4">No properties found</p>
+            <a 
+              href="/data-entry" 
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Add your first property →
+            </a>
+          </div>
+        ) : (
+          <PropertyList 
+            properties={properties}
+            onEdit={startEdit}
+            onDelete={handlePropertyDelete}
+            editingId={editingProperty?.id}
+          />
+        )}
       </div>
 
       {/* Portfolio Summary */}
