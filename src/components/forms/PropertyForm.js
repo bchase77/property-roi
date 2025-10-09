@@ -179,7 +179,7 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
                   onChange={set('taxInputMode')}
                   className="mr-2"
                 />
-                <span className="text-sm">Percentage</span>
+                <span className="text-sm text-gray-600">Percentage</span>
               </label>
               <label className="flex items-center">
                 <input 
@@ -190,7 +190,7 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
                   onChange={set('taxInputMode')}
                   className="mr-2"
                 />
-                <span className="text-sm">Annual Amount</span>
+                <span className="text-sm text-gray-600">Annual Amount</span>
               </label>
             </div>
             

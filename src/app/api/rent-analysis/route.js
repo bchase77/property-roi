@@ -7,20 +7,40 @@ export async function GET(request) {
     const state = searchParams.get('state');
     
     // Get all historical data for analysis
-    const { rows: historicalData } = await sql`
-      SELECT 
-        pa.property_id,
-        p.state,
-        p.address,
-        pa.year,
-        pa.gross_income
-      FROM property_actuals pa
-      JOIN properties p ON p.id = pa.property_id
-      WHERE p.deleted_at IS NULL
-        AND pa.gross_income > 0
-        ${state ? sql`AND p.state = ${state}` : sql``}
-      ORDER BY p.state, pa.property_id, pa.year
-    `;
+    let historicalData;
+    
+    if (state) {
+      const { rows } = await sql`
+        SELECT 
+          pa.property_id,
+          p.state,
+          p.address,
+          pa.year,
+          pa.gross_income
+        FROM property_actuals pa
+        JOIN properties p ON p.id = pa.property_id
+        WHERE p.deleted_at IS NULL
+          AND pa.gross_income > 0
+          AND p.state = ${state}
+        ORDER BY p.state, pa.property_id, pa.year
+      `;
+      historicalData = rows;
+    } else {
+      const { rows } = await sql`
+        SELECT 
+          pa.property_id,
+          p.state,
+          p.address,
+          pa.year,
+          pa.gross_income
+        FROM property_actuals pa
+        JOIN properties p ON p.id = pa.property_id
+        WHERE p.deleted_at IS NULL
+          AND pa.gross_income > 0
+        ORDER BY p.state, pa.property_id, pa.year
+      `;
+      historicalData = rows;
+    }
     
     if (!state) {
       // Return analysis for all states
