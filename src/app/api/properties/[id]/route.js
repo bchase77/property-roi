@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { init, updateProperty, softDeleteProperty } from '@/lib/db';
+import { init, updateProperty, softDeleteProperty, addProperty } from '@/lib/db';
 
 export async function PUT(req, { params }) {
   await init();
@@ -9,9 +9,17 @@ export async function PUT(req, { params }) {
     if (!id) return NextResponse.json({ error: 'bad id' }, { status: 400 });
     const body = await req.json();
     console.log('Updating property with data:', body);
+    
+    // Clean up empty string values
     if (body.yearPurchased === '') body.yearPurchased = null;
+    if (body.monthPurchased === '') body.monthPurchased = null;
     if (body.initialInvestment === '') body.initialInvestment = 0;
     if (body.zillowZpid === '') body.zillowZpid = null;
+    if (body.bedrooms === '') body.bedrooms = null;
+    if (body.bathrooms === '') body.bathrooms = null;
+    if (body.squareFootage === '') body.squareFootage = null;
+    if (body.yearBuilt === '') body.yearBuilt = null;
+    if (body.abbreviation === '') body.abbreviation = null;
     // basic validation for required numeric fields
     const requiredNums = ['purchasePrice','downPct','rateApr','years','monthlyRent','taxPct','hoaMonthly','insuranceMonthly','maintPctRent','vacancyPctRent','mgmtPctRent','otherMonthly'];
     for (const k of requiredNums) {

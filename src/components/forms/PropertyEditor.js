@@ -34,10 +34,12 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
   });
 
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    setError('');
     
     try {
       // Preserve all current values when updating basic property details
@@ -71,12 +73,15 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
       });
       
       if (!res.ok) {
-        throw new Error('Failed to update property');
+        const errorData = await res.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || 'Failed to update property');
       }
       
       onUpdate(await res.json());
     } catch (error) {
       console.error('Failed to update property:', error);
+      setError(error.message || 'Failed to update property');
     } finally {
       setSaving(false);
     }
@@ -92,6 +97,12 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
   return (
     <div className="bg-white rounded-lg border p-6">
       <h3 className="text-lg font-semibold mb-4 text-gray-600">Edit Property Details</h3>
+      
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -214,7 +225,7 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
                   onChange={handleChange('taxInputMode')}
                   className="mr-2"
                 />
-                <span className="text-sm">Percentage</span>
+                <span className="text-sm text-gray-600">Percentage</span>
               </label>
               <label className="flex items-center">
                 <input 
@@ -225,7 +236,7 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
                   onChange={handleChange('taxInputMode')}
                   className="mr-2"
                 />
-                <span className="text-sm">Annual Amount</span>
+                <span className="text-sm text-gray-600">Annual Amount</span>
               </label>
             </div>
             

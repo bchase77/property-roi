@@ -1,11 +1,14 @@
 import { sql } from '@vercel/postgres';
 
 export async function updateProperty(id, p) {
+  console.log (id);
+  console.log (p);
+
   const { rows } = await sql`
     UPDATE properties SET
       address = ${p.address},
       city = ${p.city},
-      state = ${p.state},
+      state = ${p.state ?? null},
       zip = ${p.zip},
       purchase_price = ${p.purchasePrice},
       down_payment_pct = ${p.downPct},
