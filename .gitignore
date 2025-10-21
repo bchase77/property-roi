@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Separate projects
+bc-options-dash/
+my-next-app/
+
+# OS files
+.DS_Store
