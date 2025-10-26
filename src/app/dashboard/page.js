@@ -8,6 +8,9 @@ export default function Dashboard() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    document.title = 'Dashboard | RE ROI Calculator';
+  }, []);
 
   useEffect(() => {
     loadProperties();

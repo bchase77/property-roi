@@ -6,6 +6,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    document.title = 'RE ROI Calculator';
     // Redirect to dashboard
     router.replace('/dashboard');
   }, [router]);

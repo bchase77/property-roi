@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PropertyForm from '@/components/forms/PropertyForm';
 import MortgageCalculator from '@/components/forms/MortgageCalculator';
@@ -22,6 +22,10 @@ export default function DataEntry() {
   const [errMsg, setErrMsg] = useState('');
   const [saving, setSaving] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    document.title = 'Data Entry | RE ROI Calculator';
+  }, []);
 
   const updateForm = (updates) => {
     setForm(prev => ({ ...prev, ...updates }));
