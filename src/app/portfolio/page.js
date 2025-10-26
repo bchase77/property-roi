@@ -14,8 +14,13 @@ export default function Portfolio() {
   const [errMsg, setErrMsg] = useState('');
 
   useEffect(() => {
-    document.title = 'Portfolio';
+    document.title = 'PI Portfolio';
   }, []);
+
+  // Also set title immediately for new tabs
+  if (typeof window !== 'undefined') {
+    document.title = 'PI Portfolio';
+  }
 
   useEffect(() => {
     loadProperties();

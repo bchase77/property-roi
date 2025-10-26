@@ -18,10 +18,6 @@ function AnalysisContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = 'Analysis';
-  }, []);
-
-  useEffect(() => {
     loadProperties();
   }, []);
 
@@ -246,6 +242,15 @@ function DetailedAnalysisTable({ properties }) {
 }
 
 export default function Analysis() {
+  useEffect(() => {
+    document.title = 'PI Analysis';
+  }, []);
+
+  // Also set title immediately for new tabs
+  if (typeof window !== 'undefined') {
+    document.title = 'PI Analysis';
+  }
+
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <AnalysisContent />

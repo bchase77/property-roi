@@ -49,7 +49,7 @@ export default function MortgageCalculator({ form, updateForm }) {
     return mortgageMonthly(principal, rate, years);
   };
 
-  const inputCls = "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20";
+  const inputCls = "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-600 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20";
 
   const loanAmount = form.mortgageFree ? 0 : (form.purchasePrice - (form.purchasePrice * (form.downPct / 100)));
   const monthlyPayment = form.mortgageFree ? 0 : calculatePayment(loanAmount, form.rateApr, form.years);
@@ -171,7 +171,7 @@ export default function MortgageCalculator({ form, updateForm }) {
         {/* Mortgage Scenarios */}
         <div className="pt-4 border-t">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-medium text-gray-900">Compare Scenarios</h3>
+            <h3 className="text-sm font-medium text-gray-600">Compare Scenarios</h3>
             <button 
               onClick={addScenario}
               className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
@@ -204,7 +204,7 @@ function ScenarioCard({ scenario, purchasePrice, onApply, onRemove, onUpdate }) 
     onUpdate(scenario.id, { ...scenario, [field]: Number(value) });
   };
 
-  const inputCls = "w-full text-xs px-2 py-1 border border-gray-300 rounded";
+  const inputCls = "w-full text-xs px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white";
 
   return (
     <div className="bg-gray-50 rounded-lg p-3 mb-2">
@@ -213,7 +213,7 @@ function ScenarioCard({ scenario, purchasePrice, onApply, onRemove, onUpdate }) 
           type="text"
           value={scenario.name}
           onChange={(e) => onUpdate(scenario.id, { ...scenario, name: e.target.value })}
-          className="text-sm font-medium bg-transparent border-none p-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+          className="text-sm font-medium bg-transparent border-none p-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded text-gray-900"
         />
         <div className="flex space-x-1">
           <button 

@@ -24,8 +24,13 @@ export default function DataEntry() {
   const router = useRouter();
 
   useEffect(() => {
-    document.title = 'Data Entry';
+    document.title = 'PI Data Entry';
   }, []);
+
+  // Also set title immediately for new tabs
+  if (typeof window !== 'undefined') {
+    document.title = 'PI Data Entry';
+  }
 
   const updateForm = (updates) => {
     setForm(prev => ({ ...prev, ...updates }));

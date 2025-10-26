@@ -8,7 +8,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    document.title = 'Admin';
+    document.title = 'PI Admin';
   }, []);
 
   async function load() {
@@ -59,13 +59,13 @@ export default function AdminPage() {
       {loading && <div className="text-sm text-gray-500 mb-4">Loading...</div>}
       <ul className="space-y-3">
         {list.map(p=> (
-          <li key={p.id} className="rounded border p-3 bg-white flex items-start justify-between">
+          <li key={p.id} className="rounded border p-3 bg-white flex items-start justify-between text-green-600">
             <div>
               <div className="font-medium">{p.address}</div>
               <div className="text-xs text-gray-500">ID: <span className="font-mono">{p.id}</span> · Deleted: {p.deleted_at ? new Date(p.deleted_at).toLocaleString() : '—'}</div>
             </div>
             <div className="flex gap-2">
-              <button className="text-sm rounded border px-3 py-1" onClick={()=>restore(p.id)}>Restore</button>
+              <button className="text-sm rounded border px-3 py-1 text-gray-600" onClick={()=>restore(p.id)}>Restore</button>
               <button className="text-sm rounded border px-3 py-1 bg-red-50 text-red-700" onClick={()=>purge(p.id)}>Permanently Delete</button>
             </div>
           </li>
