@@ -19,9 +19,21 @@ const getGitTimestamp = () => {
   }
 };
 
+// Get git commit hash at build time
+const getGitHash = () => {
+  try {
+    const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+    return hash;
+  } catch (error) {
+    console.warn('Could not get git hash:', error);
+    return 'unknown';
+  }
+};
+
 const nextConfig: NextConfig = {
   env: {
     BUILD_TIMESTAMP: getGitTimestamp(),
+    GIT_HASH: getGitHash(),
   },
 };
 

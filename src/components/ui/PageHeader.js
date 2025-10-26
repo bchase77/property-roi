@@ -5,7 +5,7 @@ export default function PageHeader({ title, subtitle, currentPage }) {
   const [versionString, setVersionString] = useState('Loading...');
   
   useEffect(() => {
-    const gitHash = '33bb470';
+    const gitHash = process.env.GIT_HASH || 'unknown';
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { 
       year: 'numeric', 
