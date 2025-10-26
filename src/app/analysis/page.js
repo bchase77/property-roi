@@ -17,6 +17,9 @@ function AnalysisContent() {
   const [timeRange] = useState('5y'); // 2y, 5y, 10y
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    document.title = 'Analysis | RE ROI Calculator';
+  }, []);
 
   useEffect(() => {
     loadProperties();

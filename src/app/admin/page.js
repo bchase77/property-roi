@@ -7,6 +7,10 @@ export default function AdminPage() {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    document.title = 'Admin | RE ROI Calculator';
+  }, []);
+
   async function load() {
     setErr(''); setLoading(true);
     try {

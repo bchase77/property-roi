@@ -14,6 +14,10 @@ export default function Portfolio() {
   const [errMsg, setErrMsg] = useState('');
 
   useEffect(() => {
+    document.title = 'Portfolio | RE ROI Calculator';
+  }, []);
+
+  useEffect(() => {
     loadProperties();
   }, []);
 
