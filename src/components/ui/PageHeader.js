@@ -4,15 +4,10 @@ import { useState, useEffect } from 'react';
 export default function PageHeader({ title, subtitle, currentPage }) {
   const [versionString, setVersionString] = useState('v1.0.loading');
   
-  // Generate version string with current date/time (client-side only to avoid hydration issues)
+  // Use git commit timestamp from build time
   useEffect(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hour = String(now.getHours()).padStart(2, '0');
-    const minute = String(now.getMinutes()).padStart(2, '0');
-    setVersionString(`v1.0.${year}${month}${day}${hour}${minute}`);
+    const buildTimestamp = process.env.BUILD_TIMESTAMP || 'unknown';
+    setVersionString(`v1.0.${buildTimestamp}`);
   }, []);
 
   const pages = [
