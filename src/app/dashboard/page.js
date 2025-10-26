@@ -9,12 +9,29 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = 'Dashboard';
+    document.title = 'PI Dashboard';
   }, []);
+
+  // Also set title immediately for new tabs
+  if (typeof window !== 'undefined') {
+    document.title = 'PI Dashboard';
+  }
 
   useEffect(() => {
     loadProperties();
   }, []);
+
+/*
+export default function Analysis() {
+  useEffect(() => {
+    document.title = 'PI Analysis';
+  }, []);
+
+  // Also set title immediately for new tabs
+  if (typeof window !== 'undefined') {
+    document.title = 'PI Dashboard';
+  }
+*/
 
   async function loadProperties() {
     try {

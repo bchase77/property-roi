@@ -310,3 +310,82 @@ Check this into Github, it's a pretty functional version. I'm taking a break.
 **Session End:** 2025-10-06 ~7:00 PM
 
 ---
+
+## Session Start: 2025-10-26
+
+### Prompt 41:
+In the version in the upper right, put the short hash value, along with the date and time. Put this entire version info on every page in the application.
+
+**Response:** Updated PageHeader component to show git hash with current date/time. Modified next.config.ts to get git hash at build time and made it available via environment variables. Fixed discrepancy between hardcoded hash (33bb470) and actual current hash (4771585).
+
+---
+
+### Prompt 42:
+Why on github do I see hash 4771585 but on the live page I see hash 33bb470?
+
+**Response:** Fixed hardcoded git hash issue by updating next.config.ts to get GIT_HASH at build time and updating PageHeader to use process.env.GIT_HASH instead of hardcoded value. Now shows correct current hash from build time.
+
+---
+
+### Prompt 43:
+Make the tabs show a concise title for the purpose of the page. For example, for the dashboard show "Dashboard" instead of "RE ROI Calculator"
+
+**Response:** Updated document.title in all pages: Dashboard, Portfolio, Data Entry, Analysis, and Admin to show concise purpose-focused titles instead of "Page Name | RE ROI Calculator" format.
+
+---
+
+### Prompt 44:
+I just pushed to github but vercel is not building. I thought this used to work. What's going on?
+
+**Response:** Analyzed Vercel deployment configuration. Found that build works locally, GitHub integration appears connected, and 1-minute delay is slower than normal but not broken. Suggested checking Vercel dashboard for webhook status and environment variables.
+
+---
+
+### Prompt 45:
+It took nearly 1 minute for vercel to see the github change, is that normal?
+
+**Response:** Explained that 1-minute delay is slower than normal (5-30 seconds typical) but not unusual. Can be caused by GitHub webhook delivery lag, Vercel processing queue, or network latency. Suggested checking webhook delivery times in GitHub repo settings.
+
+---
+
+### Prompt 46:
+Is there a version also runnning locally in parallel with the one on vercel? How can I see the local one?
+
+**Response:** Started local development server at http://localhost:3000. Explained differences between local (uses .env.local, hot reloading, development mode) and Vercel (production build, Vercel environment variables).
+
+---
+
+### Prompt 47:
+[Screenshot showing Compare Scenarios section with input fields that have poor contrast - cannot read text in light blue box and 3 gray boxes]
+
+**Response:** Fixed text contrast issues in MortgageCalculator ScenarioCard component by adding text-gray-900 bg-white to input fields and text-gray-900 to scenario name field. Improved readability of all text in Compare Scenarios section.
+
+---
+
+### Prompt 48:
+Should I see the tabs titles changing to match the function locally also? I see all except the Analysis page still as "RE ROI Calculator."
+
+**Response:** Fixed Analysis page title issue - it was using Suspense wrapper which delayed title setting. Moved document.title setting to main Analysis component instead of AnalysisContent component. However, discovered root layout metadata was overriding all dynamic titles.
+
+---
+
+### Prompt 49:
+The tabs all show "RE ROI Calculator" now. After a scenario is added, how can i see it on the Analysis page?
+
+**Response:** Fixed root cause - layout.tsx had fixed metadata title "RE ROI Calculator" overriding dynamic titles. Updated to "Property ROI". Explained that Compare Scenarios are for mortgage comparison only and don't appear on Analysis page. Analysis page shows saved properties, not temporary scenarios.
+
+---
+
+### Prompt 50:
+How much effort to be able to click a button on the Analysis page and see the various scenarios on the graph? I want to be able to compare various scenarios in terms of Performance Metrics, Asset Value and more metrics I may add in the future.
+
+**Response:** Analyzed implementation complexity - MODERATE effort (2-4 hours). Provided detailed breakdown: Data Architecture (30 mins), Analysis Page Updates (1-2 hours), Chart Modifications (1-1.5 hours), Integration (30-45 mins). Charts already have infrastructure to treat scenarios as "virtual properties".
+
+---
+
+### Prompt 51:
+are you still tracking all my prompts to a file, and tracking our work efforts?
+
+**Response:** Found conversation log exists but wasn't being updated for current session (ended at Oct 6). Currently updating log with our Oct 26 session work. Need to also update PROJECT_SUMMARY.md with time estimates.
+
+**Session Status:** In Progress - 2025-10-26
