@@ -2,12 +2,22 @@
 import { useState, useEffect } from 'react';
 
 export default function PageHeader({ title, subtitle, currentPage }) {
-  const [versionString, setVersionString] = useState('v1.0.loading');
+  const [versionString, setVersionString] = useState('Loading...');
   
-  // Use git commit timestamp from build time
   useEffect(() => {
-    const buildTimestamp = process.env.BUILD_TIMESTAMP || 'unknown';
-    setVersionString(`v1.0.${buildTimestamp}`);
+    const gitHash = '33bb470';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit' 
+    });
+    const timeStr = now.toLocaleTimeString('en-US', { 
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    setVersionString(`${gitHash} ${dateStr} ${timeStr}`);
   }, []);
 
   const pages = [
