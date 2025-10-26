@@ -18,7 +18,7 @@ function AnalysisContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = 'Analysis | RE ROI Calculator';
+    document.title = 'Analysis';
   }, []);
 
   useEffect(() => {

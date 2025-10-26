@@ -8,7 +8,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    document.title = 'Admin | RE ROI Calculator';
+    document.title = 'Admin';
   }, []);
 
   async function load() {

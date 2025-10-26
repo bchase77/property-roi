@@ -24,7 +24,7 @@ export default function DataEntry() {
   const router = useRouter();
 
   useEffect(() => {
-    document.title = 'Data Entry | RE ROI Calculator';
+    document.title = 'Data Entry';
   }, []);
 
   const updateForm = (updates) => {
