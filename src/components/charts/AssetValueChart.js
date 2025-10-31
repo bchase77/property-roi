@@ -4,11 +4,21 @@ import { analyzeWithCurrentValues, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
 import { getAnnualZHVI } from '@/lib/zhviData';
 import { projectRent, createPayoffScenarios, calculateProjectedMetrics } from '@/lib/rentProjections';
+import { mergePropertiesAndScenarios } from '@/lib/scenarioHelpers';
 
-export default function AssetValueChart({ properties }) {
+export default function AssetValueChart({ properties, scenarios = [] }) {
+  // Merge properties and scenarios into a single array for processing
+  const allItems = mergePropertiesAndScenarios(properties, scenarios);
   const [visibleProperties, setVisibleProperties] = useState(
-    properties.reduce((acc, prop) => ({ ...acc, [prop.id]: true }), {})
+    allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {})
   );
+
+  // Update visibility state when properties or scenarios change
+  useEffect(() => {
+    setVisibleProperties(
+      allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {})
+    );
+  }, [properties, scenarios]);
   const [timeRange, setTimeRange] = useState('10y');
   const [historicalData, setHistoricalData] = useState({});
   const [visibleMarkets, setVisibleMarkets] = useState({
@@ -75,7 +85,7 @@ export default function AssetValueChart({ properties }) {
   // Generate historical data points using real data
   const generateChartData = () => {
     // Use a consistent year to avoid hydration mismatches
-    const currentYear = 2024;
+    const currentYear = 2025;
     let startYear, endYear;
     
     if (timeRange === 'all') {
@@ -96,22 +106,26 @@ export default function AssetValueChart({ properties }) {
     return years.map(year => {
       const dataPoint = { year };
       
-      properties.forEach(property => {
+      allItems.forEach(property => {
         if (!visibleProperties[property.id]) return;
         
         const isProjectionYear = year > currentYear;
         const propertyHistoricalData = historicalData[property.id] || [];
         const yearData = propertyHistoricalData.find(d => d.year === year);
-        const yearsOwned = property.year_purchased ? year - property.year_purchased : 0;
+        // For purchased properties, use actual ownership timeline
+        // For unpurchased properties, treat current year as purchase year for projections
+        const effectivePurchaseYear = property.year_purchased || currentYear;
+        const yearsOwned = year - effectivePurchaseYear;
         
-        if (yearsOwned >= 0) {
+        // Show data for owned years and projections
+        if (yearsOwned >= 0 || (showProjections && year > currentYear)) {
           const purchasePrice = Number(property.purchase_price) || 0;
           const currentValue = Number(property.current_market_value) || purchasePrice;
           
           // Use real Zillow values when available, interpolate for missing years
           let propertyValue;
           
-          if (year <= property.year_purchased) {
+          if (year <= effectivePurchaseYear) {
             propertyValue = purchasePrice;
           } else {
             // Check if we have Zillow data for this year
@@ -124,8 +138,8 @@ export default function AssetValueChart({ properties }) {
               
               if (zillowData.length === 0) {
                 // No Zillow data, fall back to linear interpolation
-                const totalYearsOwned = currentYear - property.year_purchased;
-                const progressRatio = totalYearsOwned > 0 ? (year - property.year_purchased) / totalYearsOwned : 0;
+                const totalYearsOwned = currentYear - effectivePurchaseYear;
+                const progressRatio = totalYearsOwned > 0 ? (year - effectivePurchaseYear) / totalYearsOwned : 0;
                 propertyValue = purchasePrice + (currentValue - purchasePrice) * Math.max(0, Math.min(progressRatio, 1));
               } else {
                 // Find closest Zillow values before and after this year
@@ -160,9 +174,8 @@ export default function AssetValueChart({ properties }) {
           let cumulativeIncome = 0;
           const allHistoricalData = historicalData[property.id] || [];
           
-          // Only calculate cumulative income if property has a purchase year
-          if (property.year_purchased) {
-            for (let incomeYear = property.year_purchased; incomeYear <= year; incomeYear++) {
+          // Calculate cumulative income from effective purchase year
+          for (let incomeYear = effectivePurchaseYear; incomeYear <= year; incomeYear++) {
             if (incomeYear <= currentYear) {
               // Historical data
               const incomeYearData = allHistoricalData.find(d => d.year === incomeYear);
@@ -171,7 +184,7 @@ export default function AssetValueChart({ properties }) {
                 // NOI = grossIncome - (totalExpenses - depreciation)
                 const noi = incomeYearData.grossIncome - (incomeYearData.totalExpenses - (incomeYearData.depreciation || 0));
                 cumulativeIncome += noi;
-              } else if (incomeYear >= property.year_purchased) {
+              } else if (incomeYear >= effectivePurchaseYear) {
                 // Estimate income for missing years
                 const metrics = analyzeWithCurrentValues(property);
                 const estimatedAnnualIncome = metrics.noiAnnual;
@@ -198,7 +211,6 @@ export default function AssetValueChart({ properties }) {
               const projectedNOI = projectedGrossRent - projectedExpenses;
               
               cumulativeIncome += projectedNOI;
-            }
             }
           }
           
@@ -325,7 +337,7 @@ export default function AssetValueChart({ properties }) {
           
           {/* Property Toggles */}
           <div className="flex flex-wrap gap-2">
-            {properties.map((property, index) => (
+            {allItems.map((property, index) => (
               <button
                 key={property.id}
                 onClick={() => toggleProperty(property.id)}
@@ -375,7 +387,7 @@ export default function AssetValueChart({ properties }) {
               content={() => {
                 // Group legend entries by property
                 const propertyGroups = {};
-                properties.forEach((property, index) => {
+                allItems.forEach((property, index) => {
                   if (visibleProperties[property.id]) {
                     const displayLabel = getPropertyDisplayLabel(property);
                     const color = colors[index % colors.length];
@@ -457,7 +469,7 @@ export default function AssetValueChart({ properties }) {
               }}
             />
             
-            {properties.map((property, index) => {
+            {allItems.map((property, index) => {
               if (!visibleProperties[property.id]) return null;
               const color = colors[index % colors.length];
               const displayLabel = getPropertyDisplayLabel(property);

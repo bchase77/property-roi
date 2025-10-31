@@ -50,7 +50,10 @@ export async function updateProperty(id, p) {
       current_mortgage_rate = ${p.currentMortgageRate ?? null},
       current_mortgage_payment = ${p.currentMortgagePayment ?? null},
       current_mortgage_term_remaining = ${p.currentMortgageTermRemaining ?? null},
-      abbreviation = ${p.abbreviation ?? null}
+      abbreviation = ${p.abbreviation ?? null},
+      county_tax_website = ${p.countyTaxWebsite ?? null},
+      city_tax_website = ${p.cityTaxWebsite ?? null},
+      notes = ${p.notes ?? null}
     WHERE id = ${id}
     RETURNING *;
   `;
@@ -128,6 +131,11 @@ export async function init() {
   // Property tax input mode and annual amount
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS tax_annual NUMERIC DEFAULT 0;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS tax_input_mode TEXT DEFAULT 'percentage';`;
+  
+  // Tax website links and notes
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS county_tax_website TEXT;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS city_tax_website TEXT;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS notes TEXT;`;
 
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
@@ -144,6 +152,22 @@ export async function init() {
   await sql`
     ALTER TABLE properties
       ADD COLUMN IF NOT EXISTS initial_investment NUMERIC NOT NULL DEFAULT 0;
+  `;
+
+  // Create scenarios table for mortgage comparison scenarios
+  await sql/*sql*/`
+    CREATE TABLE IF NOT EXISTS property_scenarios (
+      id SERIAL PRIMARY KEY,
+      property_id INT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      down_pct NUMERIC NOT NULL,
+      rate_apr NUMERIC NOT NULL,
+      years INT NOT NULL,
+      points NUMERIC DEFAULT 0,
+      closing_costs NUMERIC DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      UNIQUE(property_id, name)
+    );
   `;
 
 }
@@ -176,7 +200,8 @@ export async function addProperty(p) {
       monthly_rent, property_tax_pct, tax_annual, tax_input_mode, hoa_monthly, insurance_monthly,
       maintenance_pct_rent, vacancy_pct_rent, management_pct_rent, other_monthly,
       zillow_zpid, crime_index, purchased, year_purchased, month_purchased, initial_investment, mortgage_free,
-      bedrooms, bathrooms, square_footage, year_built, abbreviation
+      bedrooms, bathrooms, square_footage, year_built, abbreviation,
+      county_tax_website, city_tax_website, notes
     ) VALUES (
       ${p.address}, ${p.city}, ${p.state}, ${p.zip},
       ${p.purchasePrice}, ${p.downPct}, ${p.rateApr}, ${p.years},
@@ -184,7 +209,8 @@ export async function addProperty(p) {
       ${p.maintPctRent}, ${p.vacancyPctRent}, ${p.mgmtPctRent}, ${p.otherMonthly},
       ${p.zillowZpid ?? null}, ${p.crimeIndex ?? null}, ${p.purchased ?? false}, ${p.yearPurchased ?? null}, ${p.monthPurchased ?? null},
       ${p.initialInvestment ?? 0}, ${p.mortgageFree ?? false},
-      ${p.bedrooms ?? null}, ${p.bathrooms ?? null}, ${p.squareFootage ?? null}, ${p.yearBuilt ?? null}, ${p.abbreviation ?? null}
+      ${p.bedrooms ?? null}, ${p.bathrooms ?? null}, ${p.squareFootage ?? null}, ${p.yearBuilt ?? null}, ${p.abbreviation ?? null},
+      ${p.countyTaxWebsite ?? null}, ${p.cityTaxWebsite ?? null}, ${p.notes ?? null}
     ) RETURNING *;
   `;
   return rows[0];
@@ -317,8 +343,61 @@ export async function addPropertyActual(propertyId, yearData) {
   return rows[0];
 }
 
+// Property Scenarios CRUD Functions
+export async function addScenario(propertyId, scenario) {
+  const { rows } = await sql/*sql*/`
+    INSERT INTO property_scenarios (
+      property_id, name, down_pct, rate_apr, years, points, closing_costs
+    ) VALUES (
+      ${propertyId}, ${scenario.name}, ${scenario.downPct}, ${scenario.rateApr}, 
+      ${scenario.years}, ${scenario.points ?? 0}, ${scenario.closingCosts ?? 0}
+    ) RETURNING *;
+  `;
+  return rows[0];
+}
 
+export async function getScenarios(propertyId) {
+  const { rows } = await sql/*sql*/`
+    SELECT * FROM property_scenarios 
+    WHERE property_id = ${propertyId}
+    ORDER BY created_at DESC;
+  `;
+  return rows;
+}
 
+export async function updateScenario(scenarioId, scenario) {
+  const { rows } = await sql/*sql*/`
+    UPDATE property_scenarios SET
+      name = ${scenario.name},
+      down_pct = ${scenario.downPct},
+      rate_apr = ${scenario.rateApr},
+      years = ${scenario.years},
+      points = ${scenario.points ?? 0},
+      closing_costs = ${scenario.closingCosts ?? 0}
+    WHERE id = ${scenarioId}
+    RETURNING *;
+  `;
+  return rows[0];
+}
 
+export async function deleteScenario(scenarioId) {
+  const { rows } = await sql/*sql*/`
+    DELETE FROM property_scenarios WHERE id = ${scenarioId} RETURNING *;
+  `;
+  return rows[0];
+}
 
+export async function getAllScenarios() {
+  const { rows } = await sql/*sql*/`
+    SELECT ps.*, p.address, p.city, p.state, p.abbreviation,
+           p.down_payment_pct as base_down_pct, 
+           p.interest_apr_pct as base_apr, 
+           p.loan_years as base_loan_years
+    FROM property_scenarios ps
+    JOIN properties p ON p.id = ps.property_id
+    WHERE p.deleted_at IS NULL
+    ORDER BY p.id, ps.created_at DESC;
+  `;
+  return rows;
+}
 

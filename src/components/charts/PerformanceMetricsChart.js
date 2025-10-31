@@ -3,11 +3,21 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { analyzeWithCurrentValues, calculateCAGR, calculateIRR, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
 import { projectRent, createPayoffScenarios } from '@/lib/rentProjections';
+import { mergePropertiesAndScenarios } from '@/lib/scenarioHelpers';
 
-export default function PerformanceMetricsChart({ properties }) {
+export default function PerformanceMetricsChart({ properties, scenarios = [] }) {
+  // Merge properties and scenarios into a single array for processing
+  const allItems = mergePropertiesAndScenarios(properties, scenarios);
   const [visibleProperties, setVisibleProperties] = useState(
-    properties.reduce((acc, prop) => ({ ...acc, [prop.id]: true }), {})
+    allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {})
   );
+
+  // Update visibility state when properties or scenarios change
+  useEffect(() => {
+    setVisibleProperties(
+      allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {})
+    );
+  }, [properties, scenarios]);
   const [visibleMetrics, setVisibleMetrics] = useState({
     CAGR: true,
     CoC: true,
@@ -76,7 +86,7 @@ export default function PerformanceMetricsChart({ properties }) {
   // Generate historical performance data using real data
   const generateChartData = () => {
     // Use a consistent year to avoid hydration mismatches
-    const currentYear = 2024;
+    const currentYear = 2025;
     let startYear, endYear;
     
     if (timeRange === 'all') {
@@ -97,13 +107,16 @@ export default function PerformanceMetricsChart({ properties }) {
     return years.map(year => {
       const dataPoint = { year };
       
-      properties.forEach(property => {
+      allItems.forEach(property => {
         if (!visibleProperties[property.id]) return;
         
         const isProjectionYear = year > currentYear;
         const propertyHistoricalData = historicalData[property.id] || [];
         const yearData = propertyHistoricalData.find(d => d.year === year);
-        const yearsOwned = property.year_purchased ? year - property.year_purchased : 0;
+        // For purchased properties, use actual ownership timeline
+        // For unpurchased properties, treat current year as purchase year for projections
+        const effectivePurchaseYear = property.year_purchased || currentYear;
+        const yearsOwned = year - effectivePurchaseYear;
         
         if (yearsOwned >= 1 || isProjectionYear) { // Need at least 1 year for meaningful percentages
           const purchasePrice = Number(property.purchase_price) || 0;
@@ -116,7 +129,7 @@ export default function PerformanceMetricsChart({ properties }) {
           // Calculate property value for this year using real Zillow data
           let historicalValue;
           
-          if (year <= property.year_purchased) {
+          if (year <= effectivePurchaseYear) {
             historicalValue = purchasePrice;
           } else {
             // Check if we have Zillow data for this year
@@ -129,8 +142,8 @@ export default function PerformanceMetricsChart({ properties }) {
               
               if (zillowData.length === 0) {
                 // No Zillow data, fall back to linear interpolation
-                const totalYearsOwned = currentYear - property.year_purchased;
-                const progressRatio = totalYearsOwned > 0 ? (year - property.year_purchased) / totalYearsOwned : 0;
+                const totalYearsOwned = currentYear - effectivePurchaseYear;
+                const progressRatio = totalYearsOwned > 0 ? (year - effectivePurchaseYear) / totalYearsOwned : 0;
                 historicalValue = purchasePrice + (currentValue - purchasePrice) * Math.max(0, Math.min(progressRatio, 1));
               } else {
                 // Find closest Zillow values before and after this year
@@ -167,7 +180,7 @@ export default function PerformanceMetricsChart({ properties }) {
             // IRR calculation using cash flows
             if (yearsOwned >= 1) {
               const cashFlows = [-initialInvestment]; // Initial investment as negative
-              for (let irrYear = property.year_purchased; irrYear <= year; irrYear++) {
+              for (let irrYear = effectivePurchaseYear; irrYear <= year; irrYear++) {
                 const irrYearData = allHistoricalData.find(d => d.year === irrYear);
                 if (irrYearData) {
                   cashFlows.push(irrYearData.netIncome);
@@ -227,8 +240,23 @@ export default function PerformanceMetricsChart({ properties }) {
             
             // Calculate projected metrics
             cashOnCash = initialInvestment > 0 ? (projectedNOI / initialInvestment) * 100 : 0;
-            const projectedYearsOwned = year - property.year_purchased;
-            cagr = calculateCAGR(initialInvestment, projectedEquity, projectedYearsOwned) || 0;
+            const projectedYearsOwned = year - effectivePurchaseYear;
+            
+            // For CAGR, use property value appreciation only (not leveraged equity growth)
+            // This gives a more realistic view of actual property performance
+            const startingPropertyValue = purchasePrice;
+            cagr = calculateCAGR(startingPropertyValue, projectedValue, projectedYearsOwned) || 0;
+            
+            // Debug CAGR calculation for unrealistic values
+            if (cagr > 20) {
+              console.log(`High CAGR detected for ${property.address} year ${year}:`, {
+                startingPropertyValue,
+                projectedValue, 
+                projectedYearsOwned,
+                cagr,
+                calculationUsed: 'property appreciation only'
+              });
+            }
             
             // For IRR, we'd need to calculate cumulative cash flows through projection
             // For now, use CAGR as approximation for projections
@@ -236,15 +264,15 @@ export default function PerformanceMetricsChart({ properties }) {
             
             historicalEquity = projectedEquity;
           } else {
-            // Calculate CAGR using accurate equity progression for historical data
-            cagr = calculateCAGR(initialInvestment, historicalEquity, yearsOwned);
+            // Calculate CAGR using property value appreciation for historical data  
+            cagr = calculateCAGR(purchasePrice, historicalValue, yearsOwned);
           }
           
           // Debug logging removed - CAGR issue resolved
           
           // Only show CAGR after 3+ years to avoid meaningless early high numbers, but allow projections
           const displayLabel = getPropertyDisplayLabel(property);
-          const effectiveYearsOwned = isProjectionYear ? year - property.year_purchased : yearsOwned;
+          const effectiveYearsOwned = isProjectionYear ? year - effectivePurchaseYear : yearsOwned;
           
           // Ensure we show data for projections even if historical requirements aren't met
           const minYearsForCAGR = isProjectionYear ? 1 : 3;
@@ -254,8 +282,8 @@ export default function PerformanceMetricsChart({ properties }) {
           const cocValue = (cashOnCash && !isNaN(cashOnCash)) ? Number(cashOnCash.toFixed(1)) : null;
           const irrValue = (irrPct && !isNaN(irrPct) && effectiveYearsOwned >= minYearsForIRR) ? Number(irrPct.toFixed(1)) : null;
           
-          // Debug logging for first property and year 2024+ to see what's happening
-          if (property.id === properties[0]?.id && year >= 2024) {
+          // Debug logging for first property and year 2025+ to see what's happening
+          if (property.id === properties[0]?.id && year >= 2025) {
             console.log(`Debug ${displayLabel} ${year}:`, {
               isProjectionYear, 
               effectiveYearsOwned, 
@@ -349,7 +377,7 @@ export default function PerformanceMetricsChart({ properties }) {
           
           {/* Property Toggles */}
           <div className="flex flex-wrap gap-2">
-            {properties.map((property, index) => (
+            {allItems.map((property, index) => (
               <button
                 key={property.id}
                 onClick={() => toggleProperty(property.id)}
@@ -399,7 +427,7 @@ export default function PerformanceMetricsChart({ properties }) {
               content={() => {
                 // Group legend entries by property
                 const propertyGroups = {};
-                properties.forEach((property, index) => {
+                allItems.forEach((property, index) => {
                   if (visibleProperties[property.id]) {
                     const displayLabel = getPropertyDisplayLabel(property);
                     const color = colors[index % colors.length];
@@ -446,7 +474,7 @@ export default function PerformanceMetricsChart({ properties }) {
               }}
             />
             
-            {properties.map((property, index) => {
+            {allItems.map((property, index) => {
               if (!visibleProperties[property.id]) return null;
               const color = colors[index % colors.length];
               const displayLabel = getPropertyDisplayLabel(property);

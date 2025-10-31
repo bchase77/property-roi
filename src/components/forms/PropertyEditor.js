@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import PropertyForm from './PropertyForm';
+import StaticPropertyDetails from './StaticPropertyDetails';
+import CurrentAnnualValues from './CurrentAnnualValues';
 import MortgageCalculator from './MortgageCalculator';
 import FinancialPreview from '@/components/ui/FinancialPreview';
 
@@ -21,7 +22,7 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
     insuranceMonthly: property.insurance_monthly || 120,
     maintPctRent: property.maintenance_pct_rent || 5,
     vacancyPctRent: property.vacancy_pct_rent || 5,
-    mgmtPctRent: property.management_pct_rent || 8,
+    mgmtPctRent: property.management_pct_rent ?? 8,
     otherMonthly: property.other_monthly || 0,
     initialInvestment: property.initial_investment || 0,
     mortgageFree: property.mortgage_free || false,
@@ -33,7 +34,22 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
     bathrooms: property.bathrooms || '',
     squareFootage: property.square_footage || '',
     yearBuilt: property.year_built || '',
-    abbreviation: property.abbreviation || ''
+    abbreviation: property.abbreviation || '',
+    countyTaxWebsite: property.county_tax_website || '',
+    cityTaxWebsite: property.city_tax_website || '',
+    notes: property.notes || '',
+    // Current property values for accurate calculations
+    currentAppraisalValue: property.current_appraisal_value || property.purchase_price || 0,
+    currentCountyTaxRate: property.current_county_tax_rate || 0,
+    currentCityTaxRate: property.current_city_tax_rate || 0,
+    assessmentPercentage: property.assessment_percentage || 25,
+    insuranceAnnual: property.current_insurance_annual || (property.insurance_monthly * 12) || 0,
+    currentMarketValue: property.current_market_value || property.purchase_price || 0,
+    currentExpensesAnnual: property.current_expenses_annual || 0,
+    currentMortgageBalance: property.current_mortgage_balance || 0,
+    currentMortgageRate: property.current_mortgage_rate || property.interest_apr_pct || 0,
+    currentMortgagePayment: property.current_mortgage_payment || 0,
+    currentMortgageTermRemaining: property.current_mortgage_term_remaining || 0
   });
 
   const [saving, setSaving] = useState(false);
@@ -70,7 +86,19 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
         currentMortgageTermRemaining: property.current_mortgage_term_remaining,
         // Include new tax fields
         taxAnnual: form.taxAnnual,
-        taxInputMode: form.taxInputMode
+        taxInputMode: form.taxInputMode,
+        // Current property values
+        currentAppraisalValue: form.currentAppraisalValue,
+        currentCountyTaxRate: form.currentCountyTaxRate,
+        currentCityTaxRate: form.currentCityTaxRate,
+        assessmentPercentage: form.assessmentPercentage,
+        currentInsuranceAnnual: form.insuranceAnnual,
+        currentMarketValue: form.currentMarketValue,
+        currentExpensesAnnual: form.currentExpensesAnnual,
+        currentMortgageBalance: form.currentMortgageBalance,
+        currentMortgageRate: form.currentMortgageRate,
+        currentMortgagePayment: form.currentMortgagePayment,
+        currentMortgageTermRemaining: form.currentMortgageTermRemaining
       };
       
       const res = await fetch(`/api/properties/${property.id}`, {
@@ -104,28 +132,38 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Property Details Form */}
-        <div className="lg:col-span-1 space-y-6">
-          <PropertyForm 
+      <div className="space-y-8">
+        {/* Row 1: Static Property Details */}
+        <div className="grid lg:grid-cols-1 gap-8">
+          <StaticPropertyDetails 
             form={form} 
             updateForm={updateForm}
-            onSubmit={handleSubmit}
-            onReset={() => {}}
+            inputCls="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             saving={saving}
           />
         </div>
 
-        {/* Mortgage Calculator */}
-        <div className="lg:col-span-1 space-y-6">
-          <MortgageCalculator 
-            form={form}
+        {/* Row 2: Current Annual Values */}
+        <div className="grid lg:grid-cols-1 gap-8">
+          <CurrentAnnualValues 
+            form={form} 
             updateForm={updateForm}
+            inputCls="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            saving={saving}
+            property={property}
           />
         </div>
 
-        {/* Financial Preview */}
-        <div className="lg:col-span-1">
+        {/* Row 3: Financial Analysis & Mortgage Calculator */}
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Mortgage Calculator */}
+          <MortgageCalculator 
+            form={form}
+            updateForm={updateForm}
+            propertyId={property.id}
+          />
+
+          {/* Financial Preview */}
           <FinancialPreview form={form} />
         </div>
       </div>

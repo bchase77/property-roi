@@ -21,22 +21,66 @@ export function mortgageBalance(principal, aprPct, years, paymentsMade) {
 
 // Calculate equity for a property at a specific year, considering mortgage payoff
 export function calculateEquityAtYear(property, year, propertyValue) {
-  const purchaseYear = property.year_purchased;
+  // console.log(`🔧 calculateEquityAtYear called for ${property.address} year ${year} value ${propertyValue}`);
+  
+  const currentYear = 2025;
+  const purchaseYear = property.year_purchased || currentYear; // Use current year for unpurchased properties
   const payoffDate = property.mortgage_payoff_date;
   
-  // console.log('🔍 DEBUGGING calculateEquityAtYear for year', year, 'propertyValue', propertyValue);
+  // Debug for new properties with unexpected high equity
+  const isNewProperty = property.address && (
+    property.address.includes('4900') || 
+    property.address.includes('3955') || 
+    property.address.includes('20919')
+  );
   
-  if (!purchaseYear || year < purchaseYear) return 0;
+  if (isNewProperty) {
+    console.log(`🔍 DEBUGGING calculateEquityAtYear for ${property.address} year ${year}:`, {
+      propertyValue,
+      purchaseYear,
+      currentYear,
+      mortgage_free: property.mortgage_free,
+      payoffDate,
+      purchase_price: property.purchase_price,
+      down_payment_pct: property.down_payment_pct
+    });
+  }
+  
+  if (year < purchaseYear) return 0;
   
   // If there's no payoff date and property was always mortgage-free
   if (!payoffDate && property.mortgage_free) {
     return propertyValue;
   }
   
-  // If there's no payoff date but property had a mortgage, we can't calculate accurately
+  // If there's no payoff date but property has an active mortgage, calculate current balance
   if (!payoffDate && !property.mortgage_free) {
-    return propertyValue;
+    // Calculate mortgage balance for active loan (no payoff date means loan continues)
+    const loanAmount = Number(property.purchase_price) * (1 - Number(property.down_payment_pct) / 100);
+    const monthsElapsed = (year - purchaseYear) * 12;
+    const remainingBalance = mortgageBalance(
+      loanAmount,
+      Number(property.interest_apr_pct),
+      Number(property.loan_years),
+      monthsElapsed
+    );
+    
+    const calculatedEquity = Math.max(propertyValue - remainingBalance, 0);
+    
+    if (isNewProperty) {
+      console.log(`  --> Active mortgage calculation:`, {
+        loanAmount,
+        monthsElapsed,
+        remainingBalance,
+        calculatedEquity,
+        expectedDownPayment: loanAmount ? propertyValue - loanAmount : 'N/A'
+      });
+    }
+    
+    return calculatedEquity;
   }
+  
+  // At this point, we must have a payoff date since we handled the no-payoff cases above
   
   const payoffYear = new Date(payoffDate).getFullYear();
   
@@ -45,7 +89,7 @@ export function calculateEquityAtYear(property, year, propertyValue) {
     return propertyValue;
   }
   
-  // Calculate mortgage balance for years before payoff
+  // Calculate mortgage balance for years before payoff (for properties with payoff dates)
   const loanAmount = Number(property.purchase_price) * (1 - Number(property.down_payment_pct) / 100);
   const monthsElapsed = (year - purchaseYear) * 12;
   const remainingBalance = mortgageBalance(
@@ -71,7 +115,7 @@ export function analyzeWithCurrentValues(property) {
     insuranceMonthly: Number((property.current_insurance_annual || property.insurance_monthly * 12) / 12) || 120,
     maintPctRent: Number(property.maintenance_pct_rent) || 5, // For consistency with original
     vacancyPctRent: Number(property.vacancy_pct_rent) || 5, // For consistency with original  
-    mgmtPctRent: Number(property.current_management_pct || property.management_pct_rent) || 8,
+    mgmtPctRent: Number(property.current_management_pct ?? property.management_pct_rent) ?? 8,
     otherMonthly: Number(property.other_monthly) || 0,
     initialInvestment: Number(property.initial_investment) || 0,
     mortgageFree: Boolean(property.mortgage_free),

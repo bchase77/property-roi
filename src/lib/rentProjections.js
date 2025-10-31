@@ -83,7 +83,7 @@ export function projectRent(currentRent, state, stateRentData) {
     }
     
     projections.push({
-      year: new Date().getFullYear() + year,
+      year: 2025 + year,
       projectedRent: Math.round(rent),
       increaseApplied: year % 2 === 0
     });
@@ -104,7 +104,7 @@ function projectRentWithDefaults(currentRent) {
     }
     
     projections.push({
-      year: new Date().getFullYear() + year,
+      year: 2025 + year,
       projectedRent: Math.round(rent),
       increaseApplied: year % 2 === 0
     });
@@ -116,7 +116,7 @@ function projectRentWithDefaults(currentRent) {
 // Create early payoff scenarios
 export function createPayoffScenarios(property) {
   const scenarios = [];
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2025;
   
   // Current payoff date scenario
   if (property.mortgage_payoff_date) {
@@ -150,7 +150,7 @@ export function createPayoffScenarios(property) {
 
 // Calculate projected metrics with payoff scenarios
 export function calculateProjectedMetrics(property, rentProjections, payoffScenario, stateRentData) {
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2025;
   const projections = [];
   
   // Get current metrics as baseline

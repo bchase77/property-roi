@@ -3,6 +3,18 @@ import { analyze } from '@/lib/finance';
 import PropertyChart from '../PropertyChart';
 
 export default function FinancialPreview({ form }) {
+  // Calculate current taxes based on form values
+  const assessedValue = (Number(form.currentAppraisalValue) || 0) * ((Number(form.assessmentPercentage) || 25) / 100);
+  const calculatedTaxesAnnual = (
+    (assessedValue * ((Number(form.currentCountyTaxRate) || 0) / 100)) +
+    (assessedValue * ((Number(form.currentCityTaxRate) || 0) / 100))
+  );
+  
+  // Use calculated taxes if we have appraisal data, otherwise fall back to form values
+  const currentTaxesAnnual = (form.currentAppraisalValue && (form.currentCountyTaxRate || form.currentCityTaxRate)) 
+    ? calculatedTaxesAnnual 
+    : (Number(form.taxAnnual) || 0);
+
   const metrics = analyze({
     purchasePrice: Number(form.purchasePrice) || 0,
     downPct: Number(form.downPct) || 0,
@@ -13,13 +25,17 @@ export default function FinancialPreview({ form }) {
     taxAnnual: Number(form.taxAnnual) || 0,
     taxInputMode: form.taxInputMode || 'percentage',
     hoaMonthly: Number(form.hoaMonthly) || 0,
-    insuranceMonthly: Number(form.insuranceMonthly) || 0,
+    insuranceMonthly: Number(form.insuranceMonthly) || Number(form.insuranceAnnual) / 12 || 0,
     maintPctRent: Number(form.maintPctRent) || 0,
     vacancyPctRent: Number(form.vacancyPctRent) || 0,
     mgmtPctRent: Number(form.mgmtPctRent) || 0,
     otherMonthly: Number(form.otherMonthly) || 0,
     initialInvestment: Number(form.initialInvestment) || 0,
-    mortgageFree: Boolean(form.mortgageFree)
+    mortgageFree: Boolean(form.mortgageFree),
+    // Current values override - this will take priority in calculations
+    currentTaxesAnnual: currentTaxesAnnual > 0 ? currentTaxesAnnual : null,
+    currentExpensesAnnual: null, // Let it calculate from percentages
+    currentMortgagePayment: null // Let it calculate from loan terms
   });
 
   const Money = (v) => `$${Number(v).toLocaleString()}`;
@@ -27,11 +43,11 @@ export default function FinancialPreview({ form }) {
 
   // Sample chart data - in real app this would be projections
   const chartData = [
-    { year: new Date().getFullYear() - 2, value: (form.purchasePrice || 0) * 0.95 },
-    { year: new Date().getFullYear() - 1, value: (form.purchasePrice || 0) * 0.98 },
-    { year: new Date().getFullYear(), value: form.purchasePrice || 0 },
-    { year: new Date().getFullYear() + 1, value: (form.purchasePrice || 0) * 1.03 },
-    { year: new Date().getFullYear() + 2, value: (form.purchasePrice || 0) * 1.06 }
+    { year: 2025 - 2, value: (form.purchasePrice || 0) * 0.95 },
+    { year: 2025 - 1, value: (form.purchasePrice || 0) * 0.98 },
+    { year: 2025, value: form.purchasePrice || 0 },
+    { year: 2025 + 1, value: (form.purchasePrice || 0) * 1.03 },
+    { year: 2025 + 2, value: (form.purchasePrice || 0) * 1.06 }
   ];
 
   return (

@@ -3,35 +3,23 @@ import React from 'react';
 export default function PurchaseDetails({ form, set, inputCls }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center space-x-3">
-        <input 
-          type="checkbox" 
-          id="purchased"
-          checked={form.purchased} 
-          onChange={set('purchased')}
-          className="rounded border-gray-300"
-        />
-        <label htmlFor="purchased" className="text-sm font-medium text-gray-700">
-          Already Purchased
-        </label>
-      </div>
-
-      {form.purchased && (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Date</label>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Year Purchased</label>
+            <label className="block text-xs text-gray-600 mb-1">Year</label>
             <input 
               type="number" 
               min="1900"
-              max="2030"
+              max="2035"
               className="w-full rounded-md border border-gray-300 text-gray-600 px-3 py-2" 
               value={form.yearPurchased} 
               onChange={set('yearPurchased')}
-              placeholder="2023"
+              placeholder="2025"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Month Purchased</label>
+            <label className="block text-xs text-gray-600 mb-1">Month</label>
             <select 
               className="w-full rounded-md border text-gray-600 border-gray-300 px-3 py-2"
               value={form.monthPurchased || ''}
@@ -53,7 +41,20 @@ export default function PurchaseDetails({ form, set, inputCls }) {
             </select>
           </div>
         </div>
-      )}
+      </div>
+
+      <div className="flex items-center space-x-3">
+        <input 
+          type="checkbox" 
+          id="purchased"
+          checked={form.purchased} 
+          onChange={set('purchased')}
+          className="rounded border-gray-300"
+        />
+        <label htmlFor="purchased" className="text-sm font-medium text-gray-700">
+          Purchase completed (uncheck if projected/future purchase)
+        </label>
+      </div>
 
       <div className="flex items-center space-x-3">
         <input 
