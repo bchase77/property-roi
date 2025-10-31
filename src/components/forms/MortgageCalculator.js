@@ -1,8 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { mortgageMonthly } from '@/lib/finance';
 
-export default function MortgageCalculator({ form, updateForm }) {
+export default function MortgageCalculator({ form, updateForm, propertyId = null }) {
   const [scenarios, setScenarios] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Load existing scenarios when propertyId is available
+  useEffect(() => {
+    if (propertyId) {
+      loadScenarios();
+    }
+  }, [propertyId]);
+
+  const loadScenarios = async () => {
+    if (!propertyId) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/properties/${propertyId}/scenarios`);
+      if (response.ok) {
+        const data = await response.json();
+        // Convert database snake_case to camelCase for React components
+        const convertedScenarios = data.map(scenario => ({
+          id: scenario.id,
+          name: scenario.name,
+          downPct: scenario.down_pct,
+          rateApr: scenario.rate_apr,
+          years: scenario.years,
+          points: scenario.points || 0,
+          closingCosts: scenario.closing_costs || 0
+        }));
+        setScenarios(convertedScenarios);
+      }
+    } catch (error) {
+      console.error('Failed to load scenarios:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -15,9 +50,8 @@ export default function MortgageCalculator({ form, updateForm }) {
     updateForm({ [key]: processedValue });
   };
 
-  const addScenario = () => {
+  const addScenario = async () => {
     const newScenario = {
-      id: Date.now(),
       name: `Scenario ${scenarios.length + 1}`,
       downPct: form.downPct,
       rateApr: form.rateApr,
@@ -25,15 +59,73 @@ export default function MortgageCalculator({ form, updateForm }) {
       points: 0,
       closingCosts: 0
     };
-    setScenarios([...scenarios, newScenario]);
+
+    if (propertyId) {
+      // Save to database for existing property
+      try {
+        const response = await fetch(`/api/properties/${propertyId}/scenarios`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newScenario)
+        });
+        
+        if (response.ok) {
+          const savedScenario = await response.json();
+          setScenarios([...scenarios, savedScenario]);
+        }
+      } catch (error) {
+        console.error('Failed to save scenario:', error);
+      }
+    } else {
+      // Temporary scenario for new property
+      const tempScenario = { ...newScenario, id: Date.now() };
+      setScenarios([...scenarios, tempScenario]);
+    }
   };
 
-  const removeScenario = (id) => {
-    setScenarios(scenarios.filter(s => s.id !== id));
+  const removeScenario = async (id) => {
+    if (propertyId && typeof id === 'number' && id > 1000000) {
+      // Delete from database for saved scenarios
+      try {
+        const response = await fetch(`/api/scenarios/${id}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          setScenarios(scenarios.filter(s => s.id !== id));
+        }
+      } catch (error) {
+        console.error('Failed to delete scenario:', error);
+      }
+    } else {
+      // Remove temporary scenario
+      setScenarios(scenarios.filter(s => s.id !== id));
+    }
   };
 
-  const updateScenario = (id, updatedScenario) => {
+  const updateScenario = async (id, updatedScenario) => {
+    // Update local state immediately for better UX
     setScenarios(scenarios.map(s => s.id === id ? updatedScenario : s));
+    
+    // Update database for saved scenarios
+    if (propertyId && typeof id === 'number' && id > 1000000) {
+      try {
+        await fetch(`/api/scenarios/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: updatedScenario.name,
+            downPct: updatedScenario.downPct,
+            rateApr: updatedScenario.rateApr,
+            years: updatedScenario.years,
+            points: updatedScenario.points || 0,
+            closingCosts: updatedScenario.closingCosts || 0
+          })
+        });
+      } catch (error) {
+        console.error('Failed to update scenario:', error);
+      }
+    }
   };
 
   const applyScenario = (scenario) => {
@@ -237,7 +329,7 @@ function ScenarioCard({ scenario, purchasePrice, onApply, onRemove, onUpdate }) 
           <input 
             type="number"
             step="0.5"
-            value={scenario.downPct}
+            value={scenario.downPct || ''}
             onChange={(e) => handleChange('downPct', e.target.value)}
             className={inputCls}
           />
@@ -247,7 +339,7 @@ function ScenarioCard({ scenario, purchasePrice, onApply, onRemove, onUpdate }) 
           <input 
             type="number"
             step="0.125"
-            value={scenario.rateApr}
+            value={scenario.rateApr || ''}
             onChange={(e) => handleChange('rateApr', e.target.value)}
             className={inputCls}
           />
@@ -256,7 +348,7 @@ function ScenarioCard({ scenario, purchasePrice, onApply, onRemove, onUpdate }) 
           <div className="text-gray-600 mb-1">Years:</div>
           <input 
             type="number"
-            value={scenario.years}
+            value={scenario.years || ''}
             onChange={(e) => handleChange('years', e.target.value)}
             className={inputCls}
           />

@@ -6,18 +6,23 @@ export default function PageHeader({ title, subtitle, currentPage }) {
   
   useEffect(() => {
     const gitHash = process.env.GIT_HASH || 'unknown';
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: '2-digit', 
-      day: '2-digit' 
-    });
-    const timeStr = now.toLocaleTimeString('en-US', { 
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    setVersionString(`${gitHash} ${dateStr} ${timeStr}`);
+    const buildTimestamp = process.env.BUILD_TIMESTAMP || '';
+    
+    if (buildTimestamp) {
+      // Parse the build timestamp format: YYYYMMDDHHSS
+      const year = buildTimestamp.slice(0, 4);
+      const month = buildTimestamp.slice(4, 6);
+      const day = buildTimestamp.slice(6, 8);
+      const hour = buildTimestamp.slice(8, 10);
+      const minute = buildTimestamp.slice(10, 12);
+      
+      const dateStr = `${month}/${day}/${year}`;
+      const timeStr = `${hour}:${minute}`;
+      setVersionString(`${gitHash} ${dateStr} ${timeStr}`);
+    } else {
+      // Fallback if no build timestamp available
+      setVersionString(`${gitHash} (dev)`);
+    }
   }, []);
 
   const pages = [
@@ -36,7 +41,7 @@ export default function PageHeader({ title, subtitle, currentPage }) {
     <header className="flex justify-between items-start mb-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">{title}</h1>
-        {subtitle && <p className="text-gray-600">{subtitle}</p>}
+  {subtitle && <p className="text-gray-200">{subtitle}</p>}
       </div>
       
       <div className="text-right">

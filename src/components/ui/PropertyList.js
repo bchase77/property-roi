@@ -63,7 +63,7 @@ function PropertyCard({ property, onEdit, onDelete, isEditing }) {
             </p>
           )}
           
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
               <div className="text-gray-600">Purchase Price:</div>
               <div className="font-medium text-green-600">${Number(property.purchase_price).toLocaleString()}</div>
@@ -88,6 +88,19 @@ function PropertyCard({ property, onEdit, onDelete, isEditing }) {
               </div>
               <div className={`font-medium text-xs ${(metrics.cashflowMonthly * 12) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 ${(metrics.cashflowMonthly * 12).toLocaleString()}/yr
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600">
+                DSCR:
+                <span className="text-xs text-gray-500 ml-1" title="Debt Service Coverage Ratio: Net Operating Income ÷ Mortgage Payment. Measures ability to cover debt payments. >1.25 is good, >1.0 is acceptable.">ⓘ</span>
+              </div>
+              <div className={`font-medium ${
+                property.mortgage_free ? 'text-gray-500' : 
+                metrics.metrics.dscr >= 1.25 ? 'text-green-600' : 
+                metrics.metrics.dscr >= 1.0 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {property.mortgage_free ? 'N/A' : metrics.metrics.dscr.toFixed(2)}
               </div>
             </div>
           </div>

@@ -7,7 +7,7 @@ export default function OperatingExpenses({ form, set, inputCls }) {
       
       {/* Property Tax Input Mode Toggle */}
       <div>
-        <label className="block text-xs text-gray-600 mb-2">Property Tax</label>
+        <label className="block text-xs text-gray-600 mb-2">Property Tax (projected)</label>
         <div className="flex items-center gap-4 mb-2">
           <label className="flex items-center">
             <input 
@@ -58,6 +58,7 @@ export default function OperatingExpenses({ form, set, inputCls }) {
                   onChange={set('taxAnnual')}
                   placeholder="6000"
                 />
+                <div className="text-xs text-gray-500 mt-1">Enter 0 to use %</div>
               </div>
             )}
           </div>

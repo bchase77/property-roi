@@ -132,6 +132,45 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
           </div>
         </div>
 
+        {/* Tax Website Links */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-gray-700">Tax Assessment Links</h3>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">County Tax Website</label>
+            <input 
+              type="url"
+              className={inputCls}
+              value={form.countyTaxWebsite || ''}
+              onChange={set('countyTaxWebsite')}
+              placeholder="https://countytaxes.gov/property-search"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">City Tax Website</label>
+            <input 
+              type="url"
+              className={inputCls}
+              value={form.cityTaxWebsite || ''}
+              onChange={set('cityTaxWebsite')}
+              placeholder="https://citytaxes.gov/property-lookup"
+            />
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Notes
+          </label>
+          <textarea 
+            className={inputCls + ' min-h-[80px] resize-y'}
+            value={form.notes || ''}
+            onChange={set('notes')}
+            placeholder="Property notes, important details, maintenance history, etc."
+            rows="3"
+          />
+        </div>
+
         {/* Action Buttons */}
         <div className="flex space-x-3 pt-4">
           <button

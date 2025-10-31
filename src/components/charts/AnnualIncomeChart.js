@@ -56,7 +56,7 @@ export default function AnnualIncomeChart({ properties }) {
   // Generate historical income data using real data
   const generateChartData = () => {
     // Use a consistent year to avoid hydration mismatches
-    const currentYear = 2024;
+    const currentYear = 2025;
     let startYear;
     
     if (timeRange === 'all') {

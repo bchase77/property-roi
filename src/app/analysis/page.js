@@ -6,6 +6,7 @@ import PerformanceMetricsChart from '@/components/charts/PerformanceMetricsChart
 import AnnualIncomeChart from '@/components/charts/AnnualIncomeChart';
 import MetricsGrid from '@/components/ui/MetricsGrid';
 import PropertySelector from '@/components/ui/PropertySelector';
+import ScenarioSelector from '@/components/ui/ScenarioSelector';
 import PageHeader from '@/components/ui/PageHeader';
 import { analyzeWithCurrentValues, calculateCAGR, calculateHoldVsSell } from '@/lib/finance';
 import { calculateMarketInvestmentValue } from '@/lib/marketData';
@@ -14,6 +15,7 @@ function AnalysisContent() {
   const searchParams = useSearchParams();
   const [properties, setProperties] = useState([]);
   const [selectedProperties, setSelectedProperties] = useState([]);
+  const [selectedScenarios, setSelectedScenarios] = useState([]);
   const [timeRange] = useState('5y'); // 2y, 5y, 10y
   const [loading, setLoading] = useState(true);
 
@@ -81,6 +83,11 @@ function AnalysisContent() {
         onToggleProperty={togglePropertySelection}
       />
 
+      {/* Scenario Selection */}
+      <ScenarioSelector 
+        onScenariosChange={setSelectedScenarios}
+      />
+
       {/* Key Metrics Grid */}
       <MetricsGrid 
         properties={selectedProperties}
@@ -91,14 +98,17 @@ function AnalysisContent() {
       <div className="space-y-8">
         <AssetValueChart 
           properties={selectedProperties}
+          scenarios={selectedScenarios}
         />
         
         <PerformanceMetricsChart 
           properties={selectedProperties}
+          scenarios={selectedScenarios}
         />
         
         <AnnualIncomeChart 
           properties={selectedProperties}
+          scenarios={selectedScenarios}
         />
       </div>
 
@@ -135,7 +145,7 @@ function DetailedAnalysisTable({ properties }) {
             {properties.map(property => {
               const metrics = analyzeWithCurrentValues(property);
               const currentValue = property.current_market_value || property.purchase_price;
-              const yearsOwned = property.year_purchased ? new Date().getFullYear() - property.year_purchased : 1;
+              const yearsOwned = property.year_purchased ? 2025 - property.year_purchased : 1;
               
               // Real S&P 500 comparison using actual down payment invested
               // Use down payment calculation, fallback to initial_investment if reasonable

@@ -101,7 +101,7 @@ export default function Analysis() {
         <MetricCard 
           title="Net Income" 
           value={`$${totalNetIncome.toLocaleString()}`}
-          subtitle="Monthly cash flow"
+          subtitle={`Monthly / $${(totalNetIncome * 12).toLocaleString()} yearly`}
         />
         <MetricCard 
           title="Avg Cap Rate" 

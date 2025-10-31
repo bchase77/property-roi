@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import PropertyEditor from '@/components/forms/PropertyEditor';
 import YearlyDataEditor from '@/components/forms/YearlyDataEditor';
-import CurrentValuesEditor from '@/components/forms/CurrentValuesEditor';
 import PropertyList from '@/components/ui/PropertyList';
 import PageHeader from '@/components/ui/PageHeader';
 import { analyzeWithCurrentValues } from '@/lib/finance';
@@ -106,15 +105,6 @@ export default function Portfolio() {
         
         {/* Additional Editors */}
         <div className="mx-auto max-w-7xl p-6 space-y-8">
-          {/* Only show current values editor for owned properties */}
-          {editingProperty.purchased && (
-            <CurrentValuesEditor 
-              property={editingProperty}
-              onUpdate={handlePropertyUpdate}
-              onCancel={cancelEdit}
-            />
-          )}
-          
           <YearlyDataEditor 
             property={editingProperty}
             onUpdate={loadProperties}

@@ -36,7 +36,7 @@ export default function MetricsGrid({ properties }) {
     let totalCashFlow = 0;
     let portfolioInitialInvestment = 0;
     let portfolioCurrentEquity = 0;
-    const currentYear = new Date().getFullYear();
+    const currentYear = 2025;
 
     properties.forEach(property => {
       const metrics = analyzeWithCurrentValues(property);
@@ -97,6 +97,7 @@ export default function MetricsGrid({ properties }) {
     const portfolioCAGR = portfolioInitialInvestment > 0 && portfolioYearsOwned > 0 ?
       calculateCAGR(portfolioInitialInvestment, portfolioCurrentEquity, portfolioYearsOwned) : 0;
 
+
     return {
       avgIRR: avgIRR || 0,
       totalNPV,
@@ -111,7 +112,7 @@ export default function MetricsGrid({ properties }) {
     <div className="grid md:grid-cols-4 gap-6">
       <MetricCard 
         title="Avg IRR" 
-        value={metrics.avgIRR > 0 ? `${metrics.avgIRR.toFixed(1)}%` : 'N/A'} 
+        value={metrics.avgIRR !== 0 ? `${metrics.avgIRR.toFixed(1)}%` : 'N/A'} 
         subtitle="Internal Rate of Return"
       />
       <MetricCard 
@@ -121,7 +122,7 @@ export default function MetricsGrid({ properties }) {
       />
       <MetricCard 
         title="Portfolio CAGR" 
-        value={metrics.portfolioCAGR > 0 ? `${metrics.portfolioCAGR.toFixed(1)}%` : 'N/A'}
+        value={metrics.portfolioCAGR !== 0 ? `${metrics.portfolioCAGR.toFixed(1)}%` : 'N/A'}
         subtitle="Compound Annual Growth Rate"
       />
       <MetricCard 

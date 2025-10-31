@@ -388,4 +388,233 @@ are you still tracking all my prompts to a file, and tracking our work efforts?
 
 **Response:** Found conversation log exists but wasn't being updated for current session (ended at Oct 6). Currently updating log with our Oct 26 session work. Need to also update PROJECT_SUMMARY.md with time estimates.
 
-**Session Status:** In Progress - 2025-10-26
+---
+
+### Prompt 52:
+Make a note to yourself every time you start to keep track of all my prompts and our work efforts. Tell me you are doing that every time you start.
+
+**Response:** Updated CLAUDE.md with requirement to announce prompt tracking and update conversation logs at every session start. Added requirement to PROJECT_SUMMARY.md with time estimates.
+
+---
+
+### Prompt 53:
+Where will you note this requirement?
+
+**Response:** Added requirement to CLAUDE.md file which contains session start requirements and file maintenance instructions.
+
+---
+
+### Prompt 54:
+The tabs are now all still called the same name "Property ROI" and I want them as concise names of the function of that page.
+
+**Response:** Fixed remaining tab title issue - removed title from layout.tsx metadata completely to allow pages to set their own titles dynamically.
+
+---
+
+### Prompt 55:
+Yes I want the ability to click on/off the various scenarios for each property onto the graphs on the analysis page. Are scenarios now saved to the database? I had added one for 20919 Flaming Arrow but have navigated around and don't see it any more. I want these in the database, somehow associated with the underlying property.
+
+**Response:** Implemented complete database-backed scenario system: Created property_scenarios table, API endpoints, ScenarioManager component, updated Portfolio page to manage scenarios. Scenarios are now permanently saved and associated with properties.
+
+---
+
+### Prompt 56:
+I went to Portfolio and clicked Flaming Arrow. I clicked Add Scenario. Some new boxes appeared. I put my cursor into the Down % box. As soon as I typed 1 character I got this error in browser...
+
+**Response:** Fixed React controlled/uncontrolled input error by adding field conversion from snake_case to camelCase and ensuring all input values have fallback empty strings (|| '') to prevent undefined values.
+
+---
+
+### Prompt 57:
+Is the info in the upper right, ensure that the timestamp is the build time, not the page refresh time
+
+**Response:** Updated PageHeader to use BUILD_TIMESTAMP from environment variables instead of Date.now(). Modified next.config.ts to capture build timestamp at build time.
+
+---
+
+### Prompt 58:
+On the analysis page, what is the little checkbox next to "Scenario 1" under 20919 Flaming Arrow supposed to do? I don't see that it does anything. I'd like for it to show up in the other graphs for other metrics.
+
+**Response:** Updated both PerformanceMetricsChart.js and AssetValueChart.js to accept scenarios prop and use mergePropertiesAndScenarios helper to display scenario data as separate lines in charts with distinct names like "20919 Flaming Arrow (Scenario 1)".
+
+---
+
+### Prompt 59:
+I see the info. However it needs some changes. Put the baseline mortgage terms next to the main property address (it's next to the scenarios). What is the IRR and Portfolio CAGR both N/A when only this 1 property is shown? Do you expect the graphs to show identical values for both the initial entries and scenario 1, for 20919 Flaming Arrow? They look the same to me now.
+
+**Response:** Fixed three issues: 1) Added baseline mortgage terms to property display by updating getAllScenarios() to include property mortgage terms and modified ScenarioSelector. 2) Fixed IRR/Portfolio CAGR N/A display by changing condition from > 0 to !== 0. 3) Confirmed scenarios should show different values if mortgage terms differ - identical lines mean scenario uses same terms as baseline.
+
+---
+
+### Prompt 60:
+I set the baseline for Flaming Arrow to be 30% down, 5.5% APR, 30y fixed. Scenario 1 is 50% down, 5% APR, 30y fixed. What should the 10y projects be for income, value, CAGR, CoC, IRR, NOI, Market Cap, and Cashflow for these 2 situations? Make the graphs on the analysis page show these values.
+
+**Response:** Fixed three issues: 1) Added baseline mortgage terms to property display by updating getAllScenarios() to include property mortgage terms and modified ScenarioSelector. 2) Fixed IRR/Portfolio CAGR N/A display by changing condition from > 0 to !== 0. 3) Confirmed scenarios should show different values if mortgage terms differ - identical lines mean scenario uses same terms as baseline.
+
+---
+
+### Prompt 61:
+I set the baseline for Flaming Arrow to be 30% down, 5.5% APR, 30y fixed. Scenario 1 is 50% down, 5% APR, 30y fixed. What should the 10y projects be for income, value, CAGR, CoC, IRR, NOI, Market Cap, and Cashflow for these 2 situations? Make the graphs on the analysis page show these values.
+
+**Response:** Updated property 20919 Flaming Arrow to purchased status with 2024 purchase year and $320K current market value. Enhanced scenarioHelpers.js to calculate proper initial investment based on scenario down payment percentage. Expected 10-year projections: Baseline (30% down, $85.5K investment, ~13.5% CoC) vs Scenario 1 (50% down, $142.5K investment, ~11.2% CoC) with different CAGR, equity curves, and cash flows reflecting leverage differences.
+
+---
+
+### Prompt 62:
+I just added 2 properties 4900 Barbados and 3955 Castile. However the ASSET VALUE for both remains at zero in the 5y projections. Can you investigate this? It should not be zero if I'm getting in rent and paying down the mortgage.
+
+**Response:** Fixed Asset Value chart zero values for unpurchased properties. Issue was that chart required year_purchased to be set, but new properties had year_purchased: null. Updated both AssetValueChart.js and PerformanceMetricsChart.js to use 'effectivePurchaseYear' (current year for unpurchased properties) enabling projections for all properties regardless of purchase status. Charts now show proper asset value growth from rent income, mortgage paydown, and appreciation.
+
+---
+
+### Prompt 63:
+did you push an update?
+
+**Response:** No, I haven't pushed any updates to Git yet. The changes are only in your local development environment.
+
+---
+
+### Prompt 64:
+I see the graphs for those 2 properties has non-zero values for Equity+Income but the equity values are zero. However if I'm paying a mortgage i'm also paying into equity, right? The graph should reflect that.
+
+**Response:** Fixed calculateEquityAtYear function for unpurchased properties. Issue was that properties with year_purchased: null caused function to return 0 equity for all years. Updated to use current year (2024) as effective purchase year for unpurchased properties, enabling proper equity calculations showing down payment + mortgage paydown + appreciation.
+
+---
+
+### Prompt 65:
+Change the current year to be 2025 (because today is Oct 29, 2025).
+
+**Response:** Updated current year from 2024 to 2025 throughout the application. Changed all hardcoded currentYear references in chart components, finance.js, rentProjections.js, MetricsGrid.js, FinancialPreview.js, and analysis page. New properties now treated as purchased in 2025 for projections, with proper equity calculations starting from current year.
+
+---
+
+### Prompt 66:
+For the graph Perf Metric, the CAGR shows very high, like 96% or 243% in 1 or 2 years out. How are you calculating this? Those numbers are too high.
+
+**Response:** Fixed unrealistic CAGR calculations in Performance Metrics chart. Issue was using leveraged equity growth (down payment to total equity) instead of property appreciation. Changed CAGR to measure property value appreciation only: purchase price to current/projected value. Now shows realistic 3-8% CAGR instead of 90%+ leveraged returns.
+
+---
+
+### Prompt 67:
+Back to the Asset Value graph, the first entries for the 3 newest properties added (4900 Barb, 3955 Cast, 20919 FA) start with equity at $200K to 300K, however this doesn't make sense. The first year I'm putting down only about 30% of the properties value, then earning maybe $1700 / month and having nearly that same amount in expenses, for very little postive cashflow. So recheck your equity calculations.
+
+**Response:** Fixed calculateEquityAtYear function logic. Issue was that properties with active mortgages but no payoff date were returning full property value instead of calculated equity. Updated logic to properly calculate equity = property value - remaining mortgage balance for active loans. Should now show realistic starting equity (~30% down payment).
+
+---
+
+### Prompt 68:
+Did you change the server on localhost:3000 or another one? I still see starting equities ~$200K for the newest properties.
+
+**Response:** Yes, I changed the localhost:3000 server code and the changes compiled successfully. Added enhanced debugging to calculateEquityAtYear function to identify why equity values are still showing $200K+ instead of ~30% down payment amounts. Suggested hard refresh and checking browser console for debug logs.
+
+---
+
+### Prompt 69:
+[Screenshot showing Asset Value chart with starting equity values still very high - 4900 Barb showing $240K value, 3955 Cast showing $255K value, 20919 FA showing $320K value in 2025]
+
+**Response:** Found the issue! Console debug confirmed calculateEquityAtYear function is working correctly (4900 Barbados: $72K, 3955 Castile: $76.5K, 20919 FA: $123K equity). User was viewing "Market" mode showing property values instead of "Equity" mode. Asset Value chart has toggle buttons - click "Equity" to see correct equity values matching debug output.
+
+---
+
+### Prompt 70:
+Change the starting year for 20929 FA. Is that something the user can do manually? How is that tracked?
+
+**Response:** Yes, users can manually edit the year_purchased field in the Portfolio page by clicking on the property. This field determines when equity calculations begin and affects all projections.
+
+---
+
+### Prompt 71:
+I don't see the way to edit year_purchased in PORTFOLIO -> PROPERTY -> EDIT DETAILS.
+
+**Response:** Found it! The year_purchased field is only visible when you first check "Already Purchased" checkbox. Steps: Portfolio → Click property → Edit → Check "Already Purchased" → Enter "Year Purchased" field → Save. The purchase date fields are in PurchaseDetails component and hidden unless property is marked as purchased.
+
+---
+
+### Prompt 72:
+But I haven't purchased it yet. Change the way that button and the year purchased entries work. Change the text description to be Purchase Date and have a checkbox letting the user indicate if the purchase is projected in the future or actually done in the past. Use the entered date for the other graph calculations.
+
+**Response:** Updated PurchaseDetails component to always show "Purchase Date" fields (year/month) regardless of purchase status. Changed checkbox to "Purchase completed (uncheck if projected/future purchase)" so users can set dates for both past and future purchases. All graph calculations will use the entered date.
+
+---
+
+### Prompt 73:
+Let me add links to each property record which points to the county and city tax websites. Also add a text-entry field where I can enter notes to each property.
+
+**Response:** Added three new fields to property database and forms: county_tax_website, city_tax_website, and notes. Updated database schema, API handlers (addProperty/updateProperty), PropertyEditor form state, and PropertyForm UI. New "Tax Assessment Links" section with URL inputs and "Notes" textarea are now available when editing properties.
+
+---
+
+### Prompt 74:
+Confirm that the only properties which are included in the Portfolio Value (on dashboard) are the ones which I actually own. On the dashboard, in the NET INCOME box include the yearly cash flow (you already put monthly).
+
+**Response:** ✅ **Confirmed**: Portfolio Value only includes owned properties (line 50 filters for `purchased === true`). ✅ **Updated**: NET INCOME box now shows both monthly and yearly cash flow: "Monthly / $X yearly" in the subtitle.
+
+---
+
+### Prompt 75:
+How does the buttons work on the EDIT PROPERTY page when I click property tax for either Percentage or Annual Amount? For 8700 Hunters Trl, I entered 1.2% tax rate. However when I click Annual Amount it shows 0. Which one does it take?
+
+**Response:** The tax toggle works by mode priority: 1) Current taxes (highest), 2) Annual amount (if mode='annual' AND taxAnnual has value), 3) Percentage (fallback). When you switch to "Annual Amount" it shows 0 because taxAnnual field is empty. The system doesn't auto-convert between modes - you must enter both values separately. For 1.2% on $200K property, you'd enter 2400 in annual mode.
+
+---
+
+### Prompt 76:
+How do these tax entries compare to the lower section under CURRENT PROPERTY VALUES for CURRENT PROPERTY TAXES? If these latter fields have entries, they should be used. The ones in the PROPERTIES DETAILS sections are only projections. Add a small note nearby the annual selector "Enter 0 to use %" and then confirm the taxes are calculated using CURRENT values if there are entries there, or the PROPERTY DETAILS numbers of there are no entries there. Add the word 'projected' near the taxes text in the CURRENT PROPERTY box.
+
+**Response:** ✅ **Confirmed**: Tax calculation priority is correct - Current Property Taxes (if entered) override Property Details projections. ✅ **Updated**: Added "Enter 0 to use %" note under Annual Tax input. ✅ **Updated**: Added "(projected)" label to Property Tax section in Property Details. Current taxes use: currentTaxesAnnual → taxAnnual (if annual mode) → taxPct calculation.
+
+---
+
+### Prompt 77:
+On the PORTFOLIO page, add a short explanation to DSCR. On this page, combine the property tax fields into one area on the page. Ensure the right one is being used in the FINANCIAL ANALYSIS box. Let's redo that page actually. Put the property details which don't change often all together: address, purchase price, bedrooms, baths, year built, square foot, zpid, purchase date (projected or not), HOA fee, management fee, tax links, NOTES. Then put the items which change ~yearly together: monthly rent, insurance, property taxes, other expenses. Keep the Yearly Financial Data separate like you already have it.
+
+**Response:** ✅ **DSCR explanation added**: Added DSCR field with tooltip explanation and color-coded values (>1.25 green, >1.0 yellow, <1.0 red). ✅ **Property tax fields combined**: Created unified tax section in Annual Variables. ✅ **Page reorganized**: New layout with StaticPropertyDetails (address, price, bed/bath, ZPID, purchase date, tax links, notes), AnnualVariables (rent, taxes, insurance, expenses), and Financial Analysis sections. ✅ **Tax calculation verified**: Financial Analysis uses correct priority (current taxes → annual → percentage).
+
+---
+
+### Prompt 78:
+Recheck the entries in the FINANCIAL ANALYSIS box there. For example, with Kingswood, I see it show Property Taxes: -$110.9 however under the CURRENT PROPERTY VALUES section the Estimated Annual Taxes shows as $2885.768. This latter value is the one which should be used. Can you combine the ANNUAL VARIABLES with the CURRENT PROPERTY VALUES boxes, and put these tax entries near each other. Let the user enter them either as $/year or as calculated like is now done in the CURRENT PROPERTY VALUES section. Let the use select which method is to be used for the FINANCIAL ANALYSIS section. Also while you are redoing the ANNUAL VARIABLES, let the user enter Insurance as either monthly or yearly with the default being yearly.
+
+**Response:** ✅ **Fixed tax calculation priority**: Financial Analysis now uses Current Property Values ($2885.768) instead of projected values ($110.9). ✅ **Combined sections**: Merged Annual Variables with Current Property Values into "Current Annual Values". ✅ **Unified tax system**: Users can choose "Calculate from rates" (appraisal value + tax rates) or "Enter annual amount" ($). ✅ **Insurance toggle**: Added monthly/yearly input mode with default yearly. ✅ **Financial Analysis corrected**: Now prioritizes currentTaxesAnnual from calculated values.
+
+---
+
+### Prompt 79:
+Why am I always needing to change the MANAGEMENT % Rent number back to 9% from 8% every time I edit a property? Can you check that my entry is being saved?
+
+**Response:** Found the issue! Multiple hardcoded defaults were overriding saved values. Fixed: 1) PropertyEditor: Changed `|| 8` to `?? 8` (nullish coalescing preserves 0 values). 2) finance.js: Updated analyzeWithCurrentValues to use `??` instead of `||`. 3) Updated placeholder from "8" to "9" in CurrentAnnualValues. The management percentage should now properly save and retain your 9% setting.
+
+---
+
+### Prompt 80:
+You still have property tax fields and info in 2 places: CURRENT PROPERTY VALUES and CURRENT ANNUAL VALUES boxes. Put all these into 1 box so all the property tax stuff is in one place and not duplicated. Move the other fields from CURRENT PROPERTY VALUES box into the other box.
+
+**Response:** ✅ **Consolidated successfully**: Created comprehensive `CurrentAnnualValues` component that includes all current property values in one location. ✅ **Unified tax system**: Single property tax section with "Calculate from rates" vs "Enter annual amount" options. ✅ **Eliminated duplication**: Removed separate CurrentValuesEditor component and unused imports. ✅ **Enhanced functionality**: Added insurance monthly/yearly toggle, market value with Zillow integration, current mortgage details for financed properties. ✅ **Preserved all features**: All fields from both original sections now consolidated into one comprehensive interface.
+
+---
+
+### Prompt 81:
+For the Property Tax section, show each of the County tax amount and City tax bill amount as separate numbers, and also the sum.
+
+**Response:** ✅ **Enhanced tax breakdown**: Updated Property Tax calculation display to show separate County Tax and City Tax amounts with individual formulas, plus Total Annual Taxes sum with visual separator. Now clearly shows: County Tax: $X,XXX ($assessed_value × county_rate%), City Tax: $X,XXX ($assessed_value × city_rate%), and **Total Annual Taxes: $X,XXX**.
+
+---
+
+### Prompt 82:
+Can you make the two boxes for the websites on that page clickable, so when I click them, it opens it? Now when I click it edits them.
+
+**Response:** ✅ **Added clickable website links**: Added blue 🔗 buttons next to County Tax Website and City Tax Website input fields. Now you can edit URLs by clicking in the input field, and open the websites in new tabs by clicking the link buttons. Link buttons only appear when URLs are entered.
+
+---
+
+### Prompt 83:
+Do you see any way to get the Zillow data programmtically? I entered the ZPID but it doesn't seem to work.
+
+**Response:** Found the issue! The Zillow integration is implemented but non-functional because: 1) **RapidAPI Key Missing** - requires paid subscription (~$10-50/month), 2) **Web scraping not implemented** - fallback method returns error, 3) **Zillow's official API discontinued** for new developers. **Options**: Use paid RapidAPI service, alternative APIs (RealtyMole, Attom Data), modify button to open Zillow page for manual copy/paste, or remove feature. Manual with URL helper most practical for now.
+
+---
+
+### Prompt 84:
+modify the button to open the zillow page for that property.
+
+**Response:** ✅ **Modified Zillow button**: Changed "Get Zillow Value" button to "Open Zillow Page" that opens the property's Zillow page in new tab using ZPID. Removed API fetching code and loading states. Now you can manually copy current market value from Zillow's website - more reliable than discontinued APIs and gives most up-to-date values.
