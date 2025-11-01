@@ -27,11 +27,11 @@ function AnalysisContent() {
     const propertyId = searchParams.get('property');
     if (propertyId && properties.length > 0) {
       const property = properties.find(p => p.id === parseInt(propertyId));
-      if (property) {
+      if (property && !selectedProperties.find(p => p.id === property.id)) {
         setSelectedProperties([property]);
       }
     }
-  }, [searchParams, properties]);
+  }, [searchParams, properties]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadProperties() {
     try {

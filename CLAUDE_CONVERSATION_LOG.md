@@ -681,3 +681,10 @@ Is the Vercel version up to date?
 I tried to save a new property and got this DEBUGGING calculateEquityAtYear for 4900 Barbados year 2025: Object [...] Uncaught Error: Minified React error #185; visit https://react.dev/errors/185 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
 
 **Response:** ✅ **Fixed React error #185 infinite update loop**: Identified insurance calculation was creating recursive state updates in CurrentAnnualValues component. Added update guard flag, simplified display value calculation, fixed undefined property handling in PropertyEditor, and added timeout-based flag reset. The infinite loop occurred when insurance values triggered cascading form updates. Property saving should now work properly.
+
+---
+
+### Prompt 94:
+Nope. I tried to load this page: https://property-roi.vercel.app/analysis?property=20 and I got this error: [Same error with calculateEquityAtYear debug output repeating infinitely]
+
+**Response:** ✅ **Fixed infinite loop on Analysis page**: The issue was debug logging being called repeatedly during chart rendering, not property saving. Removed all console.log statements from calculateEquityAtYear function, eliminated debug logging from PerformanceMetricsChart, and wrapped yAxisTicks calculation in useMemo to prevent unnecessary recalculations. The Analysis page should now load properly without React error #185.

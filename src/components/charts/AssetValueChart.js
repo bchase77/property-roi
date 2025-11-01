@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { analyzeWithCurrentValues, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
@@ -250,7 +250,9 @@ export default function AssetValueChart({ properties, scenarios = [] }) {
     });
   };
 
-  const chartData = generateChartData();
+  const chartData = useMemo(() => {
+    return generateChartData();
+  }, [allItems, visibleProperties, displayMode, timeRange, historicalData, visibleMarkets]);
   const colors = ['#8884d8', '#82ca9d', '#a82222', '#ff7300', '#00ff00', '#ff00ff'];
 
   return (
