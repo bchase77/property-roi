@@ -318,7 +318,9 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
     });
   };
 
-  const chartData = generateChartData();
+  const chartData = useMemo(() => {
+    return generateChartData();
+  }, [allItems, visibleProperties, visibleMetrics, timeRange, showProjections, selectedPayoffScenario, historicalData, rentAnalysis]);
   const colors = ['#8884d8', '#82ca9d', '#a82222', '#cc5500', '#00ff00', '#ff00ff'];
 
   return (
