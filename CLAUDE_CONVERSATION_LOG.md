@@ -674,3 +674,10 @@ Is the Vercel version up to date?
 [ESLint warnings and build errors shown in terminal output]
 
 **Response:** ✅ **Fixed all ESLint issues and build errors**: Resolved useEffect missing dependencies, removed unused variables/parameters, fixed unescaped apostrophe (`doesn't` → `doesn&apos;t`), added ESLint disable for legitimate cases. Build now passes successfully with only minor warnings remaining. Vercel deployment will work properly now.
+
+---
+
+### Prompt 93:
+I tried to save a new property and got this DEBUGGING calculateEquityAtYear for 4900 Barbados year 2025: Object [...] Uncaught Error: Minified React error #185; visit https://react.dev/errors/185 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+**Response:** ✅ **Fixed React error #185 infinite update loop**: Identified insurance calculation was creating recursive state updates in CurrentAnnualValues component. Added update guard flag, simplified display value calculation, fixed undefined property handling in PropertyEditor, and added timeout-based flag reset. The infinite loop occurred when insurance values triggered cascading form updates. Property saving should now work properly.
