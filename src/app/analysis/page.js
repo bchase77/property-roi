@@ -27,11 +27,17 @@ function AnalysisContent() {
     const propertyId = searchParams.get('property');
     if (propertyId && properties.length > 0) {
       const property = properties.find(p => p.id === parseInt(propertyId));
-      if (property && !selectedProperties.find(p => p.id === property.id)) {
-        setSelectedProperties([property]);
+      if (property) {
+        // Use functional update to avoid dependency on selectedProperties
+        setSelectedProperties(prev => {
+          if (!prev.find(p => p.id === property.id)) {
+            return [property];
+          }
+          return prev;
+        });
       }
     }
-  }, [searchParams, properties]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, properties]);
 
   async function loadProperties() {
     try {
