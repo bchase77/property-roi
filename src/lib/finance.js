@@ -27,24 +27,6 @@ export function calculateEquityAtYear(property, year, propertyValue) {
   const purchaseYear = property.year_purchased || currentYear; // Use current year for unpurchased properties
   const payoffDate = property.mortgage_payoff_date;
   
-  // Debug for new properties with unexpected high equity
-  const isNewProperty = property.address && (
-    property.address.includes('4900') || 
-    property.address.includes('3955') || 
-    property.address.includes('20919')
-  );
-  
-  if (isNewProperty) {
-    console.log(`🔍 DEBUGGING calculateEquityAtYear for ${property.address} year ${year}:`, {
-      propertyValue,
-      purchaseYear,
-      currentYear,
-      mortgage_free: property.mortgage_free,
-      payoffDate,
-      purchase_price: property.purchase_price,
-      down_payment_pct: property.down_payment_pct
-    });
-  }
   
   if (year < purchaseYear) return 0;
   
@@ -66,16 +48,6 @@ export function calculateEquityAtYear(property, year, propertyValue) {
     );
     
     const calculatedEquity = Math.max(propertyValue - remainingBalance, 0);
-    
-    if (isNewProperty) {
-      console.log(`  --> Active mortgage calculation:`, {
-        loanAmount,
-        monthsElapsed,
-        remainingBalance,
-        calculatedEquity,
-        expectedDownPayment: loanAmount ? propertyValue - loanAmount : 'N/A'
-      });
-    }
     
     return calculatedEquity;
   }

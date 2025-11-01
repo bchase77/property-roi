@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { analyzeWithCurrentValues, calculateCAGR, calculateIRR, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
@@ -29,7 +29,7 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
   
   
   // Calculate Y-axis tick interval based on range
-  const getYAxisTicks = () => {
+  const yAxisTicks = useMemo(() => {
     if (yAxisMin === 'auto' || yAxisMax === 'auto') return undefined;
     
     const min = Number(yAxisMin);
@@ -48,9 +48,7 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
     }
     
     return ticks;
-  };
-  
-  const yAxisTicks = getYAxisTicks();
+  }, [yAxisMin, yAxisMax]);
   const [historicalData, setHistoricalData] = useState({});
   const [showProjections, setShowProjections] = useState(false);
   const [selectedPayoffScenario, setSelectedPayoffScenario] = useState('current');
@@ -309,20 +307,6 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
           const cocValue = (cashOnCash && !isNaN(cashOnCash)) ? Number(cashOnCash.toFixed(1)) : null;
           const irrValue = (irrPct && !isNaN(irrPct) && effectiveYearsOwned >= minYearsForIRR) ? Number(irrPct.toFixed(1)) : null;
           
-          // Debug logging for first property and year 2025+ to see what's happening
-          if (property.id === properties[0]?.id && year >= 2025) {
-            console.log(`Debug ${displayLabel} ${year}:`, {
-              isProjectionYear, 
-              effectiveYearsOwned, 
-              minYearsForCAGR, 
-              cagr, 
-              cashOnCash, 
-              irrPct,
-              cagrValue,
-              cocValue,
-              irrValue
-            });
-          }
           
           dataPoint[`${displayLabel}_cagr`] = cagrValue;
           dataPoint[`${displayLabel}_coc`] = cocValue;
