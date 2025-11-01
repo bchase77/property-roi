@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function AnnualVariables({ form, updateForm, inputCls, saving }) {
+export default function AnnualVariables({ form, updateForm, inputCls }) {
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     const numericKeys = new Set([

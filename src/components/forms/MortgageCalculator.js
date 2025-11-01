@@ -3,14 +3,13 @@ import { mortgageMonthly } from '@/lib/finance';
 
 export default function MortgageCalculator({ form, updateForm, propertyId = null }) {
   const [scenarios, setScenarios] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   // Load existing scenarios when propertyId is available
   useEffect(() => {
     if (propertyId) {
       loadScenarios();
     }
-  }, [propertyId]);
+  }, [propertyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadScenarios = async () => {
     if (!propertyId) return;

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function StaticPropertyDetails({ form, updateForm, inputCls, saving }) {
+export default function StaticPropertyDetails({ form, updateForm, inputCls }) {
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     const numericKeys = new Set([
@@ -17,7 +17,7 @@ export default function StaticPropertyDetails({ form, updateForm, inputCls, savi
   return (
     <div className="bg-white rounded-lg border p-6">
       <h2 className="text-xl font-semibold mb-4 text-gray-800">Property Details</h2>
-      <p className="text-sm text-gray-600 mb-4">Basic property information that doesn't change often</p>
+      <p className="text-sm text-gray-600 mb-4">Basic property information that doesn&apos;t change often</p>
       
       <div className="space-y-4">
         {/* Address */}

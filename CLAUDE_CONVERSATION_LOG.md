@@ -660,3 +660,10 @@ I changed the Min Y to 0%. The graph did not change. These are the messages: Y-a
 Can you make the Y axis number ticks always be divisible by 10 if the range is >50 or 5 if <50? Now it shows 15% and 30% and 50.9% which are not typical place to put tick numbers.
 
 **Response:** ✅ **Added clean Y-axis tick intervals**: Created logic to calculate proper tick marks - 5% intervals when range ≤50% (0%, 5%, 10%, 15%, 20%...), 10% intervals when range >50% (0%, 10%, 20%, 30%...). Replaces awkward marks like 15%, 30%, 50.9% with professional, standard percentage intervals that are much easier to read.
+
+---
+
+### Prompt 91:
+Is the Vercel version up to date?
+
+**Response:** ✅ **Pushed latest changes to GitHub**: Committed and pushed Y-axis controls, domain enforcement fixes, and clean tick intervals. Vercel will auto-deploy within 1-2 minutes. New features include working min/max dropdowns, proper data clipping, professional tick marks (5%/10% intervals), and improved readability. You can now focus on realistic ranges and hide extreme outliers.

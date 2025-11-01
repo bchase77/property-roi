@@ -17,7 +17,7 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
     setVisibleProperties(
       allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {})
     );
-  }, [properties, scenarios]);
+  }, [allItems]);
   const [visibleMetrics, setVisibleMetrics] = useState({
     CAGR: true,
     CoC: true,
@@ -27,11 +27,6 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
   const [yAxisMin, setYAxisMin] = useState('auto');
   const [yAxisMax, setYAxisMax] = useState('auto');
   
-  // Calculate Y-axis domain
-  const yAxisDomain = [
-    yAxisMin === 'auto' ? (dataMin) => dataMin : Number(yAxisMin),
-    yAxisMax === 'auto' ? (dataMax) => dataMax : Number(yAxisMax)
-  ];
   
   // Calculate Y-axis tick interval based on range
   const getYAxisTicks = () => {
