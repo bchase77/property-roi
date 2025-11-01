@@ -43,7 +43,7 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
     currentCountyTaxRate: property.current_county_tax_rate || 0,
     currentCityTaxRate: property.current_city_tax_rate || 0,
     assessmentPercentage: property.assessment_percentage || 25,
-    insuranceAnnual: property.current_insurance_annual || (property.insurance_monthly * 12) || 0,
+    insuranceAnnual: property.current_insurance_annual || ((property.insurance_monthly || 0) * 12) || 0,
     currentMarketValue: property.current_market_value || property.purchase_price || 0,
     currentExpensesAnnual: property.current_expenses_annual || 0,
     currentMortgageBalance: property.current_mortgage_balance || 0,
