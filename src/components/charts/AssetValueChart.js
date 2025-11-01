@@ -18,7 +18,7 @@ export default function AssetValueChart({ properties, scenarios = [] }) {
     setVisibleProperties(
       allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {})
     );
-  }, [properties, scenarios]);
+  }, [allItems]);
   const [timeRange, setTimeRange] = useState('10y');
   const [historicalData, setHistoricalData] = useState({});
   const [visibleMarkets, setVisibleMarkets] = useState({

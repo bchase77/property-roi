@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function CurrentAnnualValues({ form, updateForm, inputCls, saving, property }) {
+export default function CurrentAnnualValues({ form, updateForm, inputCls, property }) {
   const [taxInputMethod, setTaxInputMethod] = useState('calculated'); // 'calculated' or 'annual'
   const [insuranceInputMode, setInsuranceInputMode] = useState('yearly'); // 'monthly' or 'yearly'
 

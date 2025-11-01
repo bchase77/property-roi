@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function PurchaseDetails({ form, set, inputCls }) {
+export default function PurchaseDetails({ form, set }) {
   return (
     <div className="space-y-3">
       <div>
