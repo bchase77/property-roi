@@ -24,6 +24,38 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
     IRR: true
   });
   const [timeRange, setTimeRange] = useState('10y');
+  const [yAxisMin, setYAxisMin] = useState('auto');
+  const [yAxisMax, setYAxisMax] = useState('auto');
+  
+  // Calculate Y-axis domain
+  const yAxisDomain = [
+    yAxisMin === 'auto' ? (dataMin) => dataMin : Number(yAxisMin),
+    yAxisMax === 'auto' ? (dataMax) => dataMax : Number(yAxisMax)
+  ];
+  
+  // Calculate Y-axis tick interval based on range
+  const getYAxisTicks = () => {
+    if (yAxisMin === 'auto' || yAxisMax === 'auto') return undefined;
+    
+    const min = Number(yAxisMin);
+    const max = Number(yAxisMax);
+    const range = max - min;
+    
+    // Use 10% intervals if range > 50%, otherwise use 5% intervals
+    const interval = range > 50 ? 10 : 5;
+    
+    // Calculate clean tick marks
+    const ticks = [];
+    const startTick = Math.ceil(min / interval) * interval;
+    
+    for (let tick = startTick; tick <= max; tick += interval) {
+      ticks.push(tick);
+    }
+    
+    return ticks;
+  };
+  
+  const yAxisTicks = getYAxisTicks();
   const [historicalData, setHistoricalData] = useState({});
   const [showProjections, setShowProjections] = useState(false);
   const [selectedPayoffScenario, setSelectedPayoffScenario] = useState('current');
@@ -397,6 +429,52 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
         </div>
       </div>
       
+      {/* Y-Axis Range Controls */}
+      <div className="bg-gray-50 rounded-lg p-3 mb-4">
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-gray-700">Y-Axis Range:</label>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-600">Min:</label>
+            <select
+              value={yAxisMin}
+              onChange={(e) => setYAxisMin(e.target.value)}
+              className="text-xs border rounded px-2 py-1 bg-white text-gray-900 border-gray-300"
+            >
+              <option value="auto">Auto</option>
+              <option value="-50">-50%</option>
+              <option value="-25">-25%</option>
+              <option value="0">0%</option>
+              <option value="5">5%</option>
+              <option value="10">10%</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-600">Max:</label>
+            <select
+              value={yAxisMax}
+              onChange={(e) => setYAxisMax(e.target.value)}
+              className="text-xs border rounded px-2 py-1 bg-white text-gray-900 border-gray-300"
+            >
+              <option value="auto">Auto</option>
+              <option value="20">20%</option>
+              <option value="30">30%</option>
+              <option value="50">50%</option>
+              <option value="75">75%</option>
+              <option value="100">100%</option>
+            </select>
+          </div>
+          <button
+            onClick={() => {
+              setYAxisMin('auto');
+              setYAxisMax('auto');
+            }}
+            className="text-xs px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+      
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 15 }}>
@@ -404,6 +482,13 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
             <XAxis dataKey="year" />
             <YAxis 
               tickFormatter={(value) => `${value}%`}
+              domain={[
+                yAxisMin === 'auto' ? 'dataMin' : Number(yAxisMin),
+                yAxisMax === 'auto' ? 'dataMax' : Number(yAxisMax)
+              ]}
+              type="number"
+              allowDataOverflow={yAxisMin !== 'auto' || yAxisMax !== 'auto'}
+              ticks={yAxisTicks}
             />
             <Tooltip 
               formatter={(value, name) => [`${value}%`, name]}

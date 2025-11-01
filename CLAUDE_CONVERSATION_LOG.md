@@ -618,3 +618,45 @@ Do you see any way to get the Zillow data programmtically? I entered the ZPID bu
 modify the button to open the zillow page for that property.
 
 **Response:** ✅ **Modified Zillow button**: Changed "Get Zillow Value" button to "Open Zillow Page" that opens the property's Zillow page in new tab using ZPID. Removed API fetching code and loading states. Now you can manually copy current market value from Zillow's website - more reliable than discontinued APIs and gives most up-to-date values.
+
+---
+
+### Prompt 85:
+Have you checked this into github? It's looking pretty good.
+
+**Response:** ✅ **Successfully committed to Git**: Committed 28 files with 1,884 insertions including property tax consolidation, enhanced tax breakdown, clickable website links, fixed management % issue, Zillow page opener, insurance toggle, and reorganized property editor. Major improvements to property management interface with unified tax system and better UX. Ready to push to GitHub when desired.
+
+---
+
+### Prompt 86:
+yes push this version. CAn you also make it a "release" on Github or do I need to do that manually? Next update: For the chart Perf Metrics, let me change the Y axis mins and maxes easily. For example, when I turn on Trail Lake, it has values of -110% for some earlier years. I dont' always want to have those shown, I'd rather be able to zoom in vertically on a tighter range.
+
+**Response:** ✅ **Pushed to GitHub and created release v1.4.0**: https://github.com/bchase77/property-roi/releases/tag/v1.4.0 ✅ **Added Y-axis controls to Performance Metrics chart**: Added dropdown controls for Y-axis min/max values with presets (auto, -50%, -25%, 0%, 5%, 10% for min; auto, 20%, 30%, 50%, 75%, 100% for max) plus Reset button. Now you can easily zoom in on tighter ranges and exclude extreme values like -110% to focus on realistic performance ranges.
+
+---
+
+### Prompt 87:
+The Y-Axis Range Min and Max values are nearly impossible to read (gray on white?). When I click on 0% for Min, the graph redrew but did not change axes (it redrew identical to before).
+
+**Response:** ✅ **Fixed dropdown text contrast**: Added `text-gray-900 border-gray-300` classes to make dropdown text clearly visible (dark gray on white). ✅ **Fixed Y-axis domain functionality**: Changed from `'auto'` to `'dataMin'/'dataMax'` (Recharts format) and moved domain calculation to variable. Added debug logging to troubleshoot. Now setting Min to 0% should actually constrain the Y-axis to start at 0% instead of auto-scaling.
+
+---
+
+### Prompt 88:
+I changed the Min Y to 0%. The graph did not change. These are the messages: Y-axis settings: Object { yAxisMin: "0", yAxisMax: "auto", yAxisDomain: (2) […] } [... debug logs ...]
+
+**Response:** Found the issue! Recharts was getting confused with mixed string/number types in domain array. ✅ **Fixed Y-axis domain handling**: Used conditional approach - `undefined` when both auto (default behavior), proper domain array only when specific values set. ✅ **Improved type handling**: Numbers for specific values, functions for auto values. Now Min Y to 0% should actually constrain the chart's Y-axis range.
+
+---
+
+### Prompt 89:
+[Screenshots showing Y-axis still showing negative values when Min set to 0%] It changes but it's still not right. This is auto settings: [Image #1]. This with 0%: [Image #2]
+
+**Response:** ✅ **Fixed Y-axis domain enforcement**: Added `type="number"` and `allowDataOverflow={true}` to YAxis when custom ranges are set. This forces Recharts to respect the domain boundaries and clip data outside the range. Now Min to 0% should actually start Y-axis at 0% and hide negative values, Max to 30% should cap the chart properly for focused viewing of realistic performance ranges.
+
+---
+
+### Prompt 90:
+Can you make the Y axis number ticks always be divisible by 10 if the range is >50 or 5 if <50? Now it shows 15% and 30% and 50.9% which are not typical place to put tick numbers.
+
+**Response:** ✅ **Added clean Y-axis tick intervals**: Created logic to calculate proper tick marks - 5% intervals when range ≤50% (0%, 5%, 10%, 15%, 20%...), 10% intervals when range >50% (0%, 10%, 20%, 30%...). Replaces awkward marks like 15%, 30%, 50.9% with professional, standard percentage intervals that are much easier to read.
