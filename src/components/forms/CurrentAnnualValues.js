@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 export default function CurrentAnnualValues({ form, updateForm, inputCls, property }) {
   const [taxInputMethod, setTaxInputMethod] = useState('calculated'); // 'calculated' or 'annual'
   const [insuranceInputMode, setInsuranceInputMode] = useState('yearly'); // 'monthly' or 'yearly'
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -32,7 +33,11 @@ export default function CurrentAnnualValues({ form, updateForm, inputCls, proper
 
   // Handle insurance conversion
   const handleInsuranceChange = (e) => {
+    if (isUpdating) return; // Prevent recursive updates
+    
+    setIsUpdating(true);
     const value = Number(e.target.value) || 0;
+    
     if (insuranceInputMode === 'yearly') {
       updateForm({ 
         insuranceAnnual: value,
@@ -44,11 +49,14 @@ export default function CurrentAnnualValues({ form, updateForm, inputCls, proper
         insuranceAnnual: value * 12 
       });
     }
+    
+    // Reset the flag after a brief delay
+    setTimeout(() => setIsUpdating(false), 100);
   };
 
   const displayInsuranceValue = insuranceInputMode === 'yearly' 
-    ? (form.insuranceAnnual || (form.insuranceMonthly || 0) * 12)
-    : (form.insuranceMonthly || (form.insuranceAnnual || 0) / 12);
+    ? (form.insuranceAnnual || 0)
+    : (form.insuranceMonthly || 0);
 
   const openZillowPage = () => {
     if (!property.zillow_zpid) {
