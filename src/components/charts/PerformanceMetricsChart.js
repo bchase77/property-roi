@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { analyzeWithCurrentValues, calculateCAGR, calculateIRR, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
@@ -7,7 +7,7 @@ import { mergePropertiesAndScenarios } from '@/lib/scenarioHelpers';
 
 export default function PerformanceMetricsChart({ properties, scenarios = [] }) {
   // Merge properties and scenarios into a single array for processing
-  const allItems = mergePropertiesAndScenarios(properties, scenarios);
+  const allItems = useMemo(() => mergePropertiesAndScenarios(properties, scenarios), [properties, scenarios]);
   const [visibleProperties, setVisibleProperties] = useState(
     allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {})
   );
@@ -30,7 +30,17 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
   
   // Calculate Y-axis tick interval based on range
   const yAxisTicks = useMemo(() => {
-    if (yAxisMin === 'auto' || yAxisMax === 'auto') return undefined;
+    // Always generate clean ticks, even for auto mode
+    if (yAxisMin === 'auto' || yAxisMax === 'auto') {
+      // For auto mode, generate reasonable default ticks
+      const ticks = [];
+      for (let tick = -50; tick <= 100; tick += 5) {
+        if (tick % 10 === 0 || tick % 5 === 0) {
+          ticks.push(tick);
+        }
+      }
+      return ticks.filter(tick => tick >= -50 && tick <= 50); // Reasonable range
+    }
     
     const min = Number(yAxisMin);
     const max = Number(yAxisMax);
@@ -109,7 +119,7 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
   };
 
   // Generate historical performance data using real data
-  const generateChartData = () => {
+  const generateChartData = useCallback(() => {
     // Use a consistent year to avoid hydration mismatches
     const currentYear = 2025;
     let startYear, endYear;
@@ -215,7 +225,17 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
               if (year === currentYear || year >= property.year_purchased + yearsOwned) {
                 cashFlows[cashFlows.length - 1] += historicalEquity; // Add equity value to final cash flow
               }
-              irrPct = calculateIRR(cashFlows);
+              try {
+                irrPct = calculateIRR(cashFlows);
+                // Validate IRR result
+                if (!isFinite(irrPct) || isNaN(irrPct) || irrPct > 500 || irrPct < -50) {
+                  console.warn(`Invalid IRR result: ${irrPct}, using fallback`);
+                  irrPct = yearsOwned >= 2 ? calculateCAGR(initialInvestment, historicalEquity, yearsOwned) : 0;
+                }
+              } catch (error) {
+                console.error(`IRR calculation failed:`, error);
+                irrPct = yearsOwned >= 2 ? calculateCAGR(initialInvestment, historicalEquity, yearsOwned) : 0;
+              }
             }
           } else {
             // Fallback to current data estimates
@@ -290,7 +310,16 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
             historicalEquity = projectedEquity;
           } else {
             // Calculate CAGR using property value appreciation for historical data  
-            cagr = calculateCAGR(purchasePrice, historicalValue, yearsOwned);
+            try {
+              cagr = calculateCAGR(purchasePrice, historicalValue, yearsOwned);
+              if (!isFinite(cagr) || isNaN(cagr) || cagr > 1000 || cagr < -100) {
+                console.warn(`Invalid historical CAGR: ${cagr}, using 0`);
+                cagr = 0;
+              }
+            } catch (error) {
+              console.error(`Historical CAGR calculation failed:`, error);
+              cagr = 0;
+            }
           }
           
           // Debug logging removed - CAGR issue resolved
@@ -316,11 +345,12 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
       
       return dataPoint;
     });
-  };
+  }, [allItems, visibleProperties, visibleMetrics, timeRange, showProjections, selectedPayoffScenario, historicalData, rentAnalysis]);
 
   const chartData = useMemo(() => {
+    // Final: Restore full functionality with comprehensive safety checks
     return generateChartData();
-  }, [allItems, visibleProperties, visibleMetrics, timeRange, showProjections, selectedPayoffScenario, historicalData, rentAnalysis]);
+  }, [generateChartData]);
   const colors = ['#8884d8', '#82ca9d', '#a82222', '#cc5500', '#00ff00', '#ff00ff'];
 
   return (

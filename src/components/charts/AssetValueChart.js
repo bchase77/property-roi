@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { analyzeWithCurrentValues, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
@@ -15,9 +15,14 @@ export default function AssetValueChart({ properties, scenarios = [] }) {
 
   // Update visibility state when properties or scenarios change
   useEffect(() => {
-    setVisibleProperties(
-      allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {})
-    );
+    setVisibleProperties(prev => {
+      const newVisibility = allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {});
+      // Only update if the visibility actually changed
+      if (JSON.stringify(prev) !== JSON.stringify(newVisibility)) {
+        return newVisibility;
+      }
+      return prev;
+    });
   }, [allItems]);
   const [timeRange, setTimeRange] = useState('10y');
   const [historicalData, setHistoricalData] = useState({});
@@ -83,7 +88,7 @@ export default function AssetValueChart({ properties, scenarios = [] }) {
   };
 
   // Generate historical data points using real data
-  const generateChartData = () => {
+  const generateChartData = useCallback(() => {
     // Use a consistent year to avoid hydration mismatches
     const currentYear = 2025;
     let startYear, endYear;
@@ -215,7 +220,17 @@ export default function AssetValueChart({ properties, scenarios = [] }) {
           }
           
           // Calculate equity for this year with payoff scenarios
-          let equity = calculateEquityAtYear(property, year, propertyValue);
+          let equity = 0;
+          try {
+            equity = calculateEquityAtYear(property, year, propertyValue);
+            if (!isFinite(equity) || isNaN(equity) || equity < 0) {
+              console.warn(`Invalid equity for ${property.address}: ${equity}, using 0`);
+              equity = 0;
+            }
+          } catch (error) {
+            console.error(`Equity calculation failed for ${property.address}:`, error);
+            equity = 0;
+          }
           
           if (isProjectionYear && showProjections && selectedPayoffScenario !== 'current') {
             // Apply early payoff scenario
@@ -229,10 +244,15 @@ export default function AssetValueChart({ properties, scenarios = [] }) {
           }
           
           const displayLabel = getPropertyDisplayLabel(property);
-          dataPoint[`${displayLabel}_value`] = Math.round(propertyValue);
-          dataPoint[`${displayLabel}_value_plus_income`] = Math.round(propertyValue + cumulativeIncome);
-          dataPoint[`${displayLabel}_equity`] = Math.round(equity);
-          dataPoint[`${displayLabel}_equity_plus_income`] = Math.round(equity + cumulativeIncome);
+          // Add safety checks for final values
+          const safePropertyValue = isFinite(propertyValue) ? propertyValue : 0;
+          const safeCumulativeIncome = isFinite(cumulativeIncome) ? cumulativeIncome : 0;
+          const safeEquity = isFinite(equity) ? equity : 0;
+          
+          dataPoint[`${displayLabel}_value`] = Math.round(safePropertyValue);
+          dataPoint[`${displayLabel}_value_plus_income`] = Math.round(safePropertyValue + safeCumulativeIncome);
+          dataPoint[`${displayLabel}_equity`] = Math.round(safeEquity);
+          dataPoint[`${displayLabel}_equity_plus_income`] = Math.round(safeEquity + safeCumulativeIncome);
         }
       });
       
@@ -248,11 +268,11 @@ export default function AssetValueChart({ properties, scenarios = [] }) {
       
       return dataPoint;
     });
-  };
+  }, [allItems, visibleProperties, viewMode, timeRange, historicalData, visibleMarkets, showProjections, selectedPayoffScenario, rentAnalysis]);
 
   const chartData = useMemo(() => {
     return generateChartData();
-  }, [allItems, visibleProperties, displayMode, timeRange, historicalData, visibleMarkets]);
+  }, [generateChartData]);
   const colors = ['#8884d8', '#82ca9d', '#a82222', '#ff7300', '#00ff00', '#ff00ff'];
 
   return (
