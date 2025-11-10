@@ -84,6 +84,32 @@ export default function Portfolio() {
     }
   };
 
+  const handlePropertyArchive = async (propertyId) => {
+    if (!confirm('Are you sure you want to archive this property? You can unarchive it later from the Archive page.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/archive`, { 
+        method: 'POST' 
+      });
+      
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      
+      await loadProperties(); // Refresh the list
+      
+      // If we were editing this property, close the editor
+      if (editingProperty && editingProperty.id === propertyId) {
+        setEditingProperty(null);
+      }
+    } catch (error) {
+      console.error('Failed to archive property:', error);
+      setErrMsg('Failed to archive property');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -114,11 +140,16 @@ export default function Portfolio() {
     );
   }
 
+  // Calculate property counts
+  const ownedCount = properties.filter(p => p.purchased).length;
+  const projectedCount = properties.filter(p => !p.purchased).length;
+  const portfolioSubtitle = `${ownedCount} owned properties, ${projectedCount} projected investments. Select a property to edit its details and add yearly financial data`;
+
   return (
     <main className="mx-auto max-w-7xl p-6 space-y-8">
       <PageHeader 
         title="Property Portfolio"
-        subtitle="Manage your existing properties and update historical data. Select a property from the list to edit its details and add yearly financial data"
+        subtitle={portfolioSubtitle}
         currentPage="/portfolio"
       />
 
@@ -129,7 +160,19 @@ export default function Portfolio() {
       )}
 
       <div className="space-y-6">
-        <h2 className="text-xl font-semibold">Your Properties</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Your Properties</h2>
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-100 border border-green-200 rounded-full"></div>
+              <span className="text-gray-600">{ownedCount} Owned</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-orange-100 border border-orange-200 rounded-full"></div>
+              <span className="text-gray-600">{projectedCount} Projected</span>
+            </div>
+          </div>
+        </div>
         
         {properties.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -146,6 +189,7 @@ export default function Portfolio() {
             properties={properties}
             onEdit={startEdit}
             onDelete={handlePropertyDelete}
+            onArchive={handlePropertyArchive}
             editingId={editingProperty?.id}
           />
         )}

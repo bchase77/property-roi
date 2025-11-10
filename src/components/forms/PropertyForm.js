@@ -10,7 +10,7 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
       'purchasePrice', 'downPct', 'rateApr', 'years', 'monthlyRent', 
       'taxPct', 'taxAnnual', 'hoaMonthly', 'insuranceMonthly', 'maintPctRent', 
       'vacancyPctRent', 'mgmtPctRent', 'otherMonthly', 'yearPurchased', 
-      'initialInvestment', 'bedrooms', 'bathrooms', 'squareFootage', 'yearBuilt'
+      'bedrooms', 'bathrooms', 'squareFootage', 'yearBuilt'
     ]);
     
     const processedValue = numericKeys.has(key) 
@@ -114,23 +114,6 @@ export default function PropertyForm({ form, updateForm, onSubmit, onReset, savi
 
         <PurchaseDetails form={form} set={set} inputCls={inputCls} />
 
-        {/* Initial Investment */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Initial Investment ($)
-          </label>
-          <input 
-            type="number" 
-            step="1000"
-            className={inputCls} 
-            value={form.initialInvestment} 
-            onChange={set('initialInvestment')}
-            placeholder={form.mortgageFree ? form.purchasePrice : (form.purchasePrice || 0) * ((form.downPct || 0) / 100)}
-          />
-          <div className="text-xs text-gray-600 mt-1">
-            Include down payment, closing costs, repairs, etc.
-          </div>
-        </div>
 
         {/* Tax Website Links */}
         <div className="space-y-3">

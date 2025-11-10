@@ -21,7 +21,20 @@ export async function POST(request, { params }) {
     const propertyId = parseInt(id);
     const scenario = await request.json();
     
-    const newScenario = await addScenario(propertyId, scenario);
+    // Normalize field names to handle both camelCase and snake_case
+    const normalizedScenario = {
+      name: scenario.name,
+      downPct: scenario.downPct || scenario.down_pct,
+      rateApr: scenario.rateApr || scenario.rate_apr,
+      years: scenario.years,
+      points: scenario.points || 0,
+      closingCosts: scenario.closingCosts || scenario.closing_costs || 0
+    };
+    
+    console.log('Received scenario data:', scenario);
+    console.log('Normalized scenario data:', normalizedScenario);
+    
+    const newScenario = await addScenario(propertyId, normalizedScenario);
     return NextResponse.json(newScenario);
   } catch (error) {
     console.error('Failed to create scenario:', error);

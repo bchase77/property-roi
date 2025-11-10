@@ -29,7 +29,9 @@ export default function PageHeader({ title, subtitle, currentPage }) {
     { name: 'Dashboard', path: '/dashboard', icon: '🏠' },
     { name: 'Portfolio', path: '/portfolio', icon: '📊' },
     { name: 'Analysis', path: '/analysis', icon: '📈' },
+    { name: 'Comparison', path: '/comparison', icon: '⚖️' },
     { name: 'Data Entry', path: '/data-entry', icon: '✏️' },
+    { name: 'Archive', path: '/archive', icon: '📁' },
     { name: 'Admin', path: '/admin', icon: '⚙️' }
   ];
 

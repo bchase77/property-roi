@@ -76,6 +76,26 @@ export function calculateEquityAtYear(property, year, propertyValue) {
 
 // Analyze using current values if available, fallback to original purchase data
 export function analyzeWithCurrentValues(property) {
+  console.log('📊 PORTFOLIO PAGE - analyzeWithCurrentValues for:', property.address);
+  
+  // Debug tax calculation for Portfolio page
+  const portfolioCurrentTaxesAnnual = property.current_appraisal_value ? 
+    ((Number(property.current_appraisal_value) * (Number(property.assessment_percentage) || 25) / 100) * 
+     ((Number(property.current_county_tax_rate) || 0) + (Number(property.current_city_tax_rate) || 0)) / 100) : null;
+     
+  const finalPortfolioTaxes = (property.tax_annual && Number(property.tax_annual) > 0) ? 
+    Number(property.tax_annual) : portfolioCurrentTaxesAnnual;
+    
+  console.log('🏛️ PORTFOLIO PAGE Tax calc:', {
+    tax_annual_manual: property.tax_annual,
+    current_appraisal_value: property.current_appraisal_value,
+    current_county_tax_rate: property.current_county_tax_rate,
+    current_city_tax_rate: property.current_city_tax_rate,
+    calculated_taxes_annual: portfolioCurrentTaxesAnnual,
+    final_taxes_annual: finalPortfolioTaxes,
+    using_manual: !!(property.tax_annual && Number(property.tax_annual) > 0)
+  });
+  
   return analyze({
     purchasePrice: Number(property.purchase_price) || 0,
     downPct: Number(property.down_payment_pct) || 20,
@@ -90,13 +110,18 @@ export function analyzeWithCurrentValues(property) {
     mgmtPctRent: Number(property.current_management_pct ?? property.management_pct_rent) ?? 8,
     otherMonthly: Number(property.other_monthly) || 0,
     initialInvestment: Number(property.initial_investment) || 0,
+    closingCosts: Number(property.closing_costs) || 0,
+    repairCosts: Number(property.repair_costs) || 0,
     mortgageFree: Boolean(property.mortgage_free),
-    // Current specific overrides
-    currentTaxesAnnual: property.current_appraisal_value ? 
-      ((Number(property.current_appraisal_value) * (Number(property.assessment_percentage) || 25) / 100) * 
-       ((Number(property.current_county_tax_rate) || 0) + (Number(property.current_city_tax_rate) || 0)) / 100) : null,
+    // Current specific overrides - use manual tax_annual if available, otherwise calculate
+    currentTaxesAnnual: (property.tax_annual && Number(property.tax_annual) > 0) ? 
+      Number(property.tax_annual) :
+      (property.current_appraisal_value ? 
+        ((Number(property.current_appraisal_value) * (Number(property.assessment_percentage) || 25) / 100) * 
+         ((Number(property.current_county_tax_rate) || 0) + (Number(property.current_city_tax_rate) || 0)) / 100) : null),
     currentExpensesAnnual: property.current_expenses_annual ? Number(property.current_expenses_annual) : null,
-    currentMortgagePayment: property.current_mortgage_payment ? Number(property.current_mortgage_payment) : null
+    currentMortgagePayment: property.current_mortgage_payment ? Number(property.current_mortgage_payment) : null,
+    propertyAddress: property.address || property.abbreviation
   });
 }
 
@@ -170,12 +195,15 @@ export function analyze({
   purchasePrice, downPct, rateApr, years,
   monthlyRent, taxPct, taxAnnual, taxInputMode, hoaMonthly, insuranceMonthly,
   maintPctRent, vacancyPctRent, mgmtPctRent, otherMonthly,
-  initialInvestment, mortgageFree,
+  initialInvestment, closingCosts, repairCosts, mortgageFree,
   // New parameters for current values
-  currentTaxesAnnual, currentExpensesAnnual, currentMortgagePayment
+  currentTaxesAnnual, currentExpensesAnnual, currentMortgagePayment,
+  // Property identification for debugging
+  propertyAddress
 }) {
-  const down = mortgageFree ? purchasePrice : purchasePrice * (downPct / 100);
-  const invested = (initialInvestment ?? 0) > 0 ? initialInvestment : down;
+  const down = purchasePrice * (downPct / 100);
+  const totalClosingCosts = (closingCosts || 0) + (repairCosts || 0);
+  const invested = (initialInvestment ?? 0) > 0 ? initialInvestment : down + totalClosingCosts;
   const loan = mortgageFree ? 0 : purchasePrice - down;
   
   // Use current mortgage payment if available, otherwise calculate
@@ -185,10 +213,13 @@ export function analyze({
   let taxesMonthly;
   if (currentTaxesAnnual) {
     taxesMonthly = currentTaxesAnnual / 12;
+    console.log('💰 Tax calc: Using currentTaxesAnnual', currentTaxesAnnual, '→ monthly:', taxesMonthly);
   } else if (taxInputMode === 'annual' && taxAnnual) {
     taxesMonthly = taxAnnual / 12;
+    console.log('💰 Tax calc: Using taxAnnual', taxAnnual, '→ monthly:', taxesMonthly);
   } else {
     taxesMonthly = (purchasePrice * (taxPct / 100)) / 12;
+    console.log('💰 Tax calc: Using percentage', purchasePrice, 'x', taxPct, '% → monthly:', taxesMonthly);
   }
   
   // Use current expenses if explicitly set and non-zero, otherwise calculate from percentages
@@ -212,6 +243,294 @@ export function analyze({
   const round2 = (n) => Math.round(n * 100) / 100;
   const pct2 = (n) => Math.round(n * 100) / 100;
 
+  // Calculate 30-Year Average Total ROI (User's exact formula)
+  const calculate30yATROI = () => {
+    const years = 30;
+    const propertyId = propertyAddress || `Property $${purchasePrice}` || 'Property';
+    
+    console.log(`🔍 30yATROI Input Values for ${propertyId}:`, {
+      purchasePrice,
+      monthlyRent,
+      maintPctRent,
+      vacancyPctRent,
+      mgmtPctRent,
+      taxesMonthly,
+      insuranceMonthly,
+      hoaMonthly,
+      totalClosingCosts,
+      invested,
+      mortgageFree,
+      pAndI,
+      rateApr,
+      downPct,
+      years,
+      initialInvestment,
+      closingCosts,
+      repairCosts
+    });
+
+    // ===== USER'S EXACT FORMULA: (Total_value - Total_expenses) / Amount_paid / 30 =====
+
+    // 1. AMOUNT_PAID = downpayment + closing_costs + initial repairs
+    const downPayment = purchasePrice * (downPct / 100);
+    const amountPaid = downPayment + totalClosingCosts;
+    
+    console.log('💰 AMOUNT_PAID Calculation:', {
+      downPayment: downPayment.toFixed(2),
+      closingCosts: (closingCosts || 0).toFixed(2),
+      repairCosts: (repairCosts || 0).toFixed(2),
+      totalClosingCosts: totalClosingCosts.toFixed(2),
+      amountPaid: amountPaid.toFixed(2)
+    });
+
+    // 2. INCOME_EARNED_FOR_30Y = Rent for 30 years factoring in vacancy rate
+    const effectiveMonthlyRent = monthlyRent * (1 - (vacancyPctRent / 100));
+    const incomeEarnedFor30y = effectiveMonthlyRent * 12 * years;
+    
+    console.log('🏠 INCOME_EARNED_FOR_30Y Calculation:', {
+      monthlyRent: monthlyRent.toFixed(2),
+      vacancyPctRent: vacancyPctRent.toFixed(2),
+      effectiveMonthlyRent: effectiveMonthlyRent.toFixed(2),
+      yearsOfRent: years,
+      incomeEarnedFor30y: incomeEarnedFor30y.toFixed(2)
+    });
+
+    // 3. TOTAL_VALUE = current price of home + Income_earned_for_30y
+    const totalValue = purchasePrice + incomeEarnedFor30y;
+    
+    console.log('📈 TOTAL_VALUE Calculation:', {
+      currentPriceOfHome: purchasePrice.toFixed(2),
+      incomeEarnedFor30y: incomeEarnedFor30y.toFixed(2),
+      totalValue: totalValue.toFixed(2)
+    });
+
+    // 4. TOTAL_EXPENSES = Amount I initially paid + all monthly costs over 30 years
+    let totalExpenses = amountPaid; // Start with initial investment
+    
+    // Management fees (% of rent)
+    const annualManagement = monthlyRent * 12 * (mgmtPctRent / 100);
+    const totalManagement = annualManagement * years;
+    totalExpenses += totalManagement;
+    
+    // Mortgage payments (if applicable)
+    let totalMortgagePayments = 0;
+    if (!mortgageFree && pAndI > 0) {
+      totalMortgagePayments = pAndI * 12 * years;
+    }
+    totalExpenses += totalMortgagePayments;
+    
+    // Property taxes
+    const annualTaxes = taxesMonthly * 12;
+    const totalTaxes = annualTaxes * years;
+    totalExpenses += totalTaxes;
+    
+    // Maintenance (% of rent) - calculate monthly first like spreadsheets typically do
+    const monthlyMaintenanceExpense = monthlyRent * (maintPctRent / 100);
+    const totalMaintenanceExpenses = monthlyMaintenanceExpense * 12 * years;
+    totalExpenses += totalMaintenanceExpenses;
+    
+    // Insurance
+    const totalInsurance = insuranceMonthly * 12 * years;
+    totalExpenses += totalInsurance;
+    
+    // HOA fees
+    const totalHOA = hoaMonthly * 12 * years;
+    totalExpenses += totalHOA;
+    
+    // Property taxes (already calculated above)
+    const totalPropertyTaxes = totalTaxes; // Same as totalTaxes
+    
+    console.log('💸 TOTAL_EXPENSES Breakdown:', {
+      initialAmountPaid: amountPaid.toFixed(2),
+      totalManagement: totalManagement.toFixed(2),
+      totalMortgagePayments: totalMortgagePayments.toFixed(2),
+      totalPropertyTaxes: totalPropertyTaxes.toFixed(2),
+      totalMaintenanceExpenses: totalMaintenanceExpenses.toFixed(2),
+      totalInsurance: totalInsurance.toFixed(2),
+      totalHOA: totalHOA.toFixed(2),
+      subtotalBeforeIncomeTax: totalExpenses.toFixed(2)
+    });
+
+    // 5. INCOME TAXES = 44% × (rental income with vacancy - expenses - depreciation)
+    // Monthly depreciation = (purchase price + closing costs + 1 year insurance) ÷ 27.5 ÷ 12
+    const depreciableBasis = purchasePrice + totalClosingCosts + (insuranceMonthly * 12);
+    const monthlyDepreciation = (depreciableBasis / 27.5) / 12;
+    const totalDepreciation = monthlyDepreciation * 12 * years;
+    
+    // Monthly taxable income = effective rent - (management + maintenance + insurance + depreciation + property tax)
+    const monthlyManagement = monthlyRent * (mgmtPctRent / 100);
+    const monthlyMaintenance = monthlyRent * (maintPctRent / 100);
+    const monthlyTaxableIncome = effectiveMonthlyRent - monthlyManagement - monthlyMaintenance - insuranceMonthly - monthlyDepreciation - taxesMonthly;
+    
+    // Monthly income tax = taxable income × 44%
+    const monthlyIncomeTax = Math.max(0, monthlyTaxableIncome * 0.44);
+    const totalIncomeTax = monthlyIncomeTax * 12 * years;
+    
+    totalExpenses += totalIncomeTax;
+    
+    console.log('📊 INCOME TAX Calculation:', {
+      depreciableBasis: depreciableBasis.toFixed(2),
+      monthlyDepreciation: monthlyDepreciation.toFixed(2),
+      totalDepreciation: totalDepreciation.toFixed(2),
+      effectiveMonthlyRent: effectiveMonthlyRent.toFixed(2),
+      monthlyManagement: monthlyManagement.toFixed(2),
+      monthlyMaintenance: monthlyMaintenance.toFixed(2),
+      monthlyInsurance: insuranceMonthly.toFixed(2),
+      monthlyTaxableIncome: monthlyTaxableIncome.toFixed(2),
+      monthlyIncomeTax: monthlyIncomeTax.toFixed(2),
+      totalIncomeTax: totalIncomeTax.toFixed(2),
+      finalTotalExpenses: totalExpenses.toFixed(2)
+    });
+
+    // 6. FINAL CALCULATION: (Total_value - Total_expenses) / Amount_paid / 30
+    const netValue = totalValue - totalExpenses;
+    const atROI = amountPaid > 0 ? (netValue / amountPaid) / years : 0;
+    
+    console.log(`🎯 FINAL 30yATROI Calculation for ${propertyId}:`, {
+      totalValue: totalValue.toFixed(2),
+      totalExpenses: totalExpenses.toFixed(2),
+      netValue: netValue.toFixed(2),
+      amountPaid: amountPaid.toFixed(2),
+      years: years,
+      formula: `(${totalValue.toFixed(2)} - ${totalExpenses.toFixed(2)}) / ${amountPaid.toFixed(2)} / ${years}`,
+      atROI_decimal: atROI.toFixed(6),
+      atROI_percentage: (atROI * 100).toFixed(4)
+    });
+    
+    return atROI * 100; // Convert to percentage
+  };
+
+  const atROI30y = calculate30yATROI();
+
+  // Calculate comprehensive 30-Year Total Return on Investment (TRI)
+  const calculate30yTRI = () => {
+    const years = 30;
+    const inflationRate = 0.025; // 2.5% annual inflation
+    const propertyAppreciationRate = 0.03; // Conservative 3% annual appreciation
+    const rentGrowthRate = 0.025; // 2.5% annual rent growth
+    const expenseGrowthRate = 0.025; // 2.5% annual expense growth
+    const discountRate = 0.07; // 7% discount rate for NPV
+    
+    // Get property identifier for debugging
+    const propertyId = propertyAddress || `Property $${purchasePrice}` || 'Property';
+    
+    console.log(`🏆 30y TRI Comprehensive Calculation Starting for ${propertyId}...`);
+    
+    let totalPresentValue = 0;
+    let currentRent = monthlyRent;
+    let currentTaxes = taxesMonthly;
+    let currentInsurance = insuranceMonthly;
+    let currentHOA = hoaMonthly;
+    
+    // Calculate year-by-year cash flows with inflation adjustments
+    for (let year = 1; year <= years; year++) {
+      // Adjust rent and expenses for inflation
+      const adjustedRent = currentRent * Math.pow(1 + rentGrowthRate, year - 1);
+      const adjustedTaxes = currentTaxes * Math.pow(1 + expenseGrowthRate, year - 1);
+      const adjustedInsurance = currentInsurance * Math.pow(1 + expenseGrowthRate, year - 1);
+      const adjustedHOA = currentHOA * Math.pow(1 + expenseGrowthRate, year - 1);
+      
+      // Annual income (with vacancy)
+      const effectiveAnnualRent = adjustedRent * 12 * (1 - (vacancyPctRent / 100));
+      
+      // Annual operating expenses
+      const annualManagement = adjustedRent * 12 * (mgmtPctRent / 100);
+      const annualMaintenance = adjustedRent * 12 * (maintPctRent / 100);
+      const annualTaxes = adjustedTaxes * 12;
+      const annualInsurance = adjustedInsurance * 12;
+      const annualHOA = adjustedHOA * 12;
+      
+      // Annual mortgage payment (fixed)
+      const annualMortgage = mortgageFree ? 0 : pAndI * 12;
+      
+      // Depreciation calculation (same basis, not adjusted for inflation)
+      const depreciableBasis = purchasePrice + totalClosingCosts + (insuranceMonthly * 12);
+      const annualDepreciation = depreciableBasis / 27.5;
+      
+      // Taxable income calculation
+      const taxableIncome = effectiveAnnualRent - annualManagement - annualMaintenance - 
+                           annualTaxes - annualInsurance - annualDepreciation;
+      
+      // Federal income tax (44% combined rate)
+      const federalTax = Math.max(0, taxableIncome * 0.44);
+      
+      // Net cash flow for the year
+      const netCashFlow = effectiveAnnualRent - annualManagement - annualMaintenance - 
+                         annualTaxes - annualInsurance - annualHOA - annualMortgage - federalTax;
+      
+      // Present value of this year's cash flow
+      const presentValue = netCashFlow / Math.pow(1 + discountRate, year);
+      totalPresentValue += presentValue;
+    }
+    
+    // Final sale calculation (Year 30)
+    const finalPropertyValue = purchasePrice * Math.pow(1 + propertyAppreciationRate, years);
+    
+    // Remaining mortgage balance at year 30
+    let remainingMortgage = 0;
+    if (!mortgageFree && pAndI > 0) {
+      const loanTermYears = Number(years) || 30;
+      if (years < loanTermYears) {
+        const monthlyRate = (rateApr || 0) / 100 / 12;
+        if (monthlyRate > 0) {
+          const loan = purchasePrice * (1 - (downPct / 100));
+          remainingMortgage = loan * Math.pow(1 + monthlyRate, years * 12) - 
+            (pAndI * (Math.pow(1 + monthlyRate, years * 12) - 1) / monthlyRate);
+        }
+      }
+    }
+    
+    // Sale proceeds after mortgage payoff
+    const saleProceeds = finalPropertyValue - remainingMortgage;
+    
+    // Depreciation recapture tax (25% on total depreciation taken)
+    const totalDepreciationTaken = (purchasePrice + totalClosingCosts + (insuranceMonthly * 12)) / 27.5 * years;
+    const depreciationRecaptureTax = totalDepreciationTaken * 0.25;
+    
+    // Capital gains tax (15% on appreciation above depreciation recapture)
+    const totalGain = finalPropertyValue - purchasePrice;
+    const capitalGain = Math.max(0, totalGain - totalDepreciationTaken);
+    const capitalGainsTax = capitalGain * 0.15;
+    
+    // Net sale proceeds after taxes
+    const netSaleProceeds = saleProceeds - depreciationRecaptureTax - capitalGainsTax;
+    
+    // Present value of sale proceeds
+    const salePresentValue = netSaleProceeds / Math.pow(1 + discountRate, years);
+    
+    // Total present value of all cash flows
+    const totalPV = totalPresentValue + salePresentValue;
+    
+    // Initial investment
+    const initialInvestment = purchasePrice * (downPct / 100) + totalClosingCosts;
+    
+    // Calculate IRR and total return
+    const totalReturn = totalPV - initialInvestment;
+    const annualizedReturn = totalReturn > 0 ? 
+      (Math.pow(totalPV / initialInvestment, 1 / years) - 1) * 100 : 0;
+    
+    console.log(`🏆 30y TRI Final Results for ${propertyId}:`, {
+      initialInvestment: initialInvestment.toFixed(2),
+      totalCashFlowPV: totalPresentValue.toFixed(2),
+      finalPropertyValue: finalPropertyValue.toFixed(2),
+      netSaleProceeds: netSaleProceeds.toFixed(2),
+      salePresentValue: salePresentValue.toFixed(2),
+      totalPresentValue: totalPV.toFixed(2),
+      totalReturn: totalReturn.toFixed(2),
+      annualizedReturn: annualizedReturn.toFixed(2),
+      assumptions: {
+        inflationRate: (inflationRate * 100).toFixed(1) + '%',
+        propertyAppreciation: (propertyAppreciationRate * 100).toFixed(1) + '%',
+        rentGrowth: (rentGrowthRate * 100).toFixed(1) + '%',
+        discountRate: (discountRate * 100).toFixed(1) + '%'
+      }
+    });
+    
+    return annualizedReturn;
+  };
+
+  const tri30y = calculate30yTRI();
+
   return {
     down: round2(down),
     loan: round2(loan),
@@ -226,6 +545,8 @@ export function analyze({
       cashOnCash: cashOnCash == null ? 0 : Math.round(cashOnCash * 100) / 100,
       dscr: round2(dscr),
       grossYield: pct2(grossYield),
+      atROI30y: pct2(atROI30y),
+      tri30y: pct2(tri30y),
     },
   };
 }

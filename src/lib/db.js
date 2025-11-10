@@ -27,6 +27,8 @@ export async function updateProperty(id, p) {
       zillow_zpid = ${p.zillowZpid ?? null},
       crime_index = ${p.crimeIndex ?? null},
       initial_investment = ${p.initialInvestment ?? 0},
+      closing_costs = ${p.closingCosts ?? 0},
+      repair_costs = ${p.repairCosts ?? 0},
       mortgage_free = ${p.mortgageFree ?? false},
       purchased = ${p.purchased ?? false},
       year_purchased = ${p.yearPurchased ?? null},
@@ -136,6 +138,9 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS county_tax_website TEXT;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS city_tax_website TEXT;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS notes TEXT;`;
+  
+  // Archive functionality
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;`;
 
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
@@ -152,6 +157,16 @@ export async function init() {
   await sql`
     ALTER TABLE properties
       ADD COLUMN IF NOT EXISTS initial_investment NUMERIC NOT NULL DEFAULT 0;
+  `;
+
+  await sql`
+    ALTER TABLE properties
+      ADD COLUMN IF NOT EXISTS closing_costs NUMERIC DEFAULT 0;
+  `;
+
+  await sql`
+    ALTER TABLE properties
+      ADD COLUMN IF NOT EXISTS repair_costs NUMERIC DEFAULT 0;
   `;
 
   // Create scenarios table for mortgage comparison scenarios
@@ -175,7 +190,7 @@ export async function init() {
 export async function listProperties(limit = 100) {
   const { rows } = await sql/*sql*/`
     SELECT * FROM properties
-    WHERE deleted_at IS NULL
+    WHERE deleted_at IS NULL AND archived_at IS NULL
     ORDER BY created_at DESC
     LIMIT ${limit};
   `;
@@ -186,7 +201,7 @@ export async function getPropertiesByIds(ids = []) {
   if (!ids.length) return [];
   const { rows } = await sql/*sql*/`
     SELECT * FROM properties
-    WHERE id = ANY(${ids}) AND deleted_at IS NULL
+    WHERE id = ANY(${ids}) AND deleted_at IS NULL AND archived_at IS NULL
     ORDER BY created_at DESC;
   `;
   return rows;
@@ -199,7 +214,7 @@ export async function addProperty(p) {
       purchase_price, down_payment_pct, interest_apr_pct, loan_years,
       monthly_rent, property_tax_pct, tax_annual, tax_input_mode, hoa_monthly, insurance_monthly,
       maintenance_pct_rent, vacancy_pct_rent, management_pct_rent, other_monthly,
-      zillow_zpid, crime_index, purchased, year_purchased, month_purchased, initial_investment, mortgage_free,
+      zillow_zpid, crime_index, purchased, year_purchased, month_purchased, initial_investment, closing_costs, repair_costs, mortgage_free,
       bedrooms, bathrooms, square_footage, year_built, abbreviation,
       county_tax_website, city_tax_website, notes
     ) VALUES (
@@ -208,7 +223,7 @@ export async function addProperty(p) {
       ${p.monthlyRent}, ${p.taxPct}, ${p.taxAnnual ?? 0}, ${p.taxInputMode ?? 'percentage'}, ${p.hoaMonthly}, ${p.insuranceMonthly},
       ${p.maintPctRent}, ${p.vacancyPctRent}, ${p.mgmtPctRent}, ${p.otherMonthly},
       ${p.zillowZpid ?? null}, ${p.crimeIndex ?? null}, ${p.purchased ?? false}, ${p.yearPurchased ?? null}, ${p.monthPurchased ?? null},
-      ${p.initialInvestment ?? 0}, ${p.mortgageFree ?? false},
+      ${p.initialInvestment ?? 0}, ${p.closingCosts ?? 0}, ${p.repairCosts ?? 0}, ${p.mortgageFree ?? false},
       ${p.bedrooms ?? null}, ${p.bathrooms ?? null}, ${p.squareFootage ?? null}, ${p.yearBuilt ?? null}, ${p.abbreviation ?? null},
       ${p.countyTaxWebsite ?? null}, ${p.cityTaxWebsite ?? null}, ${p.notes ?? null}
     ) RETURNING *;
@@ -261,6 +276,35 @@ export async function listDeletedProperties(limit = 200) {
     SELECT * FROM properties
     WHERE deleted_at IS NOT NULL
     ORDER BY deleted_at DESC
+    LIMIT ${limit};
+  `;
+  return rows;
+}
+
+// Archive/Unarchive functions
+export async function archiveProperty(id) {
+  const { rows } = await sql/*sql*/`
+    UPDATE properties SET archived_at = now()
+    WHERE id = ${id} AND deleted_at IS NULL
+    RETURNING *;
+  `;
+  return rows[0];
+}
+
+export async function unarchiveProperty(id) {
+  const { rows } = await sql/*sql*/`
+    UPDATE properties SET archived_at = NULL
+    WHERE id = ${id} AND deleted_at IS NULL
+    RETURNING *;
+  `;
+  return rows[0];
+}
+
+export async function listArchivedProperties(limit = 200) {
+  const { rows } = await sql/*sql*/`
+    SELECT * FROM properties
+    WHERE archived_at IS NOT NULL AND deleted_at IS NULL
+    ORDER BY archived_at DESC
     LIMIT ${limit};
   `;
   return rows;

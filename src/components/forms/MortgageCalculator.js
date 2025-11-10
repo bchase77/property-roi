@@ -3,6 +3,7 @@ import { mortgageMonthly } from '@/lib/finance';
 
 export default function MortgageCalculator({ form, updateForm, propertyId = null }) {
   const [scenarios, setScenarios] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Load existing scenarios when propertyId is available
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
 
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    const numericKeys = new Set(['downPct', 'rateApr', 'years', 'initialInvestment']);
+    const numericKeys = new Set(['downPct', 'rateApr', 'years', 'initialInvestment', 'closingCosts', 'repairCosts']);
     
     const processedValue = numericKeys.has(key) 
       ? (value === '' ? '' : Number(value)) 
@@ -50,8 +51,17 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
   };
 
   const addScenario = async () => {
+    // Generate a unique scenario name
+    const existingNames = scenarios.map(s => s.name);
+    let scenarioNumber = 1;
+    let scenarioName = `Scenario ${scenarioNumber}`;
+    while (existingNames.includes(scenarioName)) {
+      scenarioNumber++;
+      scenarioName = `Scenario ${scenarioNumber}`;
+    }
+    
     const newScenario = {
-      name: `Scenario ${scenarios.length + 1}`,
+      name: scenarioName,
       downPct: form.downPct,
       rateApr: form.rateApr,
       years: form.years,
@@ -83,7 +93,11 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
   };
 
   const removeScenario = async (id) => {
-    if (propertyId && typeof id === 'number' && id > 1000000) {
+    // Check if this is a saved scenario (has a real database ID) vs temporary scenario (timestamp ID)
+    const scenario = scenarios.find(s => s.id === id);
+    const isTemporaryScenario = !scenario || id > 1000000000; // Timestamp IDs are much larger
+    
+    if (propertyId && !isTemporaryScenario) {
       // Delete from database for saved scenarios
       try {
         const response = await fetch(`/api/scenarios/${id}`, {
@@ -92,12 +106,14 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
         
         if (response.ok) {
           setScenarios(scenarios.filter(s => s.id !== id));
+        } else {
+          console.error('Failed to delete scenario from database');
         }
       } catch (error) {
         console.error('Failed to delete scenario:', error);
       }
     } else {
-      // Remove temporary scenario
+      // Remove temporary scenario (only exists in local state)
       setScenarios(scenarios.filter(s => s.id !== id));
     }
   };
@@ -186,6 +202,7 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
               </div>
             </div>
 
+
             {/* Interest Rate */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -241,21 +258,57 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
           </>
         )}
 
-        {/* Initial Investment */}
+        {/* Closing Costs */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Total Initial Investment ($)
+            Closing Costs ($)
           </label>
           <input 
             type="number" 
-            step="1000"
+            step="100" 
             className={inputCls} 
-            value={form.initialInvestment} 
-            onChange={set('initialInvestment')}
-            placeholder={form.mortgageFree ? form.purchasePrice : (form.purchasePrice || 0) * ((form.downPct || 0) / 100)}
+            value={form.closingCosts || ''} 
+            onChange={set('closingCosts')}
+            placeholder="3000"
           />
           <div className="text-xs text-gray-600 mt-1">
-            Include down payment, closing costs, repairs, etc.
+            Title, loan fees, inspections, attorney fees
+          </div>
+        </div>
+
+        {/* Repair Costs */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Repair Costs ($)
+          </label>
+          <input 
+            type="number" 
+            step="100" 
+            className={inputCls} 
+            value={form.repairCosts || ''} 
+            onChange={set('repairCosts')}
+            placeholder="2000"
+          />
+          <div className="text-xs text-gray-600 mt-1">
+            Initial repairs, improvements, rehab costs
+          </div>
+        </div>
+
+        {/* Total Cash Required Display */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Total Cash Required (Auto-Calculated)
+          </label>
+          <div className="text-lg font-semibold text-gray-900">
+            ${(() => {
+              const downPayment = Number(form.purchasePrice || 0) * ((form.downPct || 0) / 100);
+              const closingCosts = Number(form.closingCosts || 0);
+              const repairCosts = Number(form.repairCosts || 0);
+              return (downPayment + closingCosts + repairCosts).toLocaleString();
+            })()}
+          </div>
+          <div className="text-xs text-gray-600 mt-1">
+            Down Payment (${(Number(form.purchasePrice || 0) * ((form.downPct || 0) / 100)).toLocaleString()}) + Closing Costs (${Number(form.closingCosts || 0).toLocaleString()}) + Repairs (${Number(form.repairCosts || 0).toLocaleString()})
           </div>
         </div>
 

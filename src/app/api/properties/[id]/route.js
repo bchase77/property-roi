@@ -14,6 +14,7 @@ export async function PUT(req, { params }) {
     if (body.yearPurchased === '') body.yearPurchased = null;
     if (body.monthPurchased === '') body.monthPurchased = null;
     if (body.initialInvestment === '') body.initialInvestment = 0;
+    if (body.closingCosts === '') body.closingCosts = 0;
     if (body.zillowZpid === '') body.zillowZpid = null;
     if (body.bedrooms === '') body.bedrooms = null;
     if (body.bathrooms === '') body.bathrooms = null;
