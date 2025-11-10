@@ -78,7 +78,7 @@ function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
             </p>
           )}
           
-          <div className="grid grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
             <div>
               <div className="text-gray-600">Purchase Price:</div>
               <div className="font-medium text-green-600">${Number(property.purchase_price).toLocaleString()}</div>
@@ -129,6 +129,23 @@ function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
                 {metrics.metrics.tri30y.toFixed(2)}%
               </div>
             </div>
+            {metrics.metrics.originalAtROI30y !== metrics.metrics.atROI30y && (
+              <div>
+                <div className="text-gray-600">
+                  Original 30y ATROI:
+                  <span className="text-xs text-gray-500 ml-1" title="Historical 30yATROI calculation using original purchase-time values for comparison.">📅</span>
+                </div>
+                <div className={`font-medium ${
+                  metrics.metrics.originalAtROI30y >= 10 ? 'text-blue-600' : 
+                  metrics.metrics.originalAtROI30y >= 7 ? 'text-blue-500' : 'text-blue-400'
+                }`}>
+                  {metrics.metrics.originalAtROI30y.toFixed(2)}%
+                </div>
+                <div className="text-xs text-gray-500">
+                  Δ {(metrics.metrics.atROI30y - metrics.metrics.originalAtROI30y).toFixed(2)}%
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Data Source Indicator and Additional Status */}
