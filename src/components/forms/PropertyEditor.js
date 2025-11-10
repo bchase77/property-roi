@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import StaticPropertyDetails from './StaticPropertyDetails';
 import CurrentAnnualValues from './CurrentAnnualValues';
+import OriginalValues from './OriginalValues';
 import MortgageCalculator from './MortgageCalculator';
 import FinancialPreview from '@/components/ui/FinancialPreview';
 import { fetchCrimeDataByLocation, formatCrimeIndex } from '@/lib/crime';
@@ -52,7 +53,16 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
     currentMortgageBalance: property.current_mortgage_balance || 0,
     currentMortgageRate: property.current_mortgage_rate || property.interest_apr_pct || 0,
     currentMortgagePayment: property.current_mortgage_payment || 0,
-    currentMortgageTermRemaining: property.current_mortgage_term_remaining || 0
+    currentMortgageTermRemaining: property.current_mortgage_term_remaining || 0,
+    // Original values for historical tracking
+    original30yAtroi: property.original_30y_atroi || '',
+    originalCalculationDate: property.original_calculation_date ? property.original_calculation_date.split('T')[0] : '',
+    originalMonthlyRent: property.original_monthly_rent || '',
+    originalPropertyTaxPct: property.original_property_tax_pct || '',
+    originalInsuranceMonthly: property.original_insurance_monthly || '',
+    originalMaintenancePctRent: property.original_maintenance_pct_rent || '',
+    originalVacancyPctRent: property.original_vacancy_pct_rent || '',
+    originalManagementPctRent: property.original_management_pct_rent || ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -359,6 +369,15 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
             inputCls="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             saving={saving}
             property={property}
+          />
+        </div>
+
+        {/* Row 2.5: Original Values for Historical Tracking */}
+        <div className="grid lg:grid-cols-1 gap-8">
+          <OriginalValues 
+            form={form} 
+            updateForm={updateForm}
+            inputCls="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
         </div>
 
