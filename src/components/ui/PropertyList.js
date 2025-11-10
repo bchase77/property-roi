@@ -1,7 +1,7 @@
 import React from 'react';
 import { analyzeWithCurrentValues } from '@/lib/finance';
 
-export default function PropertyList({ properties, onEdit, onDelete, editingId }) {
+export default function PropertyList({ properties, onEdit, onDelete, onArchive, editingId }) {
   return (
     <div className="space-y-3">
       {properties.map(property => (
@@ -10,6 +10,7 @@ export default function PropertyList({ properties, onEdit, onDelete, editingId }
           property={property}
           onEdit={() => onEdit(property)}
           onDelete={() => onDelete(property.id)}
+          onArchive={() => onArchive(property.id)}
           isEditing={editingId === property.id}
         />
       ))}
@@ -17,7 +18,7 @@ export default function PropertyList({ properties, onEdit, onDelete, editingId }
   );
 }
 
-function PropertyCard({ property, onEdit, onDelete, isEditing }) {
+function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
   const metrics = analyzeWithCurrentValues(property);
   
   // Debug logging for properties with current values
@@ -43,18 +44,32 @@ function PropertyCard({ property, onEdit, onDelete, isEditing }) {
   const usingCurrentValues = !!(property.current_rent_monthly || property.current_appraisal_value || property.current_market_value);
   const dataSource = usingCurrentValues ? "Current Values" : "Purchase Data";
 
+  // Determine ownership status styling
+  const isOwned = property.purchased;
+  const borderClass = isEditing ? 'border-blue-500 bg-blue-50' : 
+                     isOwned ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50';
+
   return (
-    <div className={`rounded-lg border p-4 ${isEditing ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+    <div className={`rounded-lg border p-4 ${borderClass}`}>
       <div className="flex justify-between items-start">
         <div className="flex-1">
-          <h3 className="font-medium text-gray-900">
-            {property.address}
-            {property.abbreviation && <span className="ml-2 text-blue-600">({property.abbreviation})</span>}
-          </h3>
+          <div className="flex items-center gap-3 mb-1">
+            <h3 className="font-medium text-gray-900">
+              {property.address}
+              {property.abbreviation && <span className="ml-2 text-blue-600">({property.abbreviation})</span>}
+            </h3>
+            <div className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+              isOwned 
+                ? 'bg-green-100 text-green-800 border border-green-200' 
+                : 'bg-orange-100 text-orange-800 border border-orange-200'
+            }`}>
+              {isOwned ? '✅ OWNED' : '📊 PROJECTED'}
+            </div>
+          </div>
           <p className="text-sm text-gray-500 mb-2">
             {property.city}, {property.state} {property.zip}
           </p>
-          {property.purchased && property.year_purchased && (
+          {property.purchased && (
             <p className="text-xs text-blue-600 mb-2">
               Purchased: {property.month_purchased ? 
                 `${new Date(0, property.month_purchased - 1).toLocaleString('default', { month: 'short' })} ${property.year_purchased}` : 
@@ -63,7 +78,7 @@ function PropertyCard({ property, onEdit, onDelete, isEditing }) {
             </p>
           )}
           
-          <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-4 gap-4 text-sm">
             <div>
               <div className="text-gray-600">Purchase Price:</div>
               <div className="font-medium text-green-600">${Number(property.purchase_price).toLocaleString()}</div>
@@ -92,20 +107,31 @@ function PropertyCard({ property, onEdit, onDelete, isEditing }) {
             </div>
             <div>
               <div className="text-gray-600">
-                DSCR:
-                <span className="text-xs text-gray-500 ml-1" title="Debt Service Coverage Ratio: Net Operating Income ÷ Mortgage Payment. Measures ability to cover debt payments. >1.25 is good, >1.0 is acceptable.">ⓘ</span>
+                30y ATROI:
+                <span className="text-xs text-gray-500 ml-1" title="30-Year Average Total Return on Investment: Your conservative formula without appreciation or inflation.">ⓘ</span>
               </div>
               <div className={`font-medium ${
-                property.mortgage_free ? 'text-gray-500' : 
-                metrics.metrics.dscr >= 1.25 ? 'text-green-600' : 
-                metrics.metrics.dscr >= 1.0 ? 'text-yellow-600' : 'text-red-600'
+                metrics.metrics.atROI30y >= 10 ? 'text-green-600' : 
+                metrics.metrics.atROI30y >= 7 ? 'text-yellow-600' : 'text-red-600'
               }`}>
-                {property.mortgage_free ? 'N/A' : metrics.metrics.dscr.toFixed(2)}
+                {metrics.metrics.atROI30y.toFixed(2)}%
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600">
+                30y TRI:
+                <span className="text-xs text-gray-500 ml-1" title="30-Year Total Return on Investment: Comprehensive analysis with inflation, appreciation, and proper tax treatment.">ⓘ</span>
+              </div>
+              <div className={`font-medium ${
+                metrics.metrics.tri30y >= 12 ? 'text-green-600' : 
+                metrics.metrics.tri30y >= 8 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {metrics.metrics.tri30y.toFixed(2)}%
               </div>
             </div>
           </div>
           
-          {/* Data Source Indicator and Ownership Status */}
+          {/* Data Source Indicator and Additional Status */}
           <div className="mt-3 pt-2 border-t border-gray-100 flex flex-wrap items-center gap-2">
             <div className={`inline-block px-2 py-1 text-xs rounded ${
               usingCurrentValues 
@@ -114,6 +140,11 @@ function PropertyCard({ property, onEdit, onDelete, isEditing }) {
             }`}>
               Metrics from: {dataSource}
             </div>
+            {!isOwned && (
+              <div className="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded">
+                Investment Analysis
+              </div>
+            )}
             {property.mortgage_free && (
               <div className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
                 Owned Outright
@@ -132,6 +163,12 @@ function PropertyCard({ property, onEdit, onDelete, isEditing }) {
             }`}
           >
             {isEditing ? 'Editing' : 'Edit'}
+          </button>
+          <button 
+            onClick={onArchive}
+            className="px-3 py-1 text-sm rounded border border-orange-300 text-orange-700 hover:bg-orange-50"
+          >
+            Archive
           </button>
           <button 
             onClick={onDelete}

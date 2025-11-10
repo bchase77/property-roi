@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { analyzeWithCurrentValues, calculateCAGR, calculateIRR, calculateEquityAtYear } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
 import { projectRent, createPayoffScenarios } from '@/lib/rentProjections';
@@ -11,6 +11,7 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
   const [visibleProperties, setVisibleProperties] = useState(
     allItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {})
   );
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Update visibility state when properties or scenarios change
   useEffect(() => {
@@ -21,7 +22,8 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
   const [visibleMetrics, setVisibleMetrics] = useState({
     CAGR: true,
     CoC: true,
-    IRR: true
+    IRR: true,
+    CoE: true
   });
   const [timeRange, setTimeRange] = useState('10y');
   const [yAxisMin, setYAxisMin] = useState('auto');
@@ -61,6 +63,7 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
   }, [yAxisMin, yAxisMax]);
   const [historicalData, setHistoricalData] = useState({});
   const [showProjections, setShowProjections] = useState(false);
+  const [projectionYears, setProjectionYears] = useState('5y');
   const [selectedPayoffScenario, setSelectedPayoffScenario] = useState('current');
   const [rentAnalysis, setRentAnalysis] = useState({});
   
@@ -126,13 +129,16 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
     
     if (timeRange === 'all') {
       startYear = 2012;
+    } else if (timeRange === 'now') {
+      startYear = currentYear;
     } else {
       const yearsBack = timeRange === '2y' ? 2 : timeRange === '5y' ? 5 : 10;
       startYear = currentYear - yearsBack;
     }
     
     // Extend to include projections if enabled
-    endYear = showProjections ? currentYear + 5 : currentYear;
+    const projectionExtension = projectionYears === '10y' ? 10 : 5;
+    endYear = showProjections ? currentYear + projectionExtension : currentYear;
     
     const years = [];
     for (let year = startYear; year <= endYear; year++) {
@@ -159,7 +165,7 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
           const initialInvestment = Number(property.initial_investment) || 
             (purchasePrice * (Number(property.down_payment_pct) || 20) / 100);
           
-          let netIncome, cagr = 0, cashOnCash = 0, irrPct = 0;
+          let netIncome, cagr = 0, cashOnCash = 0, irrPct = 0, cashOnEquity = 0;
           
           // Calculate property value for this year using real Zillow data
           let historicalValue;
@@ -209,6 +215,9 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
             netIncome = yearData.netIncome; // grossIncome - totalExpenses
             cashOnCash = initialInvestment > 0 ? (netIncome / initialInvestment) * 100 : 0;
             
+            // Calculate Cash-on-Equity: NOI divided by current equity
+            cashOnEquity = historicalEquity > 0 ? (netIncome / historicalEquity) * 100 : 0;
+            
             // Calculate cumulative income through this year (used in IRR calculation)
             const allHistoricalData = historicalData[property.id] || [];
             
@@ -242,6 +251,9 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
             const metrics = analyzeWithCurrentValues(property);
             netIncome = metrics.noiAnnual;
             cashOnCash = metrics.metrics.cashOnCash;
+            
+            // Calculate Cash-on-Equity for fallback data
+            cashOnEquity = historicalEquity > 0 ? (netIncome / historicalEquity) * 100 : 0;
             
             // Simple IRR estimation for missing data
             irrPct = yearsOwned >= 2 ? calculateCAGR(initialInvestment, historicalEquity, yearsOwned) : null;
@@ -285,6 +297,10 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
             
             // Calculate projected metrics
             cashOnCash = initialInvestment > 0 ? (projectedNOI / initialInvestment) * 100 : 0;
+            
+            // Calculate projected Cash-on-Equity
+            cashOnEquity = projectedEquity > 0 ? (projectedNOI / projectedEquity) * 100 : 0;
+            
             const projectedYearsOwned = year - effectivePurchaseYear;
             
             // For CAGR, use property value appreciation only (not leveraged equity growth)
@@ -335,32 +351,50 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
           const cagrValue = (cagr && !isNaN(cagr) && effectiveYearsOwned >= minYearsForCAGR) ? Number(cagr.toFixed(1)) : null;
           const cocValue = (cashOnCash && !isNaN(cashOnCash)) ? Number(cashOnCash.toFixed(1)) : null;
           const irrValue = (irrPct && !isNaN(irrPct) && effectiveYearsOwned >= minYearsForIRR) ? Number(irrPct.toFixed(1)) : null;
+          const coeValue = (cashOnEquity && !isNaN(cashOnEquity)) ? Number(cashOnEquity.toFixed(1)) : null;
+          
           
           
           dataPoint[`${displayLabel}_cagr`] = cagrValue;
           dataPoint[`${displayLabel}_coc`] = cocValue;
           dataPoint[`${displayLabel}_irr`] = irrValue;
+          dataPoint[`${displayLabel}_coe`] = coeValue;
         }
       });
       
       return dataPoint;
     });
-  }, [allItems, visibleProperties, visibleMetrics, timeRange, showProjections, selectedPayoffScenario, historicalData, rentAnalysis]);
+  }, [allItems, visibleProperties, visibleMetrics, timeRange, showProjections, projectionYears, selectedPayoffScenario, historicalData, rentAnalysis, refreshKey]);
 
   const chartData = useMemo(() => {
     // Final: Restore full functionality with comprehensive safety checks
     return generateChartData();
   }, [generateChartData]);
+  
+  const refreshChart = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+  
   const colors = ['#8884d8', '#82ca9d', '#a82222', '#cc5500', '#00ff00', '#ff00ff'];
 
   return (
     <div className="bg-white rounded-lg border p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-600">Perf Metrics</h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold text-gray-600">Perf Metrics</h3>
+          <button
+            onClick={refreshChart}
+            className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
+            title="Refresh chart"
+          >
+            <span>🔄</span>
+            <span>Refresh</span>
+          </button>
+        </div>
         <div className="flex items-center gap-4">
           {/* Time Range Selector */}
           <div className="flex gap-1">
-            {['2y', '5y', '10y', 'all'].map((range) => (
+            {['now', '2y', '5y', '10y', 'all'].map((range) => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
@@ -401,20 +435,38 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
                 onChange={(e) => setShowProjections(e.target.checked)}
                 className="w-3 h-3"
               />
-              <span className="text-gray-600">5yr Projections</span>
+              <span className="text-gray-600">Show Projections</span>
             </label>
             
             {showProjections && (
-              <select
-                value={selectedPayoffScenario}
-                onChange={(e) => setSelectedPayoffScenario(e.target.value)}
-                className="text-xs border rounded px-2 py-1 bg-white text-gray-800"
-              >
-                <option value="current">Current Schedule</option>
-                <option value="1">1 Year Early</option>
-                <option value="3">3 Years Early</option>
-                <option value="5">5 Years Early</option>
-              </select>
+              <>
+                <div className="flex gap-1 border rounded">
+                  {['5y', '10y'].map((years) => (
+                    <button
+                      key={years}
+                      onClick={() => setProjectionYears(years)}
+                      className={`px-2 py-1 text-xs ${
+                        projectionYears === years
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {years}
+                    </button>
+                  ))}
+                </div>
+                
+                <select
+                  value={selectedPayoffScenario}
+                  onChange={(e) => setSelectedPayoffScenario(e.target.value)}
+                  className="text-xs border rounded px-2 py-1 bg-white text-gray-800"
+                >
+                  <option value="current">Current Schedule</option>
+                  <option value="1">1 Year Early</option>
+                  <option value="3">3 Years Early</option>
+                  <option value="5">5 Years Early</option>
+                </select>
+              </>
             )}
           </div>
           
@@ -490,11 +542,21 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 15 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="year" />
+            
+            {/* Zero reference line when Y-axis doesn't cross zero */}
+            {(yAxisMin !== 'auto' && Number(yAxisMin) > 0) && (
+              <ReferenceLine y={0} stroke="#333" strokeWidth={2} strokeDasharray="none" />
+            )}
+            <XAxis 
+              dataKey="year" 
+              axisLine={{ stroke: '#666', strokeWidth: 1 }}
+              tickLine={{ stroke: '#666', strokeWidth: 1 }}
+              orientation="bottom"
+            />
             <YAxis 
               tickFormatter={(value) => `${value}%`}
               domain={[
-                yAxisMin === 'auto' ? 'dataMin' : Number(yAxisMin),
+                yAxisMin === 'auto' ? (dataMin) => Math.max(dataMin, 0) : Number(yAxisMin),
                 yAxisMax === 'auto' ? 'dataMax' : Number(yAxisMax)
               ]}
               type="number"
@@ -521,50 +583,65 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
               iconType="line"
               wrapperStyle={{ paddingTop: '2px' }}
               content={() => {
-                // Group legend entries by property
-                const propertyGroups = {};
-                allItems.forEach((property, index) => {
-                  if (visibleProperties[property.id]) {
-                    const displayLabel = getPropertyDisplayLabel(property);
-                    const color = colors[index % colors.length];
-                    propertyGroups[displayLabel] = { color, metrics: [] };
-                  }
-                });
-
-                // Add metric legend items
-                const metricStyles = {
-                  'CAGR': '0',
-                  'CoC': '5 5', 
-                  'IRR': '2 2'
-                };
-
                 return (
-                  <div className="flex flex-wrap gap-4 justify-center items-center">
-                    {Object.entries(propertyGroups).map(([propertyLabel, data]) => (
-                      <div key={propertyLabel} className="flex items-center gap-2">
-                        <span className="text-sm font-semibold" style={{ color: data.color }}>
-                          {propertyLabel}:
-                        </span>
-                        {Object.entries(metricStyles)
-                          .filter(([metric]) => visibleMetrics[metric])
-                          .map(([metric, dashArray]) => (
-                          <div key={metric} className="flex items-center gap-1">
-                            <svg width="16" height="3">
-                              <line
-                                x1="0"
-                                y1="1.5"
-                                x2="16"
-                                y2="1.5"
-                                stroke={data.color}
-                                strokeWidth="2"
-                                strokeDasharray={dashArray}
-                              />
-                            </svg>
-                            <span className="text-xs" style={{ color: data.color }}>{metric}</span>
+                  <div className="space-y-3">
+                    {/* Property Colors Legend */}
+                    <div className="flex flex-wrap gap-4 justify-center items-center">
+                      <span className="text-xs font-semibold text-gray-600 mr-2">Properties:</span>
+                      {allItems.map((property, index) => {
+                        if (!visibleProperties[property.id]) return null;
+                        const displayLabel = getPropertyDisplayLabel(property);
+                        const color = colors[index % colors.length];
+                        return (
+                          <div key={property.id} className="flex items-center gap-1">
+                            <div 
+                              className="w-4 h-1 rounded"
+                              style={{ backgroundColor: color }}
+                            />
+                            <span className="text-xs font-medium" style={{ color: color }}>
+                              {displayLabel}
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Line Types Legend */}
+                    <div className="flex flex-wrap gap-4 justify-center items-center">
+                      <span className="text-xs font-semibold text-gray-600 mr-2">Metrics:</span>
+                      {visibleMetrics.CAGR && (
+                        <div className="flex items-center gap-1">
+                          <svg width="16" height="3">
+                            <line x1="0" y1="1.5" x2="16" y2="1.5" stroke="#666" strokeWidth="2" />
+                          </svg>
+                          <span className="text-xs text-gray-700">CAGR (solid)</span>
+                        </div>
+                      )}
+                      {visibleMetrics.CoC && (
+                        <div className="flex items-center gap-1">
+                          <svg width="16" height="3">
+                            <line x1="0" y1="1.5" x2="16" y2="1.5" stroke="#666" strokeWidth="2" strokeDasharray="5 5" />
+                          </svg>
+                          <span className="text-xs text-gray-700">CoC (dashed)</span>
+                        </div>
+                      )}
+                      {visibleMetrics.IRR && (
+                        <div className="flex items-center gap-1">
+                          <svg width="16" height="3">
+                            <line x1="0" y1="1.5" x2="16" y2="1.5" stroke="#666" strokeWidth="2" strokeDasharray="2 2" />
+                          </svg>
+                          <span className="text-xs text-gray-700">IRR (dotted)</span>
+                        </div>
+                      )}
+                      {visibleMetrics.CoE && (
+                        <div className="flex items-center gap-1">
+                          <svg width="16" height="3">
+                            <line x1="0" y1="1.5" x2="16" y2="1.5" stroke="#666" strokeWidth="2" strokeDasharray="10 2 2 2" />
+                          </svg>
+                          <span className="text-xs text-gray-700">CoE (dash-dot)</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               }}
@@ -609,6 +686,17 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
                       connectNulls={false}
                     />
                   )}
+                  {visibleMetrics.CoE && (
+                    <Line
+                      type="monotone"
+                      dataKey={`${displayLabel}_coe`}
+                      stroke={color}
+                      strokeWidth={2}
+                      strokeDasharray="10 2 2 2"
+                      name={`${displayLabel} - CoE`}
+                      connectNulls={false}
+                    />
+                  )}
                 </React.Fragment>
               );
             })}
@@ -628,6 +716,19 @@ export default function PerformanceMetricsChart({ properties, scenarios = [] }) 
             <li><strong>Net Operating Income:</strong> Rental income minus all operating expenses (taxes, insurance, maintenance, etc.)</li>
             <li><strong>Initial Investment:</strong> Down payment + closing costs + initial repairs</li>
             <li><strong>Purpose:</strong> Shows the cash return on your actual cash invested for that specific year</li>
+          </ul>
+        </div>
+
+        <div className="mb-4">
+          <h5 className="font-semibold text-purple-700 mb-1">Cash-on-Equity Return (CoE):</h5>
+          <p className="mb-1">
+            <strong>Annual metric</strong> calculated each year as: <code>Net Operating Income ÷ Current Equity × 100</code>
+          </p>
+          <ul className="ml-4 list-disc space-y-1">
+            <li><strong>Net Operating Income:</strong> Rental income minus all operating expenses (same as CoC)</li>
+            <li><strong>Current Equity:</strong> Current market value minus remaining mortgage balance</li>
+            <li><strong>Purpose:</strong> Shows the return relative to your current equity position, useful for refinancing decisions</li>
+            <li><em>Note: Generally decreases over time as equity grows faster than income</em></li>
           </ul>
         </div>
 

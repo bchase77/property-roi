@@ -2,6 +2,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AssetValueChart from '@/components/charts/AssetValueChart';
+import NormalizedComparisonCharts from '@/components/charts/NormalizedComparisonCharts';
 import PerformanceMetricsChart from '@/components/charts/PerformanceMetricsChart';
 import AnnualIncomeChart from '@/components/charts/AnnualIncomeChart';
 import MetricsGrid from '@/components/ui/MetricsGrid';
@@ -107,6 +108,11 @@ function AnalysisContent() {
           scenarios={selectedScenarios}
         />
         
+        <NormalizedComparisonCharts 
+          properties={selectedProperties}
+          scenarios={selectedScenarios}
+        />
+        
         <PerformanceMetricsChart 
           properties={selectedProperties}
           scenarios={selectedScenarios}
@@ -166,7 +172,7 @@ function DetailedAnalysisTable({ properties }) {
                 calculateCAGR(initialInvestment, currentEquityValue, yearsOwned) : null;
               
               
-              const marketComparison = (property.year_purchased && initialInvestment > 0 && initialInvestment < 10000000) ? 
+              const marketComparison = (property.purchased && property.year_purchased && initialInvestment > 0 && initialInvestment < 10000000) ? 
                 calculateMarketInvestmentValue(initialInvestment, property.year_purchased, property.month_purchased || 1) : null;
               
               // Property total value (current value + all cash flows received)

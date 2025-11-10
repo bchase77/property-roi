@@ -106,7 +106,7 @@ export default function TotalReturnComparisonChart({ properties }) {
       }
       
       // Add property data
-      properties.forEach(property => {
+      properties.filter(property => property.purchased).forEach(property => {
         if (!visibleSeries[property.id]) return;
         
         const propertyHistoricalData = historicalData[property.id] || [];

@@ -14,9 +14,15 @@ export async function POST(req) {
     const body = await req.json();
     // sanitize empty strings for numeric fields
     if (body.yearPurchased === '') body.yearPurchased = null;
+    if (body.monthPurchased === '') body.monthPurchased = null;
     if (body.initialInvestment === '') body.initialInvestment = 0;
     if (body.taxAnnual === '') body.taxAnnual = 0;
     if (body.taxPct === '') body.taxPct = 0;
+    if (body.bedrooms === '') body.bedrooms = null;
+    if (body.bathrooms === '') body.bathrooms = null;
+    if (body.squareFootage === '') body.squareFootage = null;
+    if (body.yearBuilt === '') body.yearBuilt = null;
+    if (body.crimeIndex === '') body.crimeIndex = null;
     
     // basic validation for required numeric fields
     const requiredNums = ['purchasePrice','downPct','rateApr','years','monthlyRent','hoaMonthly','insuranceMonthly','maintPctRent','vacancyPctRent','mgmtPctRent','otherMonthly'];

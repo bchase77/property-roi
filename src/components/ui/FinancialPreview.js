@@ -10,11 +10,24 @@ export default function FinancialPreview({ form }) {
     (assessedValue * ((Number(form.currentCityTaxRate) || 0) / 100))
   );
   
-  // Use calculated taxes if we have appraisal data, otherwise fall back to form values
-  const currentTaxesAnnual = (form.currentAppraisalValue && (form.currentCountyTaxRate || form.currentCityTaxRate)) 
+  // Use calculated taxes if we have appraisal data AND tax rates, otherwise fall back to form values
+  const hasAppraisalData = form.currentAppraisalValue && (Number(form.currentCountyTaxRate) > 0 || Number(form.currentCityTaxRate) > 0);
+  const currentTaxesAnnual = hasAppraisalData
     ? calculatedTaxesAnnual 
     : (Number(form.taxAnnual) || 0);
+    
+  console.log('🏠 EDIT PAGE Tax calc:', {
+    currentAppraisalValue: form.currentAppraisalValue,
+    assessmentPercentage: form.assessmentPercentage,
+    currentCountyTaxRate: form.currentCountyTaxRate,
+    currentCityTaxRate: form.currentCityTaxRate,
+    hasAppraisalData,
+    calculatedTaxesAnnual,
+    fallbackTaxAnnual: form.taxAnnual,
+    finalCurrentTaxesAnnual: currentTaxesAnnual
+  });
 
+  console.log('📝 EDIT PROPERTY PAGE - FinancialPreview analyze');
   const metrics = analyze({
     purchasePrice: Number(form.purchasePrice) || 0,
     downPct: Number(form.downPct) || 0,
@@ -31,11 +44,14 @@ export default function FinancialPreview({ form }) {
     mgmtPctRent: Number(form.mgmtPctRent) || 0,
     otherMonthly: Number(form.otherMonthly) || 0,
     initialInvestment: Number(form.initialInvestment) || 0,
+    closingCosts: Number(form.closingCosts) || 0,
+    repairCosts: Number(form.repairCosts) || 0,
     mortgageFree: Boolean(form.mortgageFree),
     // Current values override - this will take priority in calculations
     currentTaxesAnnual: currentTaxesAnnual > 0 ? currentTaxesAnnual : null,
     currentExpensesAnnual: null, // Let it calculate from percentages
-    currentMortgagePayment: null // Let it calculate from loan terms
+    currentMortgagePayment: null, // Let it calculate from loan terms
+    propertyAddress: form.address || form.abbreviation || `Property $${form.purchasePrice}`
   });
 
   const Money = (v) => `$${Number(v).toLocaleString()}`;
@@ -62,30 +78,40 @@ export default function FinancialPreview({ form }) {
       )}
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <MetricCard 
-          label="Cap Rate" 
+          label="Cap Rate (trgt >6%)" 
           value={Pct(metrics.metrics.capRate)}
           description="Annual NOI / Purchase Price"
           color="blue"
         />
         <MetricCard 
-          label="Cash-on-Cash" 
+          label="Cash-on-Cash (trgt >8%)" 
           value={Pct(metrics.metrics.cashOnCash)}
           description="Annual Cash Flow / Cash Invested"
           color="green"
         />
         <MetricCard 
-          label="DSCR" 
-          value={form.mortgageFree ? 'N/A' : metrics.metrics.dscr.toFixed(2)}
-          description="NOI / Debt Service"
+          label="30y TRI (trgt >12%)" 
+          value={Pct(metrics.metrics.tri30y)}
+          description="30-Year Total Return w/ Inflation"
           color="purple"
         />
         <MetricCard 
-          label="Gross Yield" 
+          label="Gross Yield (trgt 8-12%)" 
           value={Pct(metrics.metrics.grossYield)}
           description="Annual Rent / Purchase Price"
           color="orange"
+        />
+      </div>
+
+      {/* Additional Metrics Row */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <MetricCard 
+          label="30y ATROI (trgt >10%)" 
+          value={Pct(metrics.metrics.atROI30y)}
+          description="30-Year Conservative Formula"
+          color="teal"
         />
       </div>
 
@@ -153,6 +179,35 @@ export default function FinancialPreview({ form }) {
               </span>
             </div>
           </div>
+
+          {/* Mortgage-Free Cash Flow Analysis */}
+          {!form.mortgageFree && (
+            <>
+              <div className="mt-4 pt-3 border-t border-gray-200 bg-blue-50 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-blue-800 mb-2">If Mortgage Paid Off</h4>
+                <div className="flex justify-between text-sm">
+                  <span className="text-blue-700">Cash Flow (No Mortgage):</span>
+                  <span className="font-semibold text-blue-800">
+                    {Money(metrics.noiMonthly)} <span className="text-xs text-blue-600">(+{Money(metrics.pAndI)})</span>
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-blue-600 mt-1">
+                  <span>Cash-on-Equity Return:</span>
+                  <span>
+                    {(() => {
+                      // Calculate current equity (property value minus remaining loan balance)
+                      const propertyValue = Number(form.currentMarketValue) || Number(form.purchasePrice) || 0;
+                      const loanBalance = propertyValue * (1 - (Number(form.downPct) || 20) / 100) * 0.8; // Estimate remaining balance
+                      const currentEquity = propertyValue - loanBalance;
+                      const annualNOI = metrics.noiMonthly * 12;
+                      const cashOnEquityReturn = currentEquity > 0 ? (annualNOI / currentEquity) * 100 : 0;
+                      return `${cashOnEquityReturn.toFixed(2)}%`;
+                    })()}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -183,7 +238,8 @@ function MetricCard({ label, value, description, color }) {
     blue: 'bg-blue-50 text-blue-700 border-blue-200',
     green: 'bg-green-50 text-green-700 border-green-200',
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    orange: 'bg-orange-50 text-orange-700 border-orange-200'
+    orange: 'bg-orange-50 text-orange-700 border-orange-200',
+    teal: 'bg-teal-100 text-teal-900 border-teal-300'
   };
 
   return (

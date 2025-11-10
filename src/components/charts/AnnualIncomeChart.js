@@ -13,6 +13,7 @@ export default function AnnualIncomeChart({ properties }) {
     CashFlow: true
   });
   const [timeRange, setTimeRange] = useState('10y');
+  const [refreshKey, setRefreshKey] = useState(0);
   const [historicalData, setHistoricalData] = useState({});
   const [showProjections, setShowProjections] = useState(false);
   const [selectedPayoffScenario, setSelectedPayoffScenario] = useState('current');
@@ -37,7 +38,7 @@ export default function AnnualIncomeChart({ properties }) {
     };
     
     fetchHistoricalData();
-  }, [properties]);
+  }, [properties, refreshKey]);
 
   const toggleProperty = (propertyId) => {
     setVisibleProperties(prev => ({
@@ -76,6 +77,9 @@ export default function AnnualIncomeChart({ properties }) {
       
       properties.forEach(property => {
         if (!visibleProperties[property.id]) return;
+        
+        // Only process purchased properties for income metrics
+        if (!property.purchased) return;
         
         const propertyHistoricalData = historicalData[property.id] || [];
         const yearData = propertyHistoricalData.find(d => d.year === year);
@@ -127,12 +131,27 @@ export default function AnnualIncomeChart({ properties }) {
   };
 
   const chartData = generateChartData();
+  
+  const refreshChart = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+  
   const colors = ['#8884d8', '#82ca9d', '#a82222', '#cc5500', '#00ff00', '#ff00ff'];
 
   return (
     <div className="bg-white rounded-lg border p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-600">Inc Over Time</h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold text-gray-600">Inc Over Time</h3>
+          <button
+            onClick={refreshChart}
+            className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
+            title="Refresh chart"
+          >
+            <span>🔄</span>
+            <span>Refresh</span>
+          </button>
+        </div>
         <div className="flex items-center gap-4">
           {/* Time Range Selector */}
           <div className="flex gap-1">
@@ -170,7 +189,7 @@ export default function AnnualIncomeChart({ properties }) {
           
           {/* Property Toggles */}
           <div className="flex flex-wrap gap-2">
-            {properties.map((property, index) => (
+            {properties.filter(property => property.purchased).map((property, index) => (
               <button
                 key={property.id}
                 onClick={() => toggleProperty(property.id)}
@@ -208,7 +227,7 @@ export default function AnnualIncomeChart({ properties }) {
               content={() => {
                 // Group legend entries by property
                 const propertyGroups = {};
-                properties.forEach((property, index) => {
+                properties.filter(property => property.purchased).forEach((property, index) => {
                   if (visibleProperties[property.id]) {
                     const displayLabel = getPropertyDisplayLabel(property);
                     const color = colors[index % colors.length];
@@ -261,7 +280,7 @@ export default function AnnualIncomeChart({ properties }) {
               }}
             />
             
-            {properties.map((property, index) => {
+            {properties.filter(property => property.purchased).map((property, index) => {
               if (!visibleProperties[property.id]) return null;
               const color = colors[index % colors.length];
               const displayLabel = getPropertyDisplayLabel(property);

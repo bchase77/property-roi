@@ -90,18 +90,51 @@ export default function MetricsGrid({ properties }) {
     // Calculate averages
     const avgIRR = validIRRs.length > 0 ? validIRRs.reduce((a, b) => a + b, 0) / validIRRs.length : 0;
     
-    // Portfolio CAGR (weighted average based on equity)
-    const portfolioYearsOwned = properties.length > 0 ? 
-      properties.reduce((sum, p) => sum + (p.year_purchased ? currentYear - p.year_purchased : 0), 0) / properties.length : 0;
+    // Portfolio CAGR (investment-weighted average, only purchased properties)
+    const purchasedProperties = properties.filter(p => 
+      p.purchased && 
+      p.year_purchased && 
+      p.year_purchased <= currentYear &&
+      (Number(p.initial_investment) > 0 || Number(p.purchase_price) > 0)
+    );
     
-    const portfolioCAGR = portfolioInitialInvestment > 0 && portfolioYearsOwned > 0 ?
-      calculateCAGR(portfolioInitialInvestment, portfolioCurrentEquity, portfolioYearsOwned) : 0;
+    let portfolioCAGR = 0;
+    if (purchasedProperties.length > 0) {
+      // Calculate investment-weighted average years owned
+      let totalValidInvestment = 0;
+      let weightedYearSum = 0;
+      let totalValidEquity = 0;
+      
+      purchasedProperties.forEach(property => {
+        const investment = Number(property.initial_investment) || 
+          (Number(property.purchase_price) * ((Number(property.down_payment_pct) || 20) / 100));
+        const yearsOwned = currentYear - property.year_purchased;
+        const currentMarketValue = Number(property.current_market_value) || Number(property.purchase_price) || 0;
+        const currentEquity = calculateEquityAtYear(property, currentYear, currentMarketValue);
+        
+        if (investment > 0 && yearsOwned > 0) {
+          totalValidInvestment += investment;
+          weightedYearSum += investment * yearsOwned;
+          totalValidEquity += currentEquity;
+        }
+      });
+      
+      const weightedAverageYears = totalValidInvestment > 0 ? weightedYearSum / totalValidInvestment : 0;
+      
+      if (totalValidInvestment > 0 && weightedAverageYears > 0 && totalValidEquity > 0) {
+        portfolioCAGR = calculateCAGR(totalValidInvestment, totalValidEquity, weightedAverageYears);
+        // Cap extreme values
+        if (!isFinite(portfolioCAGR) || portfolioCAGR > 100 || portfolioCAGR < -50) {
+          portfolioCAGR = 0;
+        }
+      }
+    }
 
 
     return {
       avgIRR: avgIRR || 0,
       totalNPV,
-      portfolioCAGR: portfolioCAGR || 0,
+      portfolioCAGR,
       totalCashFlow
     };
   };

@@ -3,6 +3,7 @@ import StaticPropertyDetails from './StaticPropertyDetails';
 import CurrentAnnualValues from './CurrentAnnualValues';
 import MortgageCalculator from './MortgageCalculator';
 import FinancialPreview from '@/components/ui/FinancialPreview';
+import { fetchCrimeDataByLocation, formatCrimeIndex } from '@/lib/crime';
 
 export default function PropertyEditor({ property, onUpdate, onCancel }) {
   const [form, setForm] = useState({
@@ -25,6 +26,8 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
     mgmtPctRent: property.management_pct_rent ?? 8,
     otherMonthly: property.other_monthly || 0,
     initialInvestment: property.initial_investment || 0,
+    closingCosts: property.closing_costs || 0,
+    repairCosts: property.repair_costs || 0,
     mortgageFree: property.mortgage_free || false,
     purchased: property.purchased || false,
     yearPurchased: property.year_purchased || '',
@@ -54,9 +57,53 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [fetchingCrime, setFetchingCrime] = useState(false);
+  const [crimeData, setCrimeData] = useState(null);
 
   const updateForm = (updates) => {
     setForm(prev => ({ ...prev, ...updates }));
+  };
+
+  const handleFetchCrimeData = async () => {
+    if (!form.city || !form.state) {
+      setError('Please enter city and state before fetching crime data');
+      return;
+    }
+
+    try {
+      setFetchingCrime(true);
+      setError('');
+      
+      console.log('🔍 Fetching local crime data for:', { 
+        address: form.address,
+        city: form.city, 
+        state: form.state 
+      });
+      
+      // Pass the full address for geocoding and radius-based search
+      const crimeResult = await fetchCrimeDataByLocation(
+        form.city, 
+        form.state, 
+        form.address // Include address for better location targeting
+      );
+      
+      setCrimeData(crimeResult);
+      
+      // Update the form with the crime data
+      updateForm({ 
+        crimeIndex: crimeResult.crimeIndex || crimeResult.crimeScore || 5,
+        crimeScore: crimeResult.crimeScore,
+        riskLevel: crimeResult.riskLevel
+      });
+      
+      console.log('✅ Local crime data fetched successfully:', crimeResult);
+    } catch (error) {
+      console.error('❌ Failed to fetch crime data:', error);
+      setError(`Failed to fetch crime data: ${error.message}`);
+      setCrimeData(null);
+    } finally {
+      setFetchingCrime(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -131,6 +178,167 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
           {error}
         </div>
       )}
+
+      {/* Crime Data Section */}
+      <div className="bg-white rounded-lg border p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">Neighborhood Safety</h2>
+          <button
+            type="button"
+            onClick={handleFetchCrimeData}
+            disabled={fetchingCrime || !form.city || !form.state}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {fetchingCrime ? (
+              <>
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                Fetching...
+              </>
+            ) : (
+              <>
+                🔍 Fetch Crime Data
+              </>
+            )}
+          </button>
+        </div>
+        
+        {crimeData && (
+          <div className="space-y-4">
+            {/* Crime Index and Source */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Crime Index</label>
+                <div className="flex items-center gap-3">
+                  <div className={`text-2xl font-bold ${
+                    formatCrimeIndex(crimeData.crimeIndex || crimeData.crimeScore || 5).color === 'green' ? 'text-green-600' :
+                    formatCrimeIndex(crimeData.crimeIndex || crimeData.crimeScore || 5).color === 'yellow' ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {(crimeData.crimeIndex || crimeData.crimeScore || 5).toFixed(1)}
+                  </div>
+                  <div className={`px-2 py-1 rounded text-sm font-medium ${
+                    formatCrimeIndex(crimeData.crimeIndex || crimeData.crimeScore || 5).color === 'green' ? 'bg-green-100 text-green-800' :
+                    formatCrimeIndex(crimeData.crimeIndex || crimeData.crimeScore || 5).color === 'yellow' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {formatCrimeIndex(crimeData.crimeIndex || crimeData.crimeScore || 5).label}
+                  </div>
+                </div>
+                {crimeData.riskLevel && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    {crimeData.riskLevel}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Source</label>
+                <div className="text-sm text-gray-600">
+                  {crimeData.source || crimeData.agency?.name || 'FBI Crime Data'}
+                  <br />
+                  <span className="text-xs">Updated: {new Date(crimeData.lastUpdated).toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Enhanced Statistics */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">
+                {crimeData.searchRadius ? `Crime Analysis (${crimeData.searchRadius} mile radius)` : 'Crime Statistics'}
+              </h4>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                {/* Total Incidents */}
+                {crimeData.totalIncidents !== undefined && (
+                  <div>
+                    <span className="text-gray-600">Total Incidents:</span>
+                    <span className="ml-2 font-medium">{crimeData.totalIncidents.toLocaleString()}</span>
+                  </div>
+                )}
+                
+                {/* Timeframe */}
+                {crimeData.timeframe && (
+                  <div>
+                    <span className="text-gray-600">Timeframe:</span>
+                    <span className="ml-2 font-medium">{crimeData.timeframe}</span>
+                  </div>
+                )}
+                
+                {/* Trend Data */}
+                {crimeData.trends && (
+                  <>
+                    {crimeData.trends.violentCrimes !== undefined && (
+                      <div>
+                        <span className="text-gray-600">Violent Crimes:</span>
+                        <span className="ml-2 font-medium text-red-600">{crimeData.trends.violentCrimes}</span>
+                      </div>
+                    )}
+                    {crimeData.trends.propertyCrimes !== undefined && (
+                      <div>
+                        <span className="text-gray-600">Property Crimes:</span>
+                        <span className="ml-2 font-medium text-orange-600">{crimeData.trends.propertyCrimes}</span>
+                      </div>
+                    )}
+                    {crimeData.trends.recentIncidents !== undefined && (
+                      <div>
+                        <span className="text-gray-600">Recent (30 days):</span>
+                        <span className="ml-2 font-medium">{crimeData.trends.recentIncidents}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+                
+                {/* Legacy FBI data format */}
+                {crimeData.crimeData && (
+                  <>
+                    <div>
+                      <span className="text-gray-600">Violent Crimes:</span>
+                      <span className="ml-2 font-medium">{crimeData.crimeData.violent_crime?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Property Crimes:</span>
+                      <span className="ml-2 font-medium">{crimeData.crimeData.property_crime?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Population:</span>
+                      <span className="ml-2 font-medium">{crimeData.crimeData.population?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* Search coordinates display */}
+              {crimeData.coordinates && (
+                <div className="mt-2 text-xs text-gray-500">
+                  📍 Search location: {crimeData.coordinates.lat.toFixed(4)}, {crimeData.coordinates.lng.toFixed(4)}
+                </div>
+              )}
+            </div>
+            
+            {/* Recent incidents preview (if available) */}
+            {crimeData.recentIncidents && crimeData.recentIncidents.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-yellow-900 mb-2">Recent Incidents ({crimeData.recentIncidents.length})</h4>
+                <div className="space-y-1 text-xs">
+                  {crimeData.recentIncidents.slice(0, 3).map((incident, idx) => (
+                    <div key={idx} className="text-yellow-800">
+                      • {incident.ucr_description || incident.type || 'Incident'} - {incident.offense_date ? new Date(incident.offense_date).toLocaleDateString() : 'Recent'}
+                    </div>
+                  ))}
+                  {crimeData.recentIncidents.length > 3 && (
+                    <div className="text-yellow-600 font-medium">
+                      ... and {crimeData.recentIncidents.length - 3} more recent incidents
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {!crimeData && !fetchingCrime && (
+          <p className="text-gray-600 text-sm">
+            Enter city and state above, then click "Fetch Crime Data" to get neighborhood safety information.
+          </p>
+        )}
+      </div>
 
       <div className="space-y-8">
         {/* Row 1: Static Property Details */}

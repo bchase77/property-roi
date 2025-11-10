@@ -10,7 +10,7 @@ export default function CurrentAnnualValues({ form, updateForm, inputCls, proper
     const numericKeys = new Set([
       'monthlyRent', 'currentAppraisalValue', 'currentCountyTaxRate', 'currentCityTaxRate',
       'assessmentPercentage', 'taxAnnual', 'insuranceMonthly', 'insuranceAnnual', 
-      'hoaMonthly', 'maintPctRent', 'vacancyPctRent', 'mgmtPctRent', 'otherMonthly', 'initialInvestment',
+      'hoaMonthly', 'maintPctRent', 'vacancyPctRent', 'mgmtPctRent', 'otherMonthly',
       'currentMarketValue', 'currentExpensesAnnual', 'currentMortgageBalance', 'currentMortgageRate',
       'currentMortgagePayment', 'currentMortgageTermRemaining'
     ]);
@@ -320,24 +320,6 @@ export default function CurrentAnnualValues({ form, updateForm, inputCls, proper
               onChange={set('mgmtPctRent')}
               placeholder="9"
             />
-          </div>
-        </div>
-
-        {/* Initial Investment */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Initial Investment ($)
-          </label>
-          <input 
-            type="number" 
-            step="1000"
-            className={inputCls} 
-            value={form.initialInvestment} 
-            onChange={set('initialInvestment')}
-            placeholder={form.mortgageFree ? form.purchasePrice : (form.purchasePrice || 0) * ((form.downPct || 0) / 100)}
-          />
-          <div className="text-xs text-gray-600 mt-1">
-            Include down payment, closing costs, repairs, etc.
           </div>
         </div>
 
