@@ -113,6 +113,14 @@ export default function FinancialPreview({ form }) {
           description="30-Year Conservative Formula"
           color="teal"
         />
+        {metrics.metrics.originalAtROI30y !== metrics.metrics.atROI30y && (
+          <MetricCard 
+            label="Original 30y ATROI" 
+            value={`${Pct(metrics.metrics.originalAtROI30y)} (Δ${(metrics.metrics.atROI30y - metrics.metrics.originalAtROI30y) >= 0 ? '+' : ''}${(metrics.metrics.atROI30y - metrics.metrics.originalAtROI30y).toFixed(2)}%)`}
+            description="Historical Purchase-Time Calculation"
+            color="indigo"
+          />
+        )}
       </div>
 
       {/* Cash Flow Breakdown */}
@@ -239,7 +247,8 @@ function MetricCard({ label, value, description, color }) {
     green: 'bg-green-50 text-green-700 border-green-200',
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
     orange: 'bg-orange-50 text-orange-700 border-orange-200',
-    teal: 'bg-teal-100 text-teal-900 border-teal-300'
+    teal: 'bg-teal-100 text-teal-900 border-teal-300',
+    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200'
   };
 
   return (

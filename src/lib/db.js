@@ -55,7 +55,15 @@ export async function updateProperty(id, p) {
       abbreviation = ${p.abbreviation ?? null},
       county_tax_website = ${p.countyTaxWebsite ?? null},
       city_tax_website = ${p.cityTaxWebsite ?? null},
-      notes = ${p.notes ?? null}
+      notes = ${p.notes ?? null},
+      original_30y_atroi = ${p.original30yAtroi ?? null},
+      original_calculation_date = ${p.originalCalculationDate ?? null},
+      original_monthly_rent = ${p.originalMonthlyRent ?? null},
+      original_property_tax_pct = ${p.originalPropertyTaxPct ?? null},
+      original_insurance_monthly = ${p.originalInsuranceMonthly ?? null},
+      original_maintenance_pct_rent = ${p.originalMaintenancePctRent ?? null},
+      original_vacancy_pct_rent = ${p.originalVacancyPctRent ?? null},
+      original_management_pct_rent = ${p.originalManagementPctRent ?? null}
     WHERE id = ${id}
     RETURNING *;
   `;
@@ -141,6 +149,16 @@ export async function init() {
   
   // Archive functionality
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;`;
+  
+  // Historical tracking for original investment calculations
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_30y_atroi NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_calculation_date TIMESTAMPTZ;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_monthly_rent NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_property_tax_pct NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_insurance_monthly NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_maintenance_pct_rent NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_vacancy_pct_rent NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_management_pct_rent NUMERIC;`;
 
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
@@ -216,7 +234,9 @@ export async function addProperty(p) {
       maintenance_pct_rent, vacancy_pct_rent, management_pct_rent, other_monthly,
       zillow_zpid, crime_index, purchased, year_purchased, month_purchased, initial_investment, closing_costs, repair_costs, mortgage_free,
       bedrooms, bathrooms, square_footage, year_built, abbreviation,
-      county_tax_website, city_tax_website, notes
+      county_tax_website, city_tax_website, notes,
+      original_30y_atroi, original_calculation_date, original_monthly_rent, original_property_tax_pct,
+      original_insurance_monthly, original_maintenance_pct_rent, original_vacancy_pct_rent, original_management_pct_rent
     ) VALUES (
       ${p.address}, ${p.city}, ${p.state}, ${p.zip},
       ${p.purchasePrice}, ${p.downPct}, ${p.rateApr}, ${p.years},
@@ -225,7 +245,9 @@ export async function addProperty(p) {
       ${p.zillowZpid ?? null}, ${p.crimeIndex ?? null}, ${p.purchased ?? false}, ${p.yearPurchased ?? null}, ${p.monthPurchased ?? null},
       ${p.initialInvestment ?? 0}, ${p.closingCosts ?? 0}, ${p.repairCosts ?? 0}, ${p.mortgageFree ?? false},
       ${p.bedrooms ?? null}, ${p.bathrooms ?? null}, ${p.squareFootage ?? null}, ${p.yearBuilt ?? null}, ${p.abbreviation ?? null},
-      ${p.countyTaxWebsite ?? null}, ${p.cityTaxWebsite ?? null}, ${p.notes ?? null}
+      ${p.countyTaxWebsite ?? null}, ${p.cityTaxWebsite ?? null}, ${p.notes ?? null},
+      ${p.original30yAtroi ?? null}, ${p.originalCalculationDate ?? null}, ${p.originalMonthlyRent ?? null}, ${p.originalPropertyTaxPct ?? null},
+      ${p.originalInsuranceMonthly ?? null}, ${p.originalMaintenancePctRent ?? null}, ${p.originalVacancyPctRent ?? null}, ${p.originalManagementPctRent ?? null}
     ) RETURNING *;
   `;
   return rows[0];

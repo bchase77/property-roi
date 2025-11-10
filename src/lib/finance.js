@@ -121,7 +121,14 @@ export function analyzeWithCurrentValues(property) {
          ((Number(property.current_county_tax_rate) || 0) + (Number(property.current_city_tax_rate) || 0)) / 100) : null),
     currentExpensesAnnual: property.current_expenses_annual ? Number(property.current_expenses_annual) : null,
     currentMortgagePayment: property.current_mortgage_payment ? Number(property.current_mortgage_payment) : null,
-    propertyAddress: property.address || property.abbreviation
+    propertyAddress: property.address || property.abbreviation,
+    // Original values for historical tracking
+    originalMonthlyRent: property.original_monthly_rent ? Number(property.original_monthly_rent) : null,
+    originalPropertyTaxPct: property.original_property_tax_pct ? Number(property.original_property_tax_pct) : null,
+    originalInsuranceMonthly: property.original_insurance_monthly ? Number(property.original_insurance_monthly) : null,
+    originalMaintenancePctRent: property.original_maintenance_pct_rent ? Number(property.original_maintenance_pct_rent) : null,
+    originalVacancyPctRent: property.original_vacancy_pct_rent ? Number(property.original_vacancy_pct_rent) : null,
+    originalManagementPctRent: property.original_management_pct_rent ? Number(property.original_management_pct_rent) : null
   });
 }
 
@@ -199,7 +206,10 @@ export function analyze({
   // New parameters for current values
   currentTaxesAnnual, currentExpensesAnnual, currentMortgagePayment,
   // Property identification for debugging
-  propertyAddress
+  propertyAddress,
+  // Original values for historical tracking
+  originalMonthlyRent, originalPropertyTaxPct, originalInsuranceMonthly,
+  originalMaintenancePctRent, originalVacancyPctRent, originalManagementPctRent
 }) {
   const down = purchasePrice * (downPct / 100);
   const totalClosingCosts = (closingCosts || 0) + (repairCosts || 0);
@@ -400,7 +410,103 @@ export function analyze({
     return atROI * 100; // Convert to percentage
   };
 
+  // Calculate original 30yATROI using historical purchase-time values
+  const calculateOriginal30yATROI = (useOriginalValues = false) => {
+    if (!useOriginalValues) return calculate30yATROI();
+    
+    const years = 30;
+    const propertyId = propertyAddress || `Property $${purchasePrice}` || 'Property';
+    
+    // Use original values from database if available, fallback to current
+    const origMonthlyRent = originalMonthlyRent || monthlyRent;
+    const origPropertyTaxPct = originalPropertyTaxPct || (taxesMonthly * 12 / purchasePrice) * 100;
+    const origInsuranceMonthly = originalInsuranceMonthly || insuranceMonthly;
+    const origMaintPctRent = originalMaintenancePctRent || maintPctRent;
+    const origVacancyPctRent = originalVacancyPctRent || vacancyPctRent;
+    const origMgmtPctRent = originalManagementPctRent || mgmtPctRent;
+    
+    console.log(`🕰️ ORIGINAL 30yATROI Calculation for ${propertyId}:`, {
+      origMonthlyRent,
+      origPropertyTaxPct,
+      origInsuranceMonthly,
+      origMaintPctRent,
+      origVacancyPctRent,
+      origMgmtPctRent
+    });
+
+    // 1. AMOUNT_PAID = downpayment + closing_costs + initial repairs (same as current)
+    const downPayment = purchasePrice * (downPct / 100);
+    const amountPaid = downPayment + totalClosingCosts;
+    
+    // 2. INCOME_EARNED_FOR_30Y = Original rent for 30 years factoring in vacancy rate
+    const effectiveOrigMonthlyRent = origMonthlyRent * (1 - (origVacancyPctRent / 100));
+    const origIncomeEarnedFor30y = effectiveOrigMonthlyRent * 12 * years;
+    
+    // 3. TOTAL_VALUE = purchase price + original income
+    const origTotalValue = purchasePrice + origIncomeEarnedFor30y;
+    
+    // 4. TOTAL_EXPENSES using original rates
+    let origTotalExpenses = amountPaid; // Start with initial investment
+    
+    // Original management fees
+    const origAnnualManagement = origMonthlyRent * 12 * (origMgmtPctRent / 100);
+    origTotalExpenses += origAnnualManagement * years;
+    
+    // Mortgage payments (same as current)
+    let origTotalMortgagePayments = 0;
+    if (!mortgageFree && pAndI > 0) {
+      origTotalMortgagePayments = pAndI * 12 * years;
+    }
+    origTotalExpenses += origTotalMortgagePayments;
+    
+    // Original property taxes
+    const origAnnualTaxes = purchasePrice * (origPropertyTaxPct / 100);
+    origTotalExpenses += origAnnualTaxes * years;
+    
+    // Original maintenance
+    const origAnnualMaintenance = origMonthlyRent * 12 * (origMaintPctRent / 100);
+    origTotalExpenses += origAnnualMaintenance * years;
+    
+    // Original insurance
+    origTotalExpenses += origInsuranceMonthly * 12 * years;
+    
+    // HOA fees (same as current)
+    origTotalExpenses += hoaMonthly * 12 * years;
+    
+    // Original income taxes calculation
+    const origDepreciableBasis = purchasePrice + totalClosingCosts + (origInsuranceMonthly * 12);
+    const origMonthlyDepreciation = (origDepreciableBasis / 27.5) / 12;
+    
+    const origMonthlyManagement = origMonthlyRent * (origMgmtPctRent / 100);
+    const origMonthlyMaintenance = origMonthlyRent * (origMaintPctRent / 100);
+    const origAnnualTaxesMonthly = origAnnualTaxes / 12;
+    
+    const origMonthlyTaxableIncome = effectiveOrigMonthlyRent - origMonthlyManagement - 
+      origMonthlyMaintenance - origInsuranceMonthly - origMonthlyDepreciation - origAnnualTaxesMonthly;
+    
+    const origMonthlyIncomeTax = Math.max(0, origMonthlyTaxableIncome * 0.44);
+    const origTotalIncomeTax = origMonthlyIncomeTax * 12 * years;
+    
+    origTotalExpenses += origTotalIncomeTax;
+    
+    // 6. FINAL CALCULATION: (Total_value - Total_expenses) / Amount_paid / 30
+    const origNetValue = origTotalValue - origTotalExpenses;
+    const origAtROI = amountPaid > 0 ? (origNetValue / amountPaid) / years : 0;
+    
+    console.log(`🕰️ FINAL ORIGINAL 30yATROI for ${propertyId}:`, {
+      origTotalValue: origTotalValue.toFixed(2),
+      origTotalExpenses: origTotalExpenses.toFixed(2),
+      origNetValue: origNetValue.toFixed(2),
+      amountPaid: amountPaid.toFixed(2),
+      years: years,
+      origAtROI_percentage: (origAtROI * 100).toFixed(4)
+    });
+    
+    return origAtROI * 100;
+  };
+
   const atROI30y = calculate30yATROI();
+  const originalAtROI30y = calculateOriginal30yATROI(!!originalMonthlyRent);
 
   // Calculate comprehensive 30-Year Total Return on Investment (TRI)
   const calculate30yTRI = () => {
@@ -547,6 +653,7 @@ export function analyze({
       grossYield: pct2(grossYield),
       atROI30y: pct2(atROI30y),
       tri30y: pct2(tri30y),
+      originalAtROI30y: pct2(originalAtROI30y),
     },
   };
 }

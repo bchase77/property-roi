@@ -90,6 +90,10 @@ export default function ComparisonPage() {
         aValue = aMetrics.metrics.tri30y;
         bValue = bMetrics.metrics.tri30y;
         break;
+      case 'originalAtROI30y':
+        aValue = aMetrics.metrics.originalAtROI30y;
+        bValue = bMetrics.metrics.originalAtROI30y;
+        break;
       case 'cashFlow':
         aValue = aMetrics.cashflowMonthly;
         bValue = bMetrics.cashflowMonthly;
@@ -221,6 +225,12 @@ export default function ComparisonPage() {
                 </th>
                 <th 
                   className="text-right p-3 font-medium text-gray-900 cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('originalAtROI30y')}
+                >
+                  Orig 30y ATROI {getSortIcon('originalAtROI30y')}
+                </th>
+                <th 
+                  className="text-right p-3 font-medium text-gray-900 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('noiMonthly')}
                 >
                   NOI/mo {getSortIcon('noiMonthly')}
@@ -295,6 +305,17 @@ export default function ComparisonPage() {
                       metrics.metrics.tri30y >= 8 ? 'text-yellow-600' : 'text-red-600'
                     }`}>
                       {formatPercent(metrics.metrics.tri30y)}
+                    </td>
+                    <td className={`p-3 text-right font-medium ${
+                      metrics.metrics.originalAtROI30y >= 10 ? 'text-blue-600' : 
+                      metrics.metrics.originalAtROI30y >= 7 ? 'text-blue-500' : 'text-blue-400'
+                    }`}>
+                      {formatPercent(metrics.metrics.originalAtROI30y)}
+                      {metrics.metrics.originalAtROI30y !== metrics.metrics.atROI30y && (
+                        <div className="text-xs text-gray-500">
+                          Δ{(metrics.metrics.atROI30y - metrics.metrics.originalAtROI30y) >= 0 ? '+' : ''}{(metrics.metrics.atROI30y - metrics.metrics.originalAtROI30y).toFixed(1)}%
+                        </div>
+                      )}
                     </td>
                     <td className={`p-3 text-right font-medium ${
                       metrics.noiMonthly >= 0 ? 'text-green-600' : 'text-red-600'
