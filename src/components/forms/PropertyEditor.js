@@ -335,7 +335,7 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
         
         {!crimeData && !fetchingCrime && (
           <p className="text-gray-600 text-sm">
-            Enter city and state above, then click "Fetch Crime Data" to get neighborhood safety information.
+            Enter city and state above, then click &ldquo;Fetch Crime Data&rdquo; to get neighborhood safety information.
           </p>
         )}
       </div>
