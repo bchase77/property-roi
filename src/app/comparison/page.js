@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
+import MetricsDefinitions from '@/components/ui/MetricsDefinitions';
 import { analyzeWithCurrentValues } from '@/lib/finance';
 import { formatCrimeIndex } from '@/lib/crime';
 
@@ -425,6 +426,9 @@ export default function ComparisonPage() {
           </div>
         </div>
       </div>
+
+      {/* Metrics Definitions */}
+      <MetricsDefinitions />
     </main>
   );
 }
