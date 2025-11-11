@@ -255,7 +255,6 @@ export default function ComparisonPage() {
               {sortedProperties.map((property) => {
                 const metrics = analyzeWithCurrentValues(property);
                 const isOwned = property.purchased;
-                const currentRent = Number(property.current_rent_monthly || property.monthly_rent) || 0;
                 const initialInvestment = Number(property.initial_investment) || 
                   (Number(property.purchase_price) * (Number(property.down_payment_pct) || 20) / 100);
 
