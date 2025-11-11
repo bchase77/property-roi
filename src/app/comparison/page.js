@@ -301,8 +301,8 @@ export default function ComparisonPage() {
                       {formatPercent(metrics.metrics.atROI30y)}
                     </td>
                     <td className={`p-3 text-right font-medium ${
-                      metrics.metrics.tri30y >= 12 ? 'text-green-600' : 
-                      metrics.metrics.tri30y >= 8 ? 'text-yellow-600' : 'text-red-600'
+                      metrics.metrics.tri30y >= 8 ? 'text-green-600' : 
+                      metrics.metrics.tri30y >= 6 ? 'text-yellow-600' : 'text-red-600'
                     }`}>
                       {formatPercent(metrics.metrics.tri30y)}
                     </td>
@@ -378,11 +378,11 @@ export default function ComparisonPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
             <div className="flex items-center gap-2 text-gray-900">
               <div className="w-3 h-3 bg-green-600 rounded"></div>
-              <span>Excellent (Cap ≥6%, CoC ≥8%, Yield ≥8%, 30y ATROI ≥10%, 30y TRI ≥12%)</span>
+              <span>Excellent (Cap ≥6%, CoC ≥8%, Yield ≥8%, 30y ATROI ≥10%, 30y TRI ≥8%)</span>
             </div>
             <div className="flex items-center gap-2 text-gray-900">
               <div className="w-3 h-3 bg-yellow-600 rounded"></div>
-              <span>Good (Cap 4-6%, CoC 5-8%, Yield 6-8%, 30y ATROI 7-10%, 30y TRI 8-12%)</span>
+              <span>Good (Cap 4-6%, CoC 5-8%, Yield 6-8%, 30y ATROI 7-10%, 30y TRI 6-8%)</span>
             </div>
             <div className="flex items-center gap-2 text-gray-900">
               <div className="w-3 h-3 bg-red-600 rounded"></div>

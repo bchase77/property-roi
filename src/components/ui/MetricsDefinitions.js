@@ -35,9 +35,9 @@ export default function MetricsDefinitions({
       {
         term: "30y TRI (Total Return Investment)", 
         formula: "Comprehensive analysis with inflation, appreciation, and tax treatment",
-        description: "Advanced calculation including property appreciation, inflation adjustments, depreciation benefits, and proper tax treatment.",
-        target: "Target: ≥12%",
-        example: "Sophisticated real estate investment analysis with all factors included"
+        description: "Advanced calculation including 3% appreciation, 2.5% rent growth, depreciation benefits, and full tax treatment (44% income, 25% recapture, 15% capital gains).",
+        target: "Target: ≥6-8%",
+        example: "Conservative but sophisticated analysis: with built-in 3% appreciation and tax benefits, 6-8% is realistic"
       },
       {
         term: "Gross Yield",
