@@ -4,6 +4,7 @@ import PropertyEditor from '@/components/forms/PropertyEditor';
 import YearlyDataEditor from '@/components/forms/YearlyDataEditor';
 import PropertyList from '@/components/ui/PropertyList';
 import PageHeader from '@/components/ui/PageHeader';
+import MetricsDefinitions from '@/components/ui/MetricsDefinitions';
 import { analyzeWithCurrentValues } from '@/lib/finance';
 
 export default function Portfolio() {
@@ -198,6 +199,11 @@ export default function Portfolio() {
       {/* Portfolio Summary */}
       {properties.length > 0 && (
         <PortfolioSummary properties={properties} />
+      )}
+
+      {/* Metrics Definitions */}
+      {properties.length > 0 && (
+        <MetricsDefinitions />
       )}
     </main>
   );

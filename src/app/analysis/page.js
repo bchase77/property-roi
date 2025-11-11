@@ -9,6 +9,7 @@ import MetricsGrid from '@/components/ui/MetricsGrid';
 import PropertySelector from '@/components/ui/PropertySelector';
 import ScenarioSelector from '@/components/ui/ScenarioSelector';
 import PageHeader from '@/components/ui/PageHeader';
+import MetricsDefinitions from '@/components/ui/MetricsDefinitions';
 import { analyzeWithCurrentValues, calculateCAGR, calculateHoldVsSell } from '@/lib/finance';
 import { calculateMarketInvestmentValue } from '@/lib/marketData';
 
@@ -19,6 +20,7 @@ function AnalysisContent() {
   const [selectedScenarios, setSelectedScenarios] = useState([]);
   const [timeRange] = useState('5y'); // 2y, 5y, 10y
   const [loading, setLoading] = useState(true);
+  const [showDefinitions, setShowDefinitions] = useState(false);
 
   useEffect(() => {
     loadProperties();
@@ -76,12 +78,21 @@ function AnalysisContent() {
   }
 
   return (
-    <main className="mx-auto max-w-7xl p-6 space-y-8">
-      <PageHeader 
-        title="Investment Analysis"
-        subtitle="Performance charts, projections, and market comparisons"
-        currentPage="/analysis"
-      />
+    <>
+      <main className="mx-auto max-w-7xl p-6 space-y-8">
+        <div className="flex justify-between items-start">
+          <PageHeader 
+            title="Investment Analysis"
+            subtitle="Performance charts, projections, and market comparisons"
+            currentPage="/analysis"
+          />
+          <button
+            onClick={() => setShowDefinitions(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+          >
+            📊 View Metrics Definitions
+          </button>
+        </div>
 
       {/* Property Selection */}
       <PropertySelector 
@@ -124,12 +135,21 @@ function AnalysisContent() {
         />
       </div>
 
-      {/* Detailed Analysis Table */}
-      <DetailedAnalysisTable 
-        properties={selectedProperties}
-        timeRange={timeRange}
-      />
-    </main>
+        {/* Detailed Analysis Table */}
+        <DetailedAnalysisTable 
+          properties={selectedProperties}
+          timeRange={timeRange}
+        />
+      </main>
+
+      {/* Floating Metrics Definitions Modal */}
+      {showDefinitions && (
+        <MetricsDefinitions 
+          isFloating={true}
+          onClose={() => setShowDefinitions(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -248,16 +268,10 @@ function DetailedAnalysisTable({ properties }) {
         </table>
       </div>
       
-      <div className="mt-4 text-xs text-gray-600 space-y-1">
-        <div><strong>Market Cap Rate:</strong> NOI ÷ Current Market Value (what you&apos;re earning on the asset today)</div>
-        <div><strong>Purchase Cap Rate:</strong> NOI ÷ Original Purchase Price (return on total property value)</div>
-        <div><strong>Cash-on-Cash:</strong> NOI ÷ Initial Cash Investment (return on actual cash you invested, excludes appreciation)</div>
-        <div><strong>CAGR:</strong> Compound Annual Growth Rate from initial investment to current equity value (includes property appreciation, excludes cash flow)</div>
-        <div><strong>vs S&P 500:</strong> How your appreciation compares to actual S&P 500 returns from purchase date</div>
-        <div><strong>S&P 500 Value:</strong> What your initial investment would be worth in S&P 500 today vs property total value</div>
-        <div><strong>Property Total Value (vs number):</strong> Current market value + estimated total cash flows received over years owned</div>
-        <div><strong>Cash-on-Equity:</strong> Annual cash flow ÷ Current equity (opportunity cost analysis)</div>
-        <div><strong>Hold/Sell Formula:</strong> Compares Cash-on-Equity vs 10% market return. Gap = Market Return (10%) - Cash-on-Equity. Recommendations: Hold (gap &lt;=2%), Review (gap 2-5%), Consider Selling (gap &gt;5%)</div>
+      <div className="mt-4 text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="flex items-center justify-between">
+          <span>💡 For detailed formulas and definitions of all metrics, click the "📊 View Metrics Definitions" button above.</span>
+        </div>
       </div>
     </section>
   );

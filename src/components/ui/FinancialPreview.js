@@ -122,7 +122,7 @@ export default function FinancialPreview({ form }) {
             const years = 30;
             
             const downPayment = purchasePrice * (Number(form.downPct) / 100);
-            const amountPaid = downPayment + Number(form.closingCosts) + Number(form.repairCosts);
+            const amountPaid = downPayment + (Number(form.closingCosts) || 0) + (Number(form.repairCosts) || 0);
             const effectiveMonthlyRent = monthlyRent * (1 - vacancyPctRent / 100);
             const incomeEarnedFor30y = effectiveMonthlyRent * 12 * years;
             const totalValue = purchasePrice + incomeEarnedFor30y;
@@ -331,7 +331,9 @@ export default function FinancialPreview({ form }) {
             
             // Amount paid calculation
             const downPayment = purchasePrice * (Number(form.downPct) / 100);
-            const amountPaid = downPayment + Number(form.closingCosts) + Number(form.repairCosts);
+            const closingCosts = Number(form.closingCosts) || 0;
+            const repairCosts = Number(form.repairCosts) || 0;
+            const amountPaid = downPayment + closingCosts + repairCosts;
             
             // Income calculation
             const effectiveMonthlyRent = monthlyRent * (1 - vacancyPctRent / 100);
@@ -448,9 +450,9 @@ export default function FinancialPreview({ form }) {
                     <div>Down Payment ({form.downPct}%):</div>
                     <div className="text-right">{Money(downPayment)}</div>
                     <div>Closing Costs:</div>
-                    <div className="text-right">{Money(Number(form.closingCosts))}</div>
+                    <div className="text-right">{Money(closingCosts)}</div>
                     <div>Repair Costs:</div>
-                    <div className="text-right">{Money(Number(form.repairCosts))}</div>
+                    <div className="text-right">{Money(repairCosts)}</div>
                     <div className="font-medium border-t pt-1">Total Amount Paid:</div>
                     <div className="text-right font-medium border-t pt-1">{Money(amountPaid)}</div>
                   </div>
