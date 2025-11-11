@@ -294,6 +294,24 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
           </div>
         </div>
 
+        {/* Additional Investment */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Additional Investment ($)
+          </label>
+          <input 
+            type="number" 
+            step="100" 
+            className={inputCls} 
+            value={form.initialInvestment || ''} 
+            onChange={set('initialInvestment')}
+            placeholder="0"
+          />
+          <div className="text-xs text-gray-600 mt-1">
+            Any extra cash invested beyond down payment, closing costs, and repairs
+          </div>
+        </div>
+
         {/* Total Cash Required Display */}
         <div className="bg-gray-50 rounded-lg p-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">

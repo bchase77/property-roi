@@ -56,14 +56,20 @@ export async function updateProperty(id, p) {
       county_tax_website = ${p.countyTaxWebsite ?? null},
       city_tax_website = ${p.cityTaxWebsite ?? null},
       notes = ${p.notes ?? null},
-      original_30y_atroi = ${p.original30yAtroi ?? null},
-      original_calculation_date = ${p.originalCalculationDate ?? null},
-      original_monthly_rent = ${p.originalMonthlyRent ?? null},
-      original_property_tax_pct = ${p.originalPropertyTaxPct ?? null},
-      original_insurance_monthly = ${p.originalInsuranceMonthly ?? null},
-      original_maintenance_pct_rent = ${p.originalMaintenancePctRent ?? null},
-      original_vacancy_pct_rent = ${p.originalVacancyPctRent ?? null},
-      original_management_pct_rent = ${p.originalManagementPctRent ?? null}
+      original_30y_atroi = ${(p.original30yAtroi === '' || p.original30yAtroi === null || p.original30yAtroi === undefined) ? null : p.original30yAtroi},
+      original_calculation_date = ${p.originalCalculationDate || null},
+      original_monthly_rent = ${(p.originalMonthlyRent === '' || p.originalMonthlyRent === null || p.originalMonthlyRent === undefined) ? null : p.originalMonthlyRent},
+      original_property_tax_pct = ${(p.originalPropertyTaxPct === '' || p.originalPropertyTaxPct === null || p.originalPropertyTaxPct === undefined) ? null : p.originalPropertyTaxPct},
+      original_insurance_monthly = ${(p.originalInsuranceMonthly === '' || p.originalInsuranceMonthly === null || p.originalInsuranceMonthly === undefined) ? null : p.originalInsuranceMonthly},
+      original_maintenance_pct_rent = ${(p.originalMaintenancePctRent === '' || p.originalMaintenancePctRent === null || p.originalMaintenancePctRent === undefined) ? null : p.originalMaintenancePctRent},
+      original_vacancy_pct_rent = ${(p.originalVacancyPctRent === '' || p.originalVacancyPctRent === null || p.originalVacancyPctRent === undefined) ? null : p.originalVacancyPctRent},
+      original_management_pct_rent = ${(p.originalManagementPctRent === '' || p.originalManagementPctRent === null || p.originalManagementPctRent === undefined) ? null : p.originalManagementPctRent},
+      original_down_payment_pct = ${(p.originalDownPaymentPct === '' || p.originalDownPaymentPct === null || p.originalDownPaymentPct === undefined) ? null : p.originalDownPaymentPct},
+      original_interest_apr_pct = ${(p.originalInterestAprPct === '' || p.originalInterestAprPct === null || p.originalInterestAprPct === undefined) ? null : p.originalInterestAprPct},
+      original_loan_years = ${(p.originalLoanYears === '' || p.originalLoanYears === null || p.originalLoanYears === undefined) ? null : p.originalLoanYears},
+      original_closing_costs = ${(p.originalClosingCosts === '' || p.originalClosingCosts === null || p.originalClosingCosts === undefined) ? null : p.originalClosingCosts},
+      original_repair_costs = ${(p.originalRepairCosts === '' || p.originalRepairCosts === null || p.originalRepairCosts === undefined) ? null : p.originalRepairCosts},
+      original_mortgage_free = ${p.originalMortgageFree ?? false}
     WHERE id = ${id}
     RETURNING *;
   `;
@@ -159,6 +165,14 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_maintenance_pct_rent NUMERIC;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_vacancy_pct_rent NUMERIC;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_management_pct_rent NUMERIC;`;
+  
+  // Original mortgage terms for historical 30yATROI calculation
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_down_payment_pct NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_interest_apr_pct NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_loan_years INT;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_closing_costs NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_repair_costs NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_mortgage_free BOOLEAN DEFAULT false;`;
 
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (

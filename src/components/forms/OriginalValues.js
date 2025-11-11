@@ -7,7 +7,9 @@ export default function OriginalValues({ form, updateForm, inputCls }) {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     const numericKeys = new Set([
       'original30yAtroi', 'originalMonthlyRent', 'originalPropertyTaxPct', 'originalInsuranceMonthly',
-      'originalMaintenancePctRent', 'originalVacancyPctRent', 'originalManagementPctRent'
+      'originalMaintenancePctRent', 'originalVacancyPctRent', 'originalManagementPctRent',
+      'originalDownPaymentPct', 'originalInterestAprPct', 'originalLoanYears', 
+      'originalClosingCosts', 'originalRepairCosts'
     ]);
     
     const processedValue = numericKeys.has(key) 
@@ -38,6 +40,22 @@ export default function OriginalValues({ form, updateForm, inputCls }) {
     }
     if (!form.originalManagementPctRent && form.mgmtPctRent) {
       updates.originalManagementPctRent = form.mgmtPctRent;
+    }
+    // Original mortgage terms
+    if (!form.originalDownPaymentPct && form.downPct) {
+      updates.originalDownPaymentPct = form.downPct;
+    }
+    if (!form.originalInterestAprPct && form.rateApr) {
+      updates.originalInterestAprPct = form.rateApr;
+    }
+    if (!form.originalLoanYears && form.years) {
+      updates.originalLoanYears = form.years;
+    }
+    if (!form.originalClosingCosts && form.closingCosts) {
+      updates.originalClosingCosts = form.closingCosts;
+    }
+    if (!form.originalRepairCosts && form.repairCosts) {
+      updates.originalRepairCosts = form.repairCosts;
     }
     if (!form.originalCalculationDate) {
       updates.originalCalculationDate = new Date().toISOString().split('T')[0];
@@ -202,6 +220,94 @@ export default function OriginalValues({ form, updateForm, inputCls }) {
                   className={inputCls}
                   placeholder="e.g. 8.0"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Original Mortgage Terms */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-blue-900 mb-3">Original Mortgage Terms</h3>
+            <p className="text-sm text-blue-700 mb-4">Enter the original financing terms used in your 30yATROI calculation</p>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Down Payment (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={form.originalDownPaymentPct || ''}
+                  onChange={set('originalDownPaymentPct')}
+                  className={inputCls}
+                  placeholder="e.g. 25"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Interest Rate (% APR)
+                </label>
+                <input
+                  type="number"
+                  step="0.125"
+                  value={form.originalInterestAprPct || ''}
+                  onChange={set('originalInterestAprPct')}
+                  className={inputCls}
+                  placeholder="e.g. 4.5"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Loan Term (years)
+                </label>
+                <input
+                  type="number"
+                  value={form.originalLoanYears || ''}
+                  onChange={set('originalLoanYears')}
+                  className={inputCls}
+                  placeholder="e.g. 30"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Original Closing Costs ($)
+                </label>
+                <input
+                  type="number"
+                  value={form.originalClosingCosts || ''}
+                  onChange={set('originalClosingCosts')}
+                  className={inputCls}
+                  placeholder="e.g. 5000"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Original Repair Costs ($)
+                </label>
+                <input
+                  type="number"
+                  value={form.originalRepairCosts || ''}
+                  onChange={set('originalRepairCosts')}
+                  className={inputCls}
+                  placeholder="e.g. 0"
+                />
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="originalMortgageFree"
+                  checked={form.originalMortgageFree}
+                  onChange={set('originalMortgageFree')}
+                  className="mr-2"
+                />
+                <label htmlFor="originalMortgageFree" className="text-sm text-gray-700">
+                  Was originally purchased with cash (no mortgage)
+                </label>
               </div>
             </div>
           </div>
