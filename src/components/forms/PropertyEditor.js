@@ -62,7 +62,14 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
     originalInsuranceMonthly: property.original_insurance_monthly || '',
     originalMaintenancePctRent: property.original_maintenance_pct_rent || '',
     originalVacancyPctRent: property.original_vacancy_pct_rent || '',
-    originalManagementPctRent: property.original_management_pct_rent || ''
+    originalManagementPctRent: property.original_management_pct_rent || '',
+    // Original mortgage terms
+    originalDownPaymentPct: property.original_down_payment_pct || '',
+    originalInterestAprPct: property.original_interest_apr_pct || '',
+    originalLoanYears: property.original_loan_years || '',
+    originalClosingCosts: property.original_closing_costs || '',
+    originalRepairCosts: property.original_repair_costs || '',
+    originalMortgageFree: property.original_mortgage_free || false
   });
 
   const [saving, setSaving] = useState(false);
@@ -155,7 +162,23 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
         currentMortgageBalance: form.currentMortgageBalance,
         currentMortgageRate: form.currentMortgageRate,
         currentMortgagePayment: form.currentMortgagePayment,
-        currentMortgageTermRemaining: form.currentMortgageTermRemaining
+        currentMortgageTermRemaining: form.currentMortgageTermRemaining,
+        // Original values for historical tracking (convert empty to null)
+        original30yAtroi: form.original30yAtroi || null,
+        originalCalculationDate: form.originalCalculationDate || null,
+        originalMonthlyRent: form.originalMonthlyRent || null,
+        originalPropertyTaxPct: form.originalPropertyTaxPct || null,
+        originalInsuranceMonthly: form.originalInsuranceMonthly || null,
+        originalMaintenancePctRent: form.originalMaintenancePctRent || null,
+        originalVacancyPctRent: form.originalVacancyPctRent || null,
+        originalManagementPctRent: form.originalManagementPctRent || null,
+        // Original mortgage terms
+        originalDownPaymentPct: form.originalDownPaymentPct || null,
+        originalInterestAprPct: form.originalInterestAprPct || null,
+        originalLoanYears: form.originalLoanYears || null,
+        originalClosingCosts: form.originalClosingCosts || null,
+        originalRepairCosts: form.originalRepairCosts || null,
+        originalMortgageFree: form.originalMortgageFree || false
       };
       
       const res = await fetch(`/api/properties/${property.id}`, {
@@ -165,8 +188,15 @@ export default function PropertyEditor({ property, onUpdate, onCancel }) {
       });
       
       if (!res.ok) {
-        const errorData = await res.json();
-        console.error('API Error:', errorData);
+        const errorText = await res.text();
+        console.error('API Error Response:', errorText);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: `HTTP ${res.status}: ${errorText}` };
+        }
+        console.error('API Error Data:', errorData);
         throw new Error(errorData.error || 'Failed to update property');
       }
       

@@ -322,9 +322,10 @@ export function analyze({
     const totalManagement = annualManagement * years;
     totalExpenses += totalManagement;
     
-    // Mortgage payments (if applicable)
+    // Mortgage payments - ALWAYS include for 30yATROI calculation (even for cash purchases)
+    // This represents what mortgage payments would have been over 30 years
     let totalMortgagePayments = 0;
-    if (!mortgageFree && pAndI > 0) {
+    if (pAndI > 0) {
       totalMortgagePayments = pAndI * 12 * years;
     }
     totalExpenses += totalMortgagePayments;

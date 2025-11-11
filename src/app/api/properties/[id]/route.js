@@ -21,6 +21,45 @@ export async function PUT(req, { params }) {
     if (body.squareFootage === '') body.squareFootage = null;
     if (body.yearBuilt === '') body.yearBuilt = null;
     if (body.abbreviation === '') body.abbreviation = null;
+    
+    // Handle original values fields (convert empty strings to null)
+    const originalFields = [
+      'original30yAtroi', 'originalMonthlyRent', 'originalPropertyTaxPct',
+      'originalInsuranceMonthly', 'originalMaintenancePctRent', 
+      'originalVacancyPctRent', 'originalManagementPctRent',
+      'originalDownPaymentPct', 'originalInterestAprPct', 'originalLoanYears',
+      'originalClosingCosts', 'originalRepairCosts'
+    ];
+    for (const field of originalFields) {
+      if (body[field] === '') body[field] = null;
+    }
+    if (body.originalCalculationDate === '') body.originalCalculationDate = null;
+    
+    // Handle current property values fields (convert empty strings to null)
+    const currentValueFields = [
+      'currentRentMonthly', 'currentInsuranceAnnual', 'currentCountyTaxRate', 
+      'currentCityTaxRate', 'currentAppraisalValue', 'currentExpensesAnnual',
+      'currentManagementPct', 'currentHoaMonthly', 'currentMarketValue',
+      'assessmentPercentage', 'currentMortgageBalance', 'currentMortgageRate',
+      'currentMortgagePayment', 'currentMortgageTermRemaining', 'insuranceAnnual'
+    ];
+    for (const field of currentValueFields) {
+      if (body[field] === '') body[field] = null;
+    }
+    
+    // Additional safety check for any remaining empty string fields that could be numeric
+    for (const key in body) {
+      if (body[key] === '') {
+        // Only convert empty strings to null for fields that should be numeric/null
+        const numericFields = [
+          'taxAnnual', 'repairCosts', 'assessmentPercentage', 'currentExpensesAnnual',
+          'crimeIndex', 'crimeScore', 'insuranceAnnual'
+        ];
+        if (numericFields.includes(key)) {
+          body[key] = null;
+        }
+      }
+    }
     // basic validation for required numeric fields
     const requiredNums = ['purchasePrice','downPct','rateApr','years','monthlyRent','taxPct','hoaMonthly','insuranceMonthly','maintPctRent','vacancyPctRent','mgmtPctRent','otherMonthly'];
     for (const k of requiredNums) {
