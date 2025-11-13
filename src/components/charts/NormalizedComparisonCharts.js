@@ -183,7 +183,7 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
         </div>
       </div>
       
-      <div className="h-64">
+      <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -304,8 +304,8 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
         </div>
       </div>
 
-      {/* Side-by-side Charts */}
-      <div className="grid grid-cols-2 gap-6">
+      {/* Full-width Charts */}
+      <div className="space-y-6">
         {renderChart(equityData, "Normalized Equity Growth", "Growth Multiple")}
         {renderChart(equityCashData, "Normalized Equity + Cash Growth", "Growth Multiple")}
       </div>
