@@ -72,6 +72,41 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
     });
   }, [allItems]);
 
+  // Helper functions for extrapolation
+  const calculateIncomeGrowthRate = (yearlyData) => {
+    if (!yearlyData || yearlyData.length < 2) return 0.025; // Default 2.5% if insufficient data
+    
+    const sortedData = yearlyData.filter(d => d.income && Number(d.income) > 0).sort((a, b) => a.year - b.year);
+    if (sortedData.length < 2) return 0.025;
+    
+    const firstYear = sortedData[0];
+    const lastYear = sortedData[sortedData.length - 1];
+    const yearsDiff = lastYear.year - firstYear.year;
+    
+    if (yearsDiff === 0) return 0.025;
+    
+    const growthRate = (Number(lastYear.income) / Number(firstYear.income)) ** (1 / yearsDiff) - 1;
+    // Cap growth rate between -5% and 15% to avoid extreme projections
+    return Math.max(-0.05, Math.min(0.15, growthRate));
+  };
+
+  const calculateExpenseGrowthRate = (yearlyData) => {
+    if (!yearlyData || yearlyData.length < 2) return 0.025; // Default 2.5% if insufficient data
+    
+    const sortedData = yearlyData.filter(d => d.expenses && Number(d.expenses) > 0).sort((a, b) => a.year - b.year);
+    if (sortedData.length < 2) return 0.025;
+    
+    const firstYear = sortedData[0];
+    const lastYear = sortedData[sortedData.length - 1];
+    const yearsDiff = lastYear.year - firstYear.year;
+    
+    if (yearsDiff === 0) return 0.025;
+    
+    const growthRate = (Number(lastYear.expenses) / Number(firstYear.expenses)) ** (1 / yearsDiff) - 1;
+    // Cap growth rate between -5% and 15% to avoid extreme projections
+    return Math.max(-0.05, Math.min(0.15, growthRate));
+  };
+
   // Stable chart data generation
   const chartData = useMemo(() => {
     const currentYear = 2025;
@@ -181,12 +216,38 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
           const propertyHistoricalData = historicalData[property.id];
           
           if (isPurchased && propertyHistoricalData && propertyHistoricalData.length > 0) {
-            // Use actual historical data for purchased properties with yearly data
-            for (let histYear = purchaseYear; histYear <= year; histYear++) {
+            // Use actual historical data and extrapolate for future years
+            
+            // Calculate historical cash flows up to current year
+            for (let histYear = purchaseYear; histYear <= Math.min(year, currentYear); histYear++) {
               const yearData = propertyHistoricalData.find(d => d.year === histYear);
               if (yearData) {
                 const annualNetCashFlow = Number(yearData.income || 0) - Number(yearData.expenses || 0);
                 cumulativeNetCashFlow += annualNetCashFlow;
+              }
+            }
+            
+            // For future years, extrapolate based on historical trends
+            if (year > currentYear) {
+              const incomeGrowthRate = calculateIncomeGrowthRate(propertyHistoricalData);
+              const expenseGrowthRate = calculateExpenseGrowthRate(propertyHistoricalData);
+              
+              // Get most recent year's data as baseline
+              const latestData = propertyHistoricalData.reduce((latest, data) => 
+                data.year > latest.year ? data : latest
+              );
+              
+              let projectedIncome = Number(latestData.income || 0);
+              let projectedExpenses = Number(latestData.expenses || 0);
+              
+              // Project each future year
+              for (let futureYear = currentYear + 1; futureYear <= year; futureYear++) {
+                const yearsFromLatest = futureYear - latestData.year;
+                projectedIncome = Number(latestData.income || 0) * Math.pow(1 + incomeGrowthRate, yearsFromLatest);
+                projectedExpenses = Number(latestData.expenses || 0) * Math.pow(1 + expenseGrowthRate, yearsFromLatest);
+                
+                const projectedNetCashFlow = projectedIncome - projectedExpenses;
+                cumulativeNetCashFlow += projectedNetCashFlow;
               }
             }
           } else {
