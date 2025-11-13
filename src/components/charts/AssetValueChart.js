@@ -13,6 +13,8 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
   const [autoFit, setAutoFit] = useState(false);
   const [yAxisDomain, setYAxisDomain] = useState(['dataMin', 'dataMax']);
   const [xAxisDomain, setXAxisDomain] = useState(['dataMin', 'dataMax']);
+  const [showValueLines, setShowValueLines] = useState(true);
+  const [showIncomeLines, setShowIncomeLines] = useState(true);
   
   // Merge properties and scenarios into combined list for processing
   const allProperties = useMemo(() => mergePropertiesAndScenarios(properties, scenarios), [properties, scenarios]);
@@ -363,6 +365,30 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
             </div>
           </div>
           
+          {/* Line Type Toggles */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowValueLines(!showValueLines)}
+              className={`px-3 py-1 text-xs rounded ${
+                showValueLines
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {viewMode === 'equity' ? 'EQUITY' : 'VALUE'}
+            </button>
+            <button
+              onClick={() => setShowIncomeLines(!showIncomeLines)}
+              className={`px-3 py-1 text-xs rounded ${
+                showIncomeLines
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {viewMode === 'equity' ? 'EQ+INCOME' : 'VAL+INCOME'}
+            </button>
+          </div>
+
           {/* Property Toggles */}
           <div className="flex flex-wrap gap-2">
             {allProperties.map((property, index) => {
@@ -467,13 +493,13 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
                         <svg width="16" height="3">
                           <line x1="0" y1="1.5" x2="16" y2="1.5" stroke="#666" strokeWidth="2" />
                         </svg>
-                        <span className="text-xs text-gray-700">{viewMode === 'equity' ? 'Equity' : 'Value'} (solid)</span>
+                        <span className="text-xs text-gray-700">{viewMode === 'equity' ? 'Equity' : 'Value'} (solid for owned, dashed for projected)</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <svg width="16" height="3">
                           <line x1="0" y1="1.5" x2="16" y2="1.5" stroke="#666" strokeWidth="2" strokeDasharray="5 5" />
                         </svg>
-                        <span className="text-xs text-gray-700">{viewMode === 'equity' ? 'Eq+Income' : 'Val+Income'} (dashed)</span>
+                        <span className="text-xs text-gray-700">{viewMode === 'equity' ? 'Eq+Income' : 'Val+Income'} (dotted)</span>
                       </div>
                     </div>
                   </div>
@@ -494,24 +520,28 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
                 
                 return (
                   <React.Fragment key={property.id}>
-                    <Line
-                      type="monotone"
-                      dataKey={viewMode === 'equity' ? `${displayLabel}_equity` : `${displayLabel}_value`}
-                      stroke={color}
-                      strokeWidth={2}
-                      strokeDasharray={strokeDashArray}
-                      name={`${displayLabel}${isPurchased ? '' : ' (Projected)'} - ${viewMode === 'equity' ? 'Equity' : 'Value'}`}
-                      connectNulls={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey={viewMode === 'equity' ? `${displayLabel}_equity_plus_income` : `${displayLabel}_value_plus_income`}
-                      stroke={color}
-                      strokeWidth={2}
-                      strokeDasharray={isPurchased ? "5 5" : "3 3"}
-                      name={`${displayLabel}${isPurchased ? '' : ' (Projected)'} - ${viewMode === 'equity' ? 'Eq+Cash' : 'Val+Cash'}`}
-                      connectNulls={false}
-                    />
+                    {showValueLines && (
+                      <Line
+                        type="monotone"
+                        dataKey={viewMode === 'equity' ? `${displayLabel}_equity` : `${displayLabel}_value`}
+                        stroke={color}
+                        strokeWidth={2}
+                        strokeDasharray={strokeDashArray}
+                        name={`${displayLabel}${isPurchased ? '' : ' (Projected)'} - ${viewMode === 'equity' ? 'Equity' : 'Value'}`}
+                        connectNulls={false}
+                      />
+                    )}
+                    {showIncomeLines && (
+                      <Line
+                        type="monotone"
+                        dataKey={viewMode === 'equity' ? `${displayLabel}_equity_plus_income` : `${displayLabel}_value_plus_income`}
+                        stroke={color}
+                        strokeWidth={2}
+                        strokeDasharray={isPurchased ? "5 5" : "3 3"}
+                        name={`${displayLabel}${isPurchased ? '' : ' (Projected)'} - ${viewMode === 'equity' ? 'Eq+Cash' : 'Val+Cash'}`}
+                        connectNulls={false}
+                      />
+                    )}
                   </React.Fragment>
                 );
               })}
