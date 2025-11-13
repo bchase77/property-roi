@@ -15,9 +15,39 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
   const [xAxisDomain, setXAxisDomain] = useState(['dataMin', 'dataMax']);
   const [showValueLines, setShowValueLines] = useState(true);
   const [showIncomeLines, setShowIncomeLines] = useState(true);
+  const [historicalData, setHistoricalData] = useState({});
   
   // Merge properties and scenarios into combined list for processing
   const allProperties = useMemo(() => mergePropertiesAndScenarios(properties, scenarios), [properties, scenarios]);
+  
+  // Fetch historical data for properties with yearly data
+  useEffect(() => {
+    const fetchHistoricalData = async () => {
+      const historicalDataMap = {};
+      
+      for (const property of properties) {
+        if (property.purchased) {
+          try {
+            const response = await fetch(`/api/properties/${property.id}/years`);
+            if (response.ok) {
+              const yearlyData = await response.json();
+              if (yearlyData && yearlyData.length > 0) {
+                historicalDataMap[property.id] = yearlyData;
+              }
+            }
+          } catch (error) {
+            console.error(`Failed to fetch historical data for property ${property.id}:`, error);
+          }
+        }
+      }
+      
+      setHistoricalData(historicalDataMap);
+    };
+    
+    if (properties.length > 0) {
+      fetchHistoricalData();
+    }
+  }, [properties]);
   
   // Stable visibility state - initialize once
   const allItems = allProperties;
@@ -146,26 +176,40 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
             }
           }
           
-          // Calculate cumulative net cash flow (NOI - mortgage payments)
-          const yearsOfIncome = isPurchased ? Math.max(0, year - purchaseYear) : Math.max(0, year - currentYear);
+          // Calculate cumulative net cash flow using historical data when available
           let cumulativeNetCashFlow = 0;
+          const propertyHistoricalData = historicalData[property.id];
           
-          if (yearsOfIncome > 0) {
-            // Get current NOI and mortgage payment
-            const metrics = analyzeWithCurrentValues(property);
-            const annualNOI = metrics.noiAnnual || 0;
-            
-            let annualNetCashFlow = annualNOI;
-            
-            // For purchased properties with mortgages, subtract mortgage payments
-            if (isPurchased && !property.mortgage_free) {
-              const monthlyMortgagePayment = metrics.pAndI || 0;
-              const annualMortgagePayment = monthlyMortgagePayment * 12;
-              annualNetCashFlow = annualNOI - annualMortgagePayment;
+          if (isPurchased && propertyHistoricalData && propertyHistoricalData.length > 0) {
+            // Use actual historical data for purchased properties with yearly data
+            for (let histYear = purchaseYear; histYear <= year; histYear++) {
+              const yearData = propertyHistoricalData.find(d => d.year === histYear);
+              if (yearData) {
+                const annualNetCashFlow = Number(yearData.income || 0) - Number(yearData.expenses || 0);
+                cumulativeNetCashFlow += annualNetCashFlow;
+              }
             }
+          } else {
+            // Fallback to current NOI projection for properties without historical data
+            const yearsOfIncome = isPurchased ? Math.max(0, year - purchaseYear) : Math.max(0, year - currentYear);
             
-            // Cumulative net cash flow over all years owned/projected
-            cumulativeNetCashFlow = annualNetCashFlow * yearsOfIncome;
+            if (yearsOfIncome > 0) {
+              // Get current NOI and mortgage payment
+              const metrics = analyzeWithCurrentValues(property);
+              const annualNOI = metrics.noiAnnual || 0;
+              
+              let annualNetCashFlow = annualNOI;
+              
+              // For purchased properties with mortgages, subtract mortgage payments
+              if (isPurchased && !property.mortgage_free) {
+                const monthlyMortgagePayment = metrics.pAndI || 0;
+                const annualMortgagePayment = monthlyMortgagePayment * 12;
+                annualNetCashFlow = annualNOI - annualMortgagePayment;
+              }
+              
+              // Cumulative net cash flow over all years owned/projected
+              cumulativeNetCashFlow = annualNetCashFlow * yearsOfIncome;
+            }
           }
           
           // Store rounded values (note: "_plus_income" now represents cumulative net cash flow)
@@ -180,7 +224,7 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
     });
     
     return data;
-  }, [allProperties, timeRange, visibleProperties, refreshKey]);
+  }, [allProperties, timeRange, visibleProperties, refreshKey, historicalData]);
 
   // Reset auto-fit when visibility changes
   useEffect(() => {
@@ -189,7 +233,7 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
       setYAxisDomain(['dataMin', 'dataMax']);
       setXAxisDomain(['dataMin', 'dataMax']);
     }
-  }, [visibleProperties, showUnpurchased, viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visibleProperties, showUnpurchased, viewMode, historicalData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate auto-fit domains based on visible data
   const calculateAutoFit = () => {
