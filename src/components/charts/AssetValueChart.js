@@ -73,37 +73,121 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
   }, [allItems]);
 
   // Helper functions for extrapolation
-  const calculateIncomeGrowthRate = (yearlyData) => {
+  const calculateIncomeGrowthRate = (yearlyData, property) => {
     if (!yearlyData || yearlyData.length < 2) return 0.025; // Default 2.5% if insufficient data
     
     const sortedData = yearlyData.filter(d => d.income && Number(d.income) > 0).sort((a, b) => a.year - b.year);
     if (sortedData.length < 2) return 0.025;
     
-    const firstYear = sortedData[0];
-    const lastYear = sortedData[sortedData.length - 1];
+    // Adjust first year if it's a partial year (purchased mid-year)
+    let adjustedData = [...sortedData];
+    const purchaseYear = property.year_purchased;
+    const purchaseMonth = property.month_purchased;
+    
+    if (purchaseMonth && purchaseMonth > 1 && sortedData[0].year === purchaseYear) {
+      // Extrapolate partial year to full year
+      const monthsOwned = 13 - purchaseMonth; // Months remaining in year after purchase
+      const annualizedIncome = (Number(sortedData[0].income) * 12) / monthsOwned;
+      adjustedData[0] = { ...sortedData[0], income: annualizedIncome };
+    }
+    
+    // Use recent trend if we have enough data (last 5-7 years)
+    const recentYears = adjustedData.slice(-Math.min(7, adjustedData.length));
+    
+    if (recentYears.length >= 3) {
+      // Calculate average year-over-year growth for recent years
+      let totalGrowth = 0;
+      let validYears = 0;
+      
+      for (let i = 1; i < recentYears.length; i++) {
+        const prevIncome = Number(recentYears[i-1].income);
+        const currIncome = Number(recentYears[i].income);
+        
+        if (prevIncome > 0) {
+          const yearGrowth = (currIncome - prevIncome) / prevIncome;
+          
+          // Filter out extreme outliers (>50% single year growth)
+          if (yearGrowth >= -0.5 && yearGrowth <= 0.5) {
+            totalGrowth += yearGrowth;
+            validYears++;
+          }
+        }
+      }
+      
+      if (validYears > 0) {
+        const avgGrowthRate = totalGrowth / validYears;
+        // Cap growth rate between -5% and 15%
+        return Math.max(-0.05, Math.min(0.15, avgGrowthRate));
+      }
+    }
+    
+    // Fallback to CAGR if recent trend calculation fails
+    const firstYear = adjustedData[0];
+    const lastYear = adjustedData[adjustedData.length - 1];
     const yearsDiff = lastYear.year - firstYear.year;
     
     if (yearsDiff === 0) return 0.025;
     
     const growthRate = (Number(lastYear.income) / Number(firstYear.income)) ** (1 / yearsDiff) - 1;
-    // Cap growth rate between -5% and 15% to avoid extreme projections
     return Math.max(-0.05, Math.min(0.15, growthRate));
   };
 
-  const calculateExpenseGrowthRate = (yearlyData) => {
+  const calculateExpenseGrowthRate = (yearlyData, property) => {
     if (!yearlyData || yearlyData.length < 2) return 0.025; // Default 2.5% if insufficient data
     
     const sortedData = yearlyData.filter(d => d.expenses && Number(d.expenses) > 0).sort((a, b) => a.year - b.year);
     if (sortedData.length < 2) return 0.025;
     
-    const firstYear = sortedData[0];
-    const lastYear = sortedData[sortedData.length - 1];
+    // Adjust first year if it's a partial year (purchased mid-year)
+    let adjustedData = [...sortedData];
+    const purchaseYear = property.year_purchased;
+    const purchaseMonth = property.month_purchased;
+    
+    if (purchaseMonth && purchaseMonth > 1 && sortedData[0].year === purchaseYear) {
+      // Extrapolate partial year to full year
+      const monthsOwned = 13 - purchaseMonth; // Months remaining in year after purchase
+      const annualizedExpenses = (Number(sortedData[0].expenses) * 12) / monthsOwned;
+      adjustedData[0] = { ...sortedData[0], expenses: annualizedExpenses };
+    }
+    
+    // Use recent trend if we have enough data (last 5-7 years)
+    const recentYears = adjustedData.slice(-Math.min(7, adjustedData.length));
+    
+    if (recentYears.length >= 3) {
+      // Calculate average year-over-year growth for recent years
+      let totalGrowth = 0;
+      let validYears = 0;
+      
+      for (let i = 1; i < recentYears.length; i++) {
+        const prevExpenses = Number(recentYears[i-1].expenses);
+        const currExpenses = Number(recentYears[i].expenses);
+        
+        if (prevExpenses > 0) {
+          const yearGrowth = (currExpenses - prevExpenses) / prevExpenses;
+          
+          // Filter out extreme outliers (>50% single year growth)
+          if (yearGrowth >= -0.5 && yearGrowth <= 0.5) {
+            totalGrowth += yearGrowth;
+            validYears++;
+          }
+        }
+      }
+      
+      if (validYears > 0) {
+        const avgGrowthRate = totalGrowth / validYears;
+        // Cap growth rate between -5% and 15%
+        return Math.max(-0.05, Math.min(0.15, avgGrowthRate));
+      }
+    }
+    
+    // Fallback to CAGR if recent trend calculation fails
+    const firstYear = adjustedData[0];
+    const lastYear = adjustedData[adjustedData.length - 1];
     const yearsDiff = lastYear.year - firstYear.year;
     
     if (yearsDiff === 0) return 0.025;
     
     const growthRate = (Number(lastYear.expenses) / Number(firstYear.expenses)) ** (1 / yearsDiff) - 1;
-    // Cap growth rate between -5% and 15% to avoid extreme projections
     return Math.max(-0.05, Math.min(0.15, growthRate));
   };
 
@@ -229,8 +313,8 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
             
             // For future years, extrapolate based on historical trends
             if (year > currentYear) {
-              const incomeGrowthRate = calculateIncomeGrowthRate(propertyHistoricalData);
-              const expenseGrowthRate = calculateExpenseGrowthRate(propertyHistoricalData);
+              const incomeGrowthRate = calculateIncomeGrowthRate(propertyHistoricalData, property);
+              const expenseGrowthRate = calculateExpenseGrowthRate(propertyHistoricalData, property);
               
               // Get most recent year's data as baseline
               const latestData = propertyHistoricalData.reduce((latest, data) => 
