@@ -4,7 +4,7 @@ import { calculateEquityAtYear, analyzeWithCurrentValues, mortgageMonthly } from
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
 import { mergePropertiesAndScenarios } from '@/lib/scenarioHelpers';
 
-export default function AssetValueChart({ properties = [], scenarios = [] }) {
+export default function AssetValueChart({ properties = [], scenarios = [], onRefreshData, isPopout = false }) {
   const [timeRange, setTimeRange] = useState('10y');
   const [viewMode, setViewMode] = useState('market'); // 'market' or 'equity'
   const [showUnpurchased, setShowUnpurchased] = useState(true);
@@ -17,8 +17,12 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
   const [showIncomeLines, setShowIncomeLines] = useState(true);
   const [historicalData, setHistoricalData] = useState({});
   
+  // State for cash purchase scenarios
+  const [showCashPurchase, setShowCashPurchase] = useState(false);
+  const [hoveredLine, setHoveredLine] = useState(null);
+  
   // Merge properties and scenarios into combined list for processing
-  const allProperties = useMemo(() => mergePropertiesAndScenarios(properties, scenarios), [properties, scenarios]);
+  const allProperties = useMemo(() => mergePropertiesAndScenarios(properties, scenarios, showCashPurchase), [properties, scenarios, showCashPurchase]);
   
   // Fetch historical data for properties with yearly data
   useEffect(() => {
@@ -105,12 +109,8 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
         
         if (prevIncome > 0) {
           const yearGrowth = (currIncome - prevIncome) / prevIncome;
-          
-          // Filter out extreme outliers (>50% single year growth)
-          if (yearGrowth >= -0.5 && yearGrowth <= 0.5) {
-            totalGrowth += yearGrowth;
-            validYears++;
-          }
+          totalGrowth += yearGrowth;
+          validYears++;
         }
       }
       
@@ -164,12 +164,8 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
         
         if (prevExpenses > 0) {
           const yearGrowth = (currExpenses - prevExpenses) / prevExpenses;
-          
-          // Filter out extreme outliers (>50% single year growth)
-          if (yearGrowth >= -0.5 && yearGrowth <= 0.5) {
-            totalGrowth += yearGrowth;
-            validYears++;
-          }
+          totalGrowth += yearGrowth;
+          validYears++;
         }
       }
       
@@ -191,22 +187,24 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
     return Math.max(-0.05, Math.min(0.15, growthRate));
   };
 
+  // Calculate time range
+  const currentYear = 2025;
+  let startYear;
+  
+  switch (timeRange) {
+    case 'now': startYear = currentYear; break;
+    case '2y': startYear = currentYear - 2; break;
+    case '5y': startYear = currentYear - 5; break;
+    case 'all': startYear = 2012; break;
+    default: startYear = currentYear - 10; break;
+  }
+  
+  // Add projection years
+  const projectionExtension = projectionYears === '10y' ? 10 : 5;
+  const endYear = currentYear + projectionExtension;
+
   // Stable chart data generation
   const chartData = useMemo(() => {
-    const currentYear = 2025;
-    let startYear;
-    
-    switch (timeRange) {
-      case 'now': startYear = currentYear; break;
-      case '2y': startYear = currentYear - 2; break;
-      case '5y': startYear = currentYear - 5; break;
-      case 'all': startYear = 2012; break;
-      default: startYear = currentYear - 10; break;
-    }
-    
-    // Add projection years
-    const projectionExtension = projectionYears === '10y' ? 10 : 5;
-    const endYear = currentYear + projectionExtension;
     
     const years = [];
     for (let year = startYear; year <= endYear; year++) {
@@ -368,17 +366,30 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
       return dataPoint;
     });
     
-    return data;
-  }, [allProperties, timeRange, visibleProperties, refreshKey, historicalData]);
+    // Filter out data points that have no property data
+    const filteredData = data.filter(dataPoint => {
+      // Keep data point if it has any property values (other than just the year)
+      return Object.keys(dataPoint).length > 1;
+    });
+    
+    return filteredData;
+  }, [allProperties, timeRange, visibleProperties, refreshKey, historicalData, startYear, endYear]);
 
-  // Reset auto-fit when visibility changes
+  // Reset auto-fit when view mode or data changes, but not when toggling property visibility
   useEffect(() => {
     if (autoFit) {
       setAutoFit(false);
       setYAxisDomain(['dataMin', 'dataMax']);
       setXAxisDomain(['dataMin', 'dataMax']);
     }
-  }, [visibleProperties, showUnpurchased, viewMode, historicalData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [viewMode, historicalData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Recalculate auto-fit when properties are toggled
+  useEffect(() => {
+    if (autoFit) {
+      calculateAutoFit();
+    }
+  }, [visibleProperties, showUnpurchased]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate auto-fit domains based on visible data
   const calculateAutoFit = () => {
@@ -453,14 +464,37 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
     }));
   };
 
-  const refreshChart = () => {
+  const refreshChart = async () => {
+    // Refresh property data from database if function is provided
+    if (onRefreshData) {
+      await onRefreshData();
+    }
+    // Then refresh chart calculations
     setRefreshKey(prev => prev + 1);
+  };
+
+  const popOutChart = () => {
+    // Open chart in new window using dedicated route
+    const popoutUrl = '/charts/asset-value';
+    const popoutWindow = window.open(
+      popoutUrl, 
+      'AssetValueChart', 
+      'width=1400,height=900,scrollbars=yes,resizable=yes,toolbar=no,location=no,status=no'
+    );
+    
+    if (!popoutWindow) {
+      alert('Please allow pop-ups for this site to use the chart pop-out feature.');
+      return;
+    }
+
+    // Focus the new window
+    popoutWindow.focus();
   };
 
   const colors = ['#8884d8', '#82ca9d', '#a82222', '#ff7300', '#00ff00', '#ff00ff'];
 
   return (
-    <div className="bg-white rounded-lg border p-6">
+    <div className={`bg-white rounded-lg border p-6 ${isPopout ? 'flex flex-col h-full' : ''}`}>
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-600">Asset Value</h3>
@@ -489,8 +523,18 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
             <span>{autoFit ? '🔒' : '📐'}</span>
             <span>{autoFit ? 'Reset' : 'Auto-Fit'}</span>
           </button>
+          {!isPopout && (
+            <button
+              onClick={popOutChart}
+              className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
+              title="Open chart in new window"
+            >
+              <span>🔗</span>
+              <span>Pop Out</span>
+            </button>
+          )}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           {/* View Mode Selector */}
           <div className="flex gap-1 border rounded">
             {[{key: 'market', label: 'Market'}, {key: 'equity', label: 'Equity'}].map((mode) => (
@@ -537,6 +581,16 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
               <span className="text-gray-600">Show Unpurchased</span>
             </label>
             
+            <label className="flex items-center gap-1 text-xs">
+              <input
+                type="checkbox"
+                checked={showCashPurchase}
+                onChange={(e) => setShowCashPurchase(e.target.checked)}
+                className="w-3 h-3"
+              />
+              <span className="text-gray-600">Cash Purchase Scenarios</span>
+            </label>
+            
             <div className="flex gap-1 border rounded">
               {['5y', '10y'].map((years) => (
                 <button
@@ -579,27 +633,39 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
           </div>
 
           {/* Property Toggles */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
             {allProperties.map((property, index) => {
               const isPurchased = Boolean(property.purchased);
+              const isCashPurchase = property.isCashPurchaseScenario;
               if (!isPurchased && !showUnpurchased) return null;
               
               return (
                 <button
                   key={property.id}
                   onClick={() => toggleProperty(property.id)}
-                  className={`px-2 py-1 text-xs rounded ${
+                  onMouseEnter={() => setHoveredLine(`${getPropertyDisplayLabel(property)}_${viewMode}`)}
+                  onMouseLeave={() => setHoveredLine(null)}
+                  className={`px-1 py-0.5 text-xs rounded transition-all ${
+                    hoveredLine === `${getPropertyDisplayLabel(property)}_${viewMode}` 
+                      ? 'ring-2 ring-blue-400 shadow-md transform scale-105'
+                      : ''
+                  } ${
                     visibleProperties[property.id]
-                      ? (isPurchased ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800')
+                      ? (isPurchased 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : isCashPurchase 
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-orange-100 text-orange-800')
                       : 'bg-gray-100 text-gray-500'
                   }`}
                   style={{
-                    borderLeftWidth: '4px',
+                    borderLeftWidth: '3px',
                     borderLeftStyle: 'solid',
                     borderLeftColor: colors[index % colors.length]
                   }}
+                  title={`${getPropertyDisplayLabel(property)} - Click to toggle, hover to highlight on chart`}
                 >
-                  {getPropertyDisplayLabel(property)}{!isPurchased ? ' 📊' : ''}
+                  {getPropertyDisplayLabel(property)}{!isPurchased ? (isCashPurchase ? ' 💰' : '') : ''}
                 </button>
               );
             })}
@@ -607,13 +673,13 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
         </div>
       </div>
       
-      <div className="h-80">
+      <div className={isPopout ? "flex-1 min-h-0" : "h-80"}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
               dataKey="year" 
-              domain={autoFit ? xAxisDomain : ['dataMin', 'dataMax']}
+              domain={autoFit ? xAxisDomain : [startYear, endYear]}
               type="number"
               scale="linear"
             />
@@ -623,19 +689,112 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
               type="number"
             />
             <Tooltip 
-              formatter={(value, name) => [`$${value.toLocaleString()}`, name]}
-              labelFormatter={(year) => `Year: ${year}`}
-              contentStyle={{
-                backgroundColor: 'white',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                color: '#333',
-                fontSize: '14px',
-                fontWeight: '500'
+              content={({ active, payload, label }) => {
+                if (!active || !payload || payload.length === 0 || !hoveredLine) return null;
+                
+                // Filter out empty name entries (invisible hover lines)
+                const validPayload = payload.filter(item => item.name && item.name.trim() !== '');
+                if (validPayload.length === 0) return null;
+                
+                // Find the payload item that matches the currently hovered line
+                let targetItem = null;
+                
+                // Extract property name from hoveredLine (e.g., "5617 BlkM_market" -> "5617 BlkM")
+                const propertyFromHover = hoveredLine.split('_')[0];
+                
+                // Look for payload item that matches the hovered property
+                // First pass: look for visible lines (ones with proper names like "Property - Type")
+                for (const item of validPayload) {
+                  const itemKey = item.dataKey || '';
+                  const itemName = item.name || '';
+                  
+                  // Check if this item's dataKey belongs to the hovered property
+                  if (itemKey.startsWith(propertyFromHover)) {
+                    // Also check if it matches the line type (equity vs value, with/without income)
+                    const isIncomeHover = hoveredLine.includes('_income');
+                    const isIncomeItem = itemKey.includes('_plus_income');
+                    
+                    if (isIncomeHover === isIncomeItem) {
+                      // Prefer items with proper names (visible lines) over dataKey-only names (invisible lines)
+                      if (itemName.includes(' - ') && (itemName.includes('Value') || itemName.includes('Equity') || itemName.includes('Cash'))) {
+                        targetItem = item;
+                        break;
+                      } else if (!targetItem) {
+                        // Use as fallback if no visible line found
+                        targetItem = item;
+                      }
+                    }
+                  }
+                }
+                
+                if (!targetItem) return null;
+                
+                const name = targetItem.name || '';
+                
+                // Extract property info from the line name
+                const isProjected = name.includes('(Projected)');
+                const isCashPurchase = name.includes('Cash Purchase');
+                const lineType = name.includes('Val+Cash') || name.includes('Eq+Cash') ? 
+                  (viewMode === 'equity' ? 'Equity + Cash Flow' : 'Value + Cash Flow') :
+                  (viewMode === 'equity' ? 'Equity Only' : 'Market Value');
+                
+                // Extract clean property name from the line name
+                let cleanName = name;
+                
+                // Remove the suffix pattern: " - (Equity|Value|Eq+Cash|Val+Cash)"
+                cleanName = cleanName.replace(/ - (Equity|Value|Eq\+Cash|Val\+Cash)$/, '');
+                // Remove " (Projected)" if present
+                cleanName = cleanName.replace(/ \(Projected\)$/, '');
+                cleanName = cleanName.trim();
+                
+                // If still empty, use the property name from hoveredLine as fallback
+                if (!cleanName || cleanName === '') {
+                  cleanName = propertyFromHover;
+                }
+                
+                // If cleanName is still empty, try a different approach - split on " - " and take first part
+                if (!cleanName || cleanName === '') {
+                  const parts = name.split(' - ');
+                  if (parts.length > 0) {
+                    cleanName = parts[0].replace(/ \(Projected\)$/, '').trim();
+                  }
+                }
+                
+                return (
+                  <div style={{
+                    backgroundColor: 'white',
+                    border: '2px solid #3b82f6',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    color: '#333',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    padding: '12px',
+                    minWidth: '200px'
+                  }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', color: '#1f2937' }}>
+                      📅 Year: {label}
+                    </div>
+                    <div style={{ marginBottom: '4px' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '15px', marginBottom: '2px', color: targetItem.stroke }}>
+                        {cleanName}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#666', marginBottom: '6px' }}>
+                        {lineType}
+                        {isProjected && ' (Projected)'}
+                        {isCashPurchase && ' 💰'}
+                      </div>
+                      <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#059669' }}>
+                        ${targetItem.value?.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                );
               }}
-              labelStyle={{
-                color: '#333',
-                fontWeight: '600'
+              cursor={{
+                stroke: '#3b82f6',
+                strokeWidth: 2,
+                strokeDasharray: '5 5'
               }}
             />
             <Legend 
@@ -710,26 +869,64 @@ export default function AssetValueChart({ properties = [], scenarios = [] }) {
                 return (
                   <React.Fragment key={property.id}>
                     {showValueLines && (
-                      <Line
-                        type="monotone"
-                        dataKey={viewMode === 'equity' ? `${displayLabel}_equity` : `${displayLabel}_value`}
-                        stroke={color}
-                        strokeWidth={2}
-                        strokeDasharray={strokeDashArray}
-                        name={`${displayLabel}${isPurchased ? '' : ' (Projected)'} - ${viewMode === 'equity' ? 'Equity' : 'Value'}`}
-                        connectNulls={false}
-                      />
+                      <>
+                        {/* Invisible wider line for better hover detection */}
+                        <Line
+                          type="monotone"
+                          dataKey={viewMode === 'equity' ? `${displayLabel}_equity` : `${displayLabel}_value`}
+                          stroke="transparent"
+                          strokeWidth={8}
+                          name=""
+                          connectNulls={false}
+                          onMouseEnter={() => setHoveredLine(`${displayLabel}_${viewMode}`)}
+                          onMouseLeave={() => setHoveredLine(null)}
+                          dot={false}
+                          activeDot={false}
+                        />
+                        {/* Visible line */}
+                        <Line
+                          type="monotone"
+                          dataKey={viewMode === 'equity' ? `${displayLabel}_equity` : `${displayLabel}_value`}
+                          stroke={color}
+                          strokeWidth={hoveredLine === `${displayLabel}_${viewMode}` ? 4 : 2}
+                          strokeOpacity={hoveredLine && hoveredLine !== `${displayLabel}_${viewMode}` ? 0.3 : 1}
+                          strokeDasharray={strokeDashArray}
+                          name={`${displayLabel}${isPurchased ? '' : ' (Projected)'} - ${viewMode === 'equity' ? 'Equity' : 'Value'}`}
+                          connectNulls={false}
+                          dot={hoveredLine === `${displayLabel}_${viewMode}` ? { fill: color, strokeWidth: 2, r: 4 } : false}
+                          activeDot={false}
+                        />
+                      </>
                     )}
                     {showIncomeLines && (
-                      <Line
-                        type="monotone"
-                        dataKey={viewMode === 'equity' ? `${displayLabel}_equity_plus_income` : `${displayLabel}_value_plus_income`}
-                        stroke={color}
-                        strokeWidth={2}
-                        strokeDasharray={isPurchased ? "5 5" : "3 3"}
-                        name={`${displayLabel}${isPurchased ? '' : ' (Projected)'} - ${viewMode === 'equity' ? 'Eq+Cash' : 'Val+Cash'}`}
-                        connectNulls={false}
-                      />
+                      <>
+                        {/* Invisible wider line for better hover detection */}
+                        <Line
+                          type="monotone"
+                          dataKey={viewMode === 'equity' ? `${displayLabel}_equity_plus_income` : `${displayLabel}_value_plus_income`}
+                          stroke="transparent"
+                          strokeWidth={8}
+                          name=""
+                          connectNulls={false}
+                          onMouseEnter={() => setHoveredLine(`${displayLabel}_${viewMode}_income`)}
+                          onMouseLeave={() => setHoveredLine(null)}
+                          dot={false}
+                          activeDot={false}
+                        />
+                        {/* Visible line */}
+                        <Line
+                          type="monotone"
+                          dataKey={viewMode === 'equity' ? `${displayLabel}_equity_plus_income` : `${displayLabel}_value_plus_income`}
+                          stroke={color}
+                          strokeWidth={hoveredLine === `${displayLabel}_${viewMode}_income` ? 4 : 2}
+                          strokeOpacity={hoveredLine && hoveredLine !== `${displayLabel}_${viewMode}_income` ? 0.3 : 1}
+                          strokeDasharray={isPurchased ? "5 5" : "3 3"}
+                          name={`${displayLabel}${isPurchased ? '' : ' (Projected)'} - ${viewMode === 'equity' ? 'Eq+Cash' : 'Val+Cash'}`}
+                          connectNulls={false}
+                          dot={hoveredLine === `${displayLabel}_${viewMode}_income` ? { fill: color, strokeWidth: 2, r: 4 } : false}
+                          activeDot={false}
+                        />
+                      </>
                     )}
                   </React.Fragment>
                 );
