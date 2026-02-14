@@ -43,3 +43,17 @@ Fine-grained PATs are designed to give minimal necessary access. Unless you need
 **User Prompt:** I now have the token. What do I do with it?
 
 **Response:** Claude Code handles GitHub authentication automatically in the background. The expired token warning was likely just GitHub notifying you, but Claude Code should handle updating its authentication automatically. No manual token updates needed in your project files.
+
+---
+
+## Session Start: 2026-02-14
+
+**Tracking prompts and work efforts for this session.**
+
+**User Prompt:** "Implement the following plan: Read-Only Property Detail View" — Create a "View" button on each property card in the Portfolio page that opens a concise, read-only detail page showing key property info and financial metrics.
+
+**Response:** Implemented the read-only property detail view:
+1. Created `/src/app/property/[id]/page.js` — New read-only detail page with header (address, ownership badge, purchase date), property details (bed/bath/sqft/year built), financial summary (purchase price, market value, rent, mortgage info), full FinancialPreview component (reused as-is), and notes section.
+2. Modified `src/components/ui/PropertyList.js` — Added a "View" link before the Edit button that opens the detail page in a new tab.
+
+Files changed: 2 (1 new, 1 modified)
