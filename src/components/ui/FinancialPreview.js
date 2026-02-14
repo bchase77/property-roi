@@ -244,6 +244,20 @@ export default function FinancialPreview({ form }) {
             <span>-{Money((form.monthlyRent || 0) * ((form.mgmtPctRent || 0) / 100))}</span>
           </div>
 
+          {Number(form.hoaMonthly) > 0 && (
+            <div className="flex justify-between text-gray-600">
+              <span>• HOA:</span>
+              <span>-{Money(form.hoaMonthly)}</span>
+            </div>
+          )}
+
+          {Number(form.otherMonthly) > 0 && (
+            <div className="flex justify-between text-gray-600">
+              <span>• Other:</span>
+              <span>-{Money(form.otherMonthly)}</span>
+            </div>
+          )}
+
           <div className="border-t pt-2">
             <div className="flex justify-between font-medium text-gray-700">
               <span>Net Operating Income:</span>
