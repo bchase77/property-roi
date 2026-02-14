@@ -215,7 +215,7 @@ export default function FinancialPreview({ form }) {
           </div>
           
           <div className="flex justify-between text-gray-700">
-            <span>Operating Expenses:</span>
+            <span>Operating Expenses (incl. vacancy):</span>
             <span className="text-red-600">-{Money(metrics.operatingExpenses)}</span>
           </div>
           
@@ -232,11 +232,6 @@ export default function FinancialPreview({ form }) {
           <div className="flex justify-between text-gray-600">
             <span>• Maintenance:</span>
             <span>-{Money((form.monthlyRent || 0) * ((form.maintPctRent || 0) / 100))}</span>
-          </div>
-          
-          <div className="flex justify-between text-gray-600">
-            <span>• Vacancy:</span>
-            <span>-{Money((form.monthlyRent || 0) * ((form.vacancyPctRent || 0) / 100))}</span>
           </div>
           
           <div className="flex justify-between text-gray-600">
@@ -264,6 +259,9 @@ export default function FinancialPreview({ form }) {
               <span className={metrics.noiMonthly >= 0 ? 'text-green-600' : 'text-red-600'}>
                 {Money(metrics.noiMonthly)}
               </span>
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              NOI excludes vacancy ({form.vacancyPctRent || 0}% = {Money((form.monthlyRent || 0) * ((form.vacancyPctRent || 0) / 100))}/mo)
             </div>
           </div>
 
