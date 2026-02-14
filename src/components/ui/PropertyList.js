@@ -331,11 +331,19 @@ function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
           ) : (
             // For regular properties, show normal buttons
             <>
-              <button 
+              <a
+                href={`/property/${property.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 text-sm rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+              >
+                View
+              </a>
+              <button
                 onClick={onEdit}
                 className={`px-3 py-1 text-sm rounded border ${
-                  isEditing 
-                    ? 'bg-blue-600 text-white border-blue-600' 
+                  isEditing
+                    ? 'bg-blue-600 text-white border-blue-600'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
