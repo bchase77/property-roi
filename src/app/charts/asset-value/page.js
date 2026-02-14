@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AssetValueChart from '@/components/charts/AssetValueChart';
 
-export default function AssetValuePopoutPage() {
+function AssetValueContent() {
   const [properties, setProperties] = useState([]);
   const [scenarios, setScenarios] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,15 +58,27 @@ export default function AssetValuePopoutPage() {
           Full-size interactive chart with all controls • {properties.length} properties loaded
         </div>
       </div>
-      
+
       <div style={{ height: 'calc(100vh - 140px)' }} className="flex flex-col">
-        <AssetValueChart 
-          properties={properties} 
+        <AssetValueChart
+          properties={properties}
           scenarios={scenarios}
           onRefreshData={loadData}
           isPopout={true}
         />
       </div>
     </div>
+  );
+}
+
+export default function AssetValuePopoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    }>
+      <AssetValueContent />
+    </Suspense>
   );
 }
