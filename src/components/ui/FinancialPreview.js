@@ -54,7 +54,7 @@ export default function FinancialPreview({ form }) {
     propertyAddress: form.address || form.abbreviation || `Property $${form.purchasePrice}`
   });
 
-  const Money = (v) => `$${Number(v).toLocaleString()}`;
+  const Money = (v) => `$${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const Pct = (v) => `${Number(v).toFixed(2)}%`;
 
   // Sample chart data - in real app this would be projections
