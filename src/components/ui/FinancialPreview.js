@@ -79,29 +79,35 @@ export default function FinancialPreview({ form }) {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <MetricCard 
-          label="Cap Rate (trgt >6%)" 
+        <MetricCard
+          label="Cap Rate (trgt >6%)"
           value={Pct(metrics.metrics.capRate)}
           description="Annual NOI / Purchase Price"
           color="blue"
         />
-        <MetricCard 
-          label="Cash-on-Cash (trgt >8%)" 
+        <MetricCard
+          label="Cash-on-Cash (trgt >8%)"
           value={Pct(metrics.metrics.cashOnCash)}
           description="Annual Cash Flow / Cash Invested"
           color="green"
         />
-        <MetricCard 
-          label="30y TRI (trgt >12%)" 
+        <MetricCard
+          label="30y TRI (trgt >12%)"
           value={Pct(metrics.metrics.tri30y)}
           description="30-Year Total Return w/ Inflation"
           color="purple"
         />
-        <MetricCard 
-          label="Gross Yield (trgt 8-12%)" 
+        <MetricCard
+          label="Gross Yield (trgt 8-12%)"
           value={Pct(metrics.metrics.grossYield)}
           description="Annual Rent / Purchase Price"
           color="orange"
+        />
+        <MetricCard
+          label="DSCR (trgt >1.25)"
+          value={form.mortgageFree ? 'N/A' : metrics.metrics.dscr.toFixed(2)}
+          description="NOI / Mortgage Payment"
+          color={form.mortgageFree ? 'indigo' : metrics.metrics.dscr >= 1.25 ? 'green' : metrics.metrics.dscr >= 1.0 ? 'orange' : 'purple'}
         />
       </div>
 

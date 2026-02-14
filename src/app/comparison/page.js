@@ -107,6 +107,7 @@ export default function ComparisonPage() {
   };
 
   const movePropertyUp = (propertyId) => {
+    setSortField(null); // Clear sort so manual order takes effect
     setPropertyOrder(prev => {
       const currentIndex = prev.indexOf(propertyId);
       if (currentIndex > 0) {
@@ -119,6 +120,7 @@ export default function ComparisonPage() {
   };
 
   const movePropertyDown = (propertyId) => {
+    setSortField(null); // Clear sort so manual order takes effect
     setPropertyOrder(prev => {
       const currentIndex = prev.indexOf(propertyId);
       if (currentIndex < prev.length - 1) {
