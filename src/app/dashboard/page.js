@@ -9,12 +9,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = 'PI Dashboard';
+    document.title = 'DH - ROI Dashboard';
   }, []);
 
   // Also set title immediately for new tabs
   if (typeof window !== 'undefined') {
-    document.title = 'PI Dashboard';
+    document.title = 'DH - ROI Dashboard';
   }
 
   useEffect(() => {

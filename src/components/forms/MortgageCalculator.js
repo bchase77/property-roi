@@ -60,11 +60,15 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
       scenarioName = `Scenario ${scenarioNumber}`;
     }
     
+    // Create scenario with different default values for comparison
+    const baseDownPct = form.downPct;
+    const scenarioDownPct = baseDownPct === 30 ? 50 : 30; // If base is 30%, suggest 50%, otherwise 30%
+    
     const newScenario = {
       name: scenarioName,
-      downPct: form.downPct,
-      rateApr: form.rateApr,
-      years: form.years,
+      downPct: scenarioDownPct,
+      rateApr: form.rateApr, // Keep same rate initially
+      years: form.years,     // Keep same term initially
       points: 0,
       closingCosts: 0
     };
@@ -119,11 +123,15 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
   };
 
   const updateScenario = async (id, updatedScenario) => {
+    console.log(`🔄 Updating scenario ${id}:`, updatedScenario);
+    
     // Update local state immediately for better UX
     setScenarios(scenarios.map(s => s.id === id ? updatedScenario : s));
     
-    // Update database for saved scenarios
-    if (propertyId && typeof id === 'number' && id > 1000000) {
+    // Update database for saved scenarios (small database IDs)
+    if (propertyId && typeof id === 'number' && id < 1000000) {
+      console.log(`💾 Saving scenario ${id} to database...`);
+    
       try {
         await fetch(`/api/scenarios/${id}`, {
           method: 'PUT',
@@ -137,18 +145,31 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
             closingCosts: updatedScenario.closingCosts || 0
           })
         });
+        console.log(`✅ Scenario ${id} saved successfully`);
       } catch (error) {
         console.error('Failed to update scenario:', error);
       }
+    } else {
+      console.log(`⏭️ Scenario ${id} not saved (propertyId: ${propertyId}, id type: ${typeof id}, id < 1000000: ${id < 1000000})`);
     }
   };
 
   const applyScenario = (scenario) => {
-    updateForm({
-      downPct: scenario.downPct,
-      rateApr: scenario.rateApr,
-      years: scenario.years
-    });
+    // Show confirmation dialog before applying scenario to base property
+    const confirmApply = window.confirm(
+      `This will replace the base property's mortgage terms:\n\n` +
+      `Current: ${form.downPct}% down, ${form.rateApr}% APR, ${form.years} years\n` +
+      `New: ${scenario.downPct}% down, ${scenario.rateApr}% APR, ${scenario.years} years\n\n` +
+      `Are you sure you want to apply this scenario to the base property?`
+    );
+    
+    if (confirmApply) {
+      updateForm({
+        downPct: scenario.downPct,
+        rateApr: scenario.rateApr,
+        years: scenario.years
+      });
+    }
   };
 
   const calculatePayment = (principal, rate, years) => {
@@ -163,7 +184,12 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
 
   return (
     <div className="bg-white rounded-lg border p-6">
-      <h2 className="text-xl font-semibold mb-4 text-gray-800">Mortgage & Investment</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-800">Mortgage & Investment</h2>
+        <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded font-medium">
+          Base Property
+        </span>
+      </div>
       
       <div className="space-y-4">
         {/* Mortgage Free Toggle */}
@@ -267,7 +293,7 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
             type="number" 
             step="100" 
             className={inputCls} 
-            value={form.closingCosts || ''} 
+            value={form.closingCosts === undefined || form.closingCosts === null ? '' : form.closingCosts} 
             onChange={set('closingCosts')}
             placeholder="3000"
           />
@@ -285,7 +311,7 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
             type="number" 
             step="100" 
             className={inputCls} 
-            value={form.repairCosts || ''} 
+            value={form.repairCosts === undefined || form.repairCosts === null ? '' : form.repairCosts} 
             onChange={set('repairCosts')}
             placeholder="2000"
           />
@@ -337,6 +363,7 @@ export default function MortgageCalculator({ form, updateForm, propertyId = null
             <button 
               onClick={addScenario}
               className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+              title="Create a new scenario with different down payment for comparison"
             >
               + Add Scenario
             </button>
@@ -380,9 +407,10 @@ function ScenarioCard({ scenario, purchasePrice, onApply, onRemove, onUpdate }) 
         <div className="flex space-x-1">
           <button 
             onClick={onApply}
-            className="text-xs text-blue-600 hover:text-blue-800"
+            className="text-xs text-orange-600 hover:text-orange-800 font-medium"
+            title="Replace base property values with this scenario"
           >
-            Apply
+            ⚠️ Apply to Base
           </button>
           <button 
             onClick={onRemove}

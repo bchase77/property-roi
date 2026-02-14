@@ -291,6 +291,71 @@ export default function FinancialPreview({ form }) {
               </div>
             </>
           )}
+
+          {/* Cash Purchase Scenario (100% Down) */}
+          {!form.purchased && Number(form.downPct) < 100 && (
+            <>
+              <div className="mt-4 pt-3 border-t border-gray-200 bg-purple-50 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-purple-800 mb-2">Cash Purchase Scenario (100% Down)</h4>
+                {(() => {
+                  // Calculate cash purchase scenario
+                  const purchasePrice = Number(form.purchasePrice) || 0;
+                  const closingCosts = Number(form.closingCosts) || 0;
+                  const repairCosts = Number(form.repairCosts) || 0;
+                  const totalCashInvestment = purchasePrice + closingCosts + repairCosts;
+                  
+                  const cashPurchaseMetrics = analyze({
+                    purchasePrice: purchasePrice,
+                    downPct: 100,
+                    rateApr: Number(form.rateApr) || 0,
+                    years: Number(form.years) || 0,
+                    monthlyRent: Number(form.monthlyRent) || 0,
+                    taxPct: Number(form.taxPct) || 0,
+                    taxAnnual: Number(form.taxAnnual) || 0,
+                    taxInputMode: form.taxInputMode || 'percentage',
+                    hoaMonthly: Number(form.hoaMonthly) || 0,
+                    insuranceMonthly: Number(form.insuranceMonthly) || Number(form.insuranceAnnual) / 12 || 0,
+                    maintPctRent: Number(form.maintPctRent) || 0,
+                    vacancyPctRent: Number(form.vacancyPctRent) || 0,
+                    mgmtPctRent: Number(form.mgmtPctRent) || 0,
+                    otherMonthly: Number(form.otherMonthly) || 0,
+                    initialInvestment: totalCashInvestment,
+                    closingCosts: closingCosts,
+                    repairCosts: repairCosts,
+                    mortgageFree: true,
+                    currentTaxesAnnual: currentTaxesAnnual > 0 ? currentTaxesAnnual : null,
+                    propertyAddress: form.address || form.abbreviation || `Property $${form.purchasePrice}`
+                  });
+
+                  return (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-purple-700">Cash Flow (No Mortgage):</span>
+                        <span className={`font-semibold ${cashPurchaseMetrics.cashflowMonthly >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {Money(cashPurchaseMetrics.cashflowMonthly)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-purple-700">Net Operating Income:</span>
+                        <span className="text-purple-600">{Money(cashPurchaseMetrics.noiMonthly)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-purple-700">Cash-on-Cash:</span>
+                        <span className="font-semibold text-purple-800">{Pct(cashPurchaseMetrics.metrics.cashOnCash)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-purple-700">30y ATROI:</span>
+                        <span className="font-semibold text-purple-800">{Pct(cashPurchaseMetrics.metrics.atROI30y)}</span>
+                      </div>
+                      <div className="text-xs text-purple-600 mt-1">
+                        Total Cash Investment: {Money(totalCashInvestment)} (purchase price + closing costs + repairs)
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

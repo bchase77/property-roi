@@ -117,6 +117,7 @@ function AnalysisContent() {
         <AssetValueChart 
           properties={selectedProperties}
           scenarios={selectedScenarios}
+          onRefreshData={loadProperties}
         />
         
         <NormalizedComparisonCharts 
@@ -132,6 +133,7 @@ function AnalysisContent() {
         <AnnualIncomeChart 
           properties={selectedProperties}
           scenarios={selectedScenarios}
+          onRefreshData={loadProperties}
         />
       </div>
 
@@ -279,12 +281,12 @@ function DetailedAnalysisTable({ properties }) {
 
 export default function Analysis() {
   useEffect(() => {
-    document.title = 'PI Analysis';
+    document.title = 'AN - Analysis';
   }, []);
 
   // Also set title immediately for new tabs
   if (typeof window !== 'undefined') {
-    document.title = 'PI Analysis';
+    document.title = 'AN - Analysis';
   }
 
   return (

@@ -11,7 +11,7 @@ export default function AdminPage() {
   const [restoreLoading, setRestoreLoading] = useState(false);
 
   useEffect(() => {
-    document.title = 'PI Admin';
+    document.title = 'AD - Admin';
   }, []);
 
   async function load() {
