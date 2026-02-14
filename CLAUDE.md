@@ -20,6 +20,10 @@
 
 2. **Server Location Notice:** **EVERY TIME I MAKE A CHANGE, I MUST TELL THE USER WHERE TO FIND THE SERVER** (i.e., Vercel, localhost:3000, localhost:3001, etc.). This requirement was established on 2025-11-08 and must be followed for all future changes.
 
+## UI/UX Style Guidelines
+
+1. **Text Color Standards:** Use `text-gray-600` instead of default text colors for better readability. User specifically requested this improvement on 2025-11-26 after noticing better contrast with darkened text in expense reference tables.
+
 ## Database Schema Change Protocol
 
 **CRITICAL:** Before making any database schema changes (adding/removing/modifying tables or columns), always:

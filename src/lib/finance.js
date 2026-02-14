@@ -550,16 +550,44 @@ export function analyze({
       // Annual mortgage payment (fixed)
       const annualMortgage = mortgageFree ? 0 : pAndI * 12;
       
+      // Calculate mortgage interest deduction for this year
+      let annualMortgageInterest = 0;
+      if (!mortgageFree && pAndI > 0) {
+        const loanAmount = purchasePrice * (1 - (downPct / 100));
+        const monthlyRate = (rateApr || 0) / 100 / 12;
+        
+        if (monthlyRate > 0) {
+          // Calculate remaining balance at start of this year
+          const monthsElapsed = (year - 1) * 12;
+          const remainingBalance = loanAmount * Math.pow(1 + monthlyRate, monthsElapsed) - 
+            (pAndI * (Math.pow(1 + monthlyRate, monthsElapsed) - 1) / monthlyRate);
+          
+          // Interest portion for this year (approximate)
+          annualMortgageInterest = Math.max(0, remainingBalance * monthlyRate * 12);
+        }
+      }
+      
       // Depreciation calculation (same basis, not adjusted for inflation)
       const depreciableBasis = purchasePrice + totalClosingCosts + (insuranceMonthly * 12);
       const annualDepreciation = depreciableBasis / 27.5;
       
-      // Taxable income calculation
+      // Taxable income calculation (now includes mortgage interest deduction)
       const taxableIncome = effectiveAnnualRent - annualManagement - annualMaintenance - 
-                           annualTaxes - annualInsurance - annualDepreciation;
+                           annualTaxes - annualInsurance - annualDepreciation - annualMortgageInterest;
       
       // Federal income tax (44% combined rate)
       const federalTax = Math.max(0, taxableIncome * 0.44);
+      
+      // Debug logging for first few years to show mortgage interest impact
+      if (year <= 3) {
+        console.log(`📊 Year ${year} Tax Calculation for ${propertyId}:`, {
+          effectiveRent: effectiveAnnualRent.toFixed(2),
+          totalDeductions: (annualManagement + annualMaintenance + annualTaxes + annualInsurance + annualDepreciation + annualMortgageInterest).toFixed(2),
+          mortgageInterestDeduction: annualMortgageInterest.toFixed(2),
+          taxableIncome: taxableIncome.toFixed(2),
+          federalTax: federalTax.toFixed(2)
+        });
+      }
       
       // Net cash flow for the year
       const netCashFlow = effectiveAnnualRent - annualManagement - annualMaintenance - 
@@ -637,6 +665,159 @@ export function analyze({
   };
 
   const tri30y = calculate30yTRI();
+  
+  // Calculate 5-year comprehensive ROI
+  const calculate5yROI = () => {
+    const years = 5;
+    const inflationRate = 0.025; // 2.5% annual inflation
+    const propertyAppreciationRate = 0.03; // Conservative 3% annual appreciation
+    const rentGrowthRate = 0.025; // 2.5% annual rent growth
+    const expenseGrowthRate = 0.025; // 2.5% annual expense growth
+    const discountRate = 0.07; // 7% discount rate for NPV
+    
+    // Get property identifier for debugging
+    const propertyId = propertyAddress || `Property $${purchasePrice}` || 'Property';
+    
+    console.log(`🎯 5y ROI Comprehensive Calculation Starting for ${propertyId}...`);
+    
+    let totalPresentValue = 0;
+    let currentRent = monthlyRent;
+    let currentTaxes = taxesMonthly;
+    let currentInsurance = insuranceMonthly;
+    let currentHOA = hoaMonthly;
+    
+    // Calculate year-by-year cash flows with inflation adjustments
+    for (let year = 1; year <= years; year++) {
+      // Adjust rent and expenses for inflation
+      const adjustedRent = currentRent * Math.pow(1 + rentGrowthRate, year - 1);
+      const adjustedTaxes = currentTaxes * Math.pow(1 + expenseGrowthRate, year - 1);
+      const adjustedInsurance = currentInsurance * Math.pow(1 + expenseGrowthRate, year - 1);
+      const adjustedHOA = currentHOA * Math.pow(1 + expenseGrowthRate, year - 1);
+      
+      // Annual income (with vacancy)
+      const effectiveAnnualRent = adjustedRent * 12 * (1 - (vacancyPctRent / 100));
+      
+      // Annual operating expenses
+      const annualManagement = adjustedRent * 12 * (mgmtPctRent / 100);
+      const annualMaintenance = adjustedRent * 12 * (maintPctRent / 100);
+      const annualTaxes = adjustedTaxes * 12;
+      const annualInsurance = adjustedInsurance * 12;
+      const annualHOA = adjustedHOA * 12;
+      
+      // Annual mortgage payment (fixed)
+      const annualMortgage = mortgageFree ? 0 : pAndI * 12;
+      
+      // Calculate mortgage interest deduction for this year
+      let annualMortgageInterest = 0;
+      if (!mortgageFree && pAndI > 0) {
+        const loanAmount = purchasePrice * (1 - (downPct / 100));
+        const monthlyRate = (rateApr || 0) / 100 / 12;
+        
+        if (monthlyRate > 0) {
+          // Calculate remaining balance at start of this year
+          const monthsElapsed = (year - 1) * 12;
+          const remainingBalance = loanAmount * Math.pow(1 + monthlyRate, monthsElapsed) - 
+            (pAndI * (Math.pow(1 + monthlyRate, monthsElapsed) - 1) / monthlyRate);
+          
+          // Interest portion for this year
+          annualMortgageInterest = Math.max(0, remainingBalance * monthlyRate * 12);
+        }
+      }
+      
+      // Depreciation calculation (same basis, not adjusted for inflation)
+      const depreciableBasis = purchasePrice + totalClosingCosts + (insuranceMonthly * 12);
+      const annualDepreciation = depreciableBasis / 27.5;
+      
+      // Taxable income calculation (includes mortgage interest deduction)
+      const taxableIncome = effectiveAnnualRent - annualManagement - annualMaintenance - 
+                           annualTaxes - annualInsurance - annualDepreciation - annualMortgageInterest;
+      
+      // Federal income tax (44% combined rate)
+      const federalTax = Math.max(0, taxableIncome * 0.44);
+      
+      // Net cash flow for the year
+      const netCashFlow = effectiveAnnualRent - annualManagement - annualMaintenance - 
+                         annualTaxes - annualInsurance - annualHOA - annualMortgage - federalTax;
+      
+      // Present value of this year's cash flow
+      const presentValue = netCashFlow / Math.pow(1 + discountRate, year);
+      totalPresentValue += presentValue;
+      
+      // Debug logging for first 2 years
+      if (year <= 2) {
+        console.log(`📊 5y ROI Year ${year} for ${propertyId}:`, {
+          effectiveRent: effectiveAnnualRent.toFixed(2),
+          mortgageInterestDeduction: annualMortgageInterest.toFixed(2),
+          taxableIncome: taxableIncome.toFixed(2),
+          federalTax: federalTax.toFixed(2),
+          netCashFlow: netCashFlow.toFixed(2),
+          presentValue: presentValue.toFixed(2)
+        });
+      }
+    }
+    
+    // Final sale calculation (Year 5)
+    const finalPropertyValue = purchasePrice * Math.pow(1 + propertyAppreciationRate, years);
+    
+    // Remaining mortgage balance at year 5
+    let remainingMortgage = 0;
+    if (!mortgageFree && pAndI > 0) {
+      const loanTermYears = Number(years) || 30;
+      if (years < loanTermYears) {
+        const monthlyRate = (rateApr || 0) / 100 / 12;
+        if (monthlyRate > 0) {
+          const loan = purchasePrice * (1 - (downPct / 100));
+          remainingMortgage = loan * Math.pow(1 + monthlyRate, years * 12) - 
+            (pAndI * (Math.pow(1 + monthlyRate, years * 12) - 1) / monthlyRate);
+        }
+      }
+    }
+    
+    // Sale proceeds after mortgage payoff
+    const saleProceeds = finalPropertyValue - remainingMortgage;
+    
+    // Depreciation recapture tax (25% on depreciation taken)
+    const totalDepreciationTaken = (purchasePrice + totalClosingCosts + (insuranceMonthly * 12)) / 27.5 * years;
+    const depreciationRecaptureTax = totalDepreciationTaken * 0.25;
+    
+    // Capital gains tax (15% on appreciation above depreciation recapture)
+    const totalGain = finalPropertyValue - purchasePrice;
+    const capitalGain = Math.max(0, totalGain - totalDepreciationTaken);
+    const capitalGainsTax = capitalGain * 0.15;
+    
+    // Selling costs (6% of sale price)
+    const sellingCosts = finalPropertyValue * 0.06;
+    
+    // Net sale proceeds after taxes and costs
+    const netSaleProceeds = saleProceeds - depreciationRecaptureTax - capitalGainsTax - sellingCosts;
+    
+    // Present value of sale proceeds
+    const salePresentValue = netSaleProceeds / Math.pow(1 + discountRate, years);
+    
+    // Total present value of all cash flows
+    const totalPV = totalPresentValue + salePresentValue;
+    
+    // Initial investment
+    const initialInvestment = purchasePrice * (downPct / 100) + totalClosingCosts;
+    
+    // Calculate annualized return
+    const annualizedReturn = totalPV > initialInvestment ? 
+      (Math.pow(totalPV / initialInvestment, 1 / years) - 1) * 100 : 0;
+    
+    console.log(`🎯 5y ROI Final Results for ${propertyId}:`, {
+      initialInvestment: initialInvestment.toFixed(2),
+      totalCashFlowPV: totalPresentValue.toFixed(2),
+      finalPropertyValue: finalPropertyValue.toFixed(2),
+      netSaleProceeds: netSaleProceeds.toFixed(2),
+      salePresentValue: salePresentValue.toFixed(2),
+      totalPresentValue: totalPV.toFixed(2),
+      annualizedReturn: annualizedReturn.toFixed(2)
+    });
+    
+    return annualizedReturn;
+  };
+
+  const roi5y = calculate5yROI();
 
   return {
     down: round2(down),
@@ -654,6 +835,7 @@ export function analyze({
       grossYield: pct2(grossYield),
       atROI30y: pct2(atROI30y),
       tri30y: pct2(tri30y),
+      roi5y: pct2(roi5y),
       originalAtROI30y: pct2(originalAtROI30y),
     },
   };

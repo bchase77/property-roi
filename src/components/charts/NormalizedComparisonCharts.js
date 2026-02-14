@@ -5,13 +5,14 @@ import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
 import { mergePropertiesAndScenarios } from '@/lib/scenarioHelpers';
 
 export default function NormalizedComparisonCharts({ properties = [], scenarios = [] }) {
-  const [timeRange, setTimeRange] = useState('now');
+  const [timeRange, setTimeRange] = useState('all');
   const [showUnpurchased, setShowUnpurchased] = useState(true);
   const [projectionYears, setProjectionYears] = useState('5y');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showCashPurchase, setShowCashPurchase] = useState(false);
 
   // Merge properties and scenarios into combined list for processing
-  const allProperties = useMemo(() => mergePropertiesAndScenarios(properties, scenarios), [properties, scenarios]);
+  const allProperties = useMemo(() => mergePropertiesAndScenarios(properties, scenarios, showCashPurchase), [properties, scenarios, showCashPurchase]);
 
   // Visibility state for properties
   const [visibleProperties, setVisibleProperties] = useState(() => {
@@ -75,20 +76,77 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
 
           // Calculate property value for this year
           let propertyValue;
-          if (year <= currentYear) {
-            propertyValue = year === purchaseYear ? purchasePrice : currentValue;
+          if (isPurchased) {
+            const yearsOwned = year - purchaseYear;
+            const totalYearsOwned = Math.max(1, currentYear - purchaseYear);
+            
+            if (year === currentYear) {
+              propertyValue = currentValue;
+            } else if (year < currentYear) {
+              // Historical data - use actual appreciation rate interpolation
+              if (yearsOwned <= 0) {
+                propertyValue = purchasePrice;
+              } else {
+                const appreciationRate = (currentValue - purchasePrice) / purchasePrice;
+                const yearlyAppreciation = appreciationRate / totalYearsOwned;
+                propertyValue = purchasePrice * (1 + yearlyAppreciation * yearsOwned);
+              }
+            } else {
+              // Future projection - use 3% appreciation from current value
+              const yearsSinceNow = year - currentYear;
+              const assumedAppreciationRate = 0.03;
+              propertyValue = currentValue * Math.pow(1 + assumedAppreciationRate, yearsSinceNow);
+            }
           } else {
+            // Unpurchased property - project from current year with 3% appreciation
             const yearsSinceNow = year - currentYear;
             const assumedAppreciationRate = 0.03;
             propertyValue = currentValue * Math.pow(1 + assumedAppreciationRate, yearsSinceNow);
           }
 
-          // Calculate equity
+          // Calculate equity with cash flow acceleration
           let equity = 0;
+          let acceleratedMortgageBalance = 0;
+          
           if (propertyValue > 0) {
             if (isPurchased) {
               try {
+                // Start with standard equity calculation
                 equity = calculateEquityAtYear(property, year, propertyValue);
+                
+                // Calculate cash flow impact on mortgage paydown
+                const yearsFromPurchase = Math.max(0, year - purchaseYear);
+                if (yearsFromPurchase > 0 && !property.mortgage_free) {
+                  const metrics = analyzeWithCurrentValues(property);
+                  const annualNOI = metrics.noiAnnual || 0;
+                  const monthlyMortgagePayment = metrics.pAndI || 0;
+                  const annualMortgagePayment = monthlyMortgagePayment * 12;
+                  const annualNetCashFlow = annualNOI - annualMortgagePayment;
+                  
+                  // If positive cash flow, reinvest 80% (40% mortgage paydown + 40% improvements), retain 20% cash
+                  if (annualNetCashFlow > 0) {
+                    const mortgageAccelerationPct = 0.4; // 40% for extra mortgage payments
+                    const improvementReinvestmentPct = 0.4; // 40% for property improvements
+                    // Remaining 20% retained as cash (calculated separately below)
+                    
+                    // Extra mortgage payments
+                    const annualExtraPayment = annualNetCashFlow * mortgageAccelerationPct;
+                    const totalExtraPayments = annualExtraPayment * yearsFromPurchase;
+                    
+                    // Reduce mortgage balance by extra payments
+                    const standardEquity = calculateEquityAtYear(property, year, propertyValue);
+                    const standardMortgageBalance = propertyValue - standardEquity;
+                    acceleratedMortgageBalance = Math.max(0, standardMortgageBalance - totalExtraPayments);
+                    
+                    // Property improvements increase property value
+                    const totalImprovements = (annualNetCashFlow * improvementReinvestmentPct) * yearsFromPurchase;
+                    propertyValue += totalImprovements;
+                    
+                    // Final equity = improved property value - accelerated mortgage balance
+                    equity = propertyValue - acceleratedMortgageBalance;
+                  }
+                }
+                
                 if (!Number.isFinite(equity) || equity < 0) {
                   equity = Math.max(0, propertyValue * 0.2);
                 }
@@ -101,9 +159,9 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
             }
           }
 
-          // Calculate cumulative net cash flow
+          // Calculate cumulative cash retained (cash not reinvested into property)
           const yearsOfIncome = isPurchased ? Math.max(0, year - purchaseYear) : Math.max(0, year - currentYear);
-          let cumulativeNetCashFlow = 0;
+          let cumulativeRetainedCash = 0;
           
           if (yearsOfIncome > 0) {
             const metrics = analyzeWithCurrentValues(property);
@@ -114,15 +172,23 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
               const monthlyMortgagePayment = metrics.pAndI || 0;
               const annualMortgagePayment = monthlyMortgagePayment * 12;
               annualNetCashFlow = annualNOI - annualMortgagePayment;
+              
+              // If positive cash flow, assume some percentage is retained as cash (not reinvested)
+              // For demonstration, let's say 20% is retained, 80% reinvested into equity
+              if (annualNetCashFlow > 0) {
+                const retainedCashPercentage = 0.2; // 20% retained as cash
+                annualNetCashFlow = annualNetCashFlow * retainedCashPercentage;
+              }
+              // If negative cash flow, all of it reduces retained cash
             }
             
-            cumulativeNetCashFlow = annualNetCashFlow * yearsOfIncome;
+            cumulativeRetainedCash = annualNetCashFlow * yearsOfIncome;
           }
 
           if (metric === 'equity') {
             dataPoint[`${displayLabel}_value`] = equity;
           } else {
-            dataPoint[`${displayLabel}_value`] = equity + cumulativeNetCashFlow;
+            dataPoint[`${displayLabel}_value`] = equity + cumulativeRetainedCash;
           }
         }
       });
@@ -208,6 +274,12 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
                 const color = colors[index % colors.length];
                 const displayLabel = getPropertyDisplayLabel(property);
                 const isPurchased = Boolean(property.purchased);
+                const downPaymentPct = Number(property.down_payment_pct) || 20;
+                const isMortgageFree = property.mortgage_free || 
+                  (property.current_mortgage_balance !== null && 
+                   property.current_mortgage_balance !== undefined && 
+                   property.current_mortgage_balance !== '' && 
+                   Number(property.current_mortgage_balance) === 0);
                 
                 return (
                   <Line
@@ -217,7 +289,7 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
                     stroke={color}
                     strokeWidth={2}
                     strokeDasharray={isPurchased ? "0" : "8 4"}
-                    name={`${displayLabel}${isPurchased ? '' : ' (Projected)'}`}
+                    name={`${displayLabel} (${isMortgageFree ? 'Owned' : `${downPaymentPct}%dp`})${isPurchased ? '' : ' (prj)'}`}
                     connectNulls={false}
                   />
                 );
@@ -274,11 +346,29 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
               <span className="text-gray-600">Show Unpurchased</span>
             </label>
 
+            {/* Cash Purchase Scenarios Toggle */}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={showCashPurchase}
+                onChange={(e) => setShowCashPurchase(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-gray-600">Cash Purchase Scenarios</span>
+            </label>
+
             {/* Property Toggles */}
             <div className="flex flex-wrap gap-2">
               {allProperties.map((property, index) => {
                 const isPurchased = Boolean(property.purchased);
+                const isCashPurchase = property.isCashPurchaseScenario;
                 if (!isPurchased && !showUnpurchased) return null;
+                const downPaymentPct = Number(property.down_payment_pct) || 20;
+                const isMortgageFree = property.mortgage_free || 
+                  (property.current_mortgage_balance !== null && 
+                   property.current_mortgage_balance !== undefined && 
+                   property.current_mortgage_balance !== '' && 
+                   Number(property.current_mortgage_balance) === 0);
                 
                 return (
                   <button
@@ -286,7 +376,11 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
                     onClick={() => toggleProperty(property.id)}
                     className={`px-2 py-1 text-xs rounded ${
                       visibleProperties[property.id]
-                        ? (isPurchased ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800')
+                        ? (isPurchased 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : isCashPurchase 
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-orange-100 text-orange-800')
                         : 'bg-gray-100 text-gray-500'
                     }`}
                     style={{
@@ -295,7 +389,7 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
                       borderLeftColor: colors[index % colors.length]
                     }}
                   >
-                    {getPropertyDisplayLabel(property)}{!isPurchased ? ' 📊' : ''}
+                    {getPropertyDisplayLabel(property)} ({isMortgageFree ? 'Owned' : `${downPaymentPct}%`}){!isPurchased ? (isCashPurchase ? ' 💰' : ' 📊') : ''}
                   </button>
                 );
               })}

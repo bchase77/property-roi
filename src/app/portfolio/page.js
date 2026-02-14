@@ -6,20 +6,23 @@ import PropertyList from '@/components/ui/PropertyList';
 import PageHeader from '@/components/ui/PageHeader';
 import MetricsDefinitions from '@/components/ui/MetricsDefinitions';
 import { analyzeWithCurrentValues } from '@/lib/finance';
+import { mergePropertiesAndScenarios } from '@/lib/scenarioHelpers';
 
 export default function Portfolio() {
   const [properties, setProperties] = useState([]);
+  const [scenarios, setScenarios] = useState([]);
   const [editingProperty, setEditingProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState('');
+  const [loadingMessage, setLoadingMessage] = useState('Loading properties...');
 
   useEffect(() => {
-    document.title = 'PI Portfolio';
+    document.title = 'PF - Portfolio';
   }, []);
 
   // Also set title immediately for new tabs
   if (typeof window !== 'undefined') {
-    document.title = 'PI Portfolio';
+    document.title = 'PF - Portfolio';
   }
 
   useEffect(() => {
@@ -28,13 +31,60 @@ export default function Portfolio() {
 
   async function loadProperties() {
     try {
-      const res = await fetch('/api/properties', { cache: 'no-store' });
-      if (res.ok) {
-        setProperties(await res.json());
+      setLoadingMessage('Checking local cache...');
+      const { default: apiClient } = await import('@/lib/apiClient');
+      
+      // Add timeout for slow connections
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Loading timeout')), 20000)
+      );
+      
+      setLoadingMessage('Loading properties...');
+      const properties = await Promise.race([
+        apiClient.getProperties(),
+        timeoutPromise
+      ]);
+      
+      console.log(`Loaded ${properties.length} properties`);
+      setProperties(properties);
+      
+      // Load scenarios for all properties
+      if (properties.length > 0) {
+        setLoadingMessage('Loading scenarios...');
+        try {
+          const scenarioPromises = properties.map(async (property) => {
+            try {
+              const scenarioRes = await fetch(`/api/properties/${property.id}/scenarios`);
+              if (scenarioRes.ok) {
+                const scenarioData = await scenarioRes.json();
+                return scenarioData.map(scenario => ({ ...scenario, property_id: property.id }));
+              }
+            } catch (error) {
+              console.error(`Failed to load scenarios for property ${property.id}:`, error);
+            }
+            return [];
+          });
+          
+          const allScenarios = (await Promise.all(scenarioPromises)).flat();
+          console.log(`Loaded ${allScenarios.length} scenarios`);
+          setScenarios(allScenarios);
+        } catch (error) {
+          console.error('Failed to load scenarios:', error);
+        }
+      }
+      
+      if (properties.length === 0) {
+        setLoadingMessage('No properties found. Add some properties to get started!');
       }
     } catch (error) {
       console.error('Failed to load properties:', error);
-      setErrMsg('Failed to load properties');
+      if (error.message === 'Loading timeout') {
+        setErrMsg('Loading taking too long due to slow connection. Using offline mode.');
+        setLoadingMessage('Connection timeout - check if you have any offline properties');
+      } else {
+        setErrMsg('Failed to load properties. Check your connection.');
+        setLoadingMessage('Failed to load properties');
+      }
     } finally {
       setLoading(false);
     }
@@ -114,7 +164,7 @@ export default function Portfolio() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading portfolio...</div>
+        <div className="text-lg">{loadingMessage}</div>
       </div>
     );
   }
@@ -187,7 +237,7 @@ export default function Portfolio() {
           </div>
         ) : (
           <PropertyList 
-            properties={properties}
+            properties={mergePropertiesAndScenarios(properties, scenarios)}
             onEdit={startEdit}
             onDelete={handlePropertyDelete}
             onArchive={handlePropertyArchive}

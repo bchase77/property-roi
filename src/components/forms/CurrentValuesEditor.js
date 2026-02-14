@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 
 export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
+  const [showExpenseReference, setShowExpenseReference] = useState(false);
+  const [referenceProperties, setReferenceProperties] = useState([]);
   const [form, setForm] = useState({
     // Current operating values
     currentRentMonthly: property.current_rent_monthly || property.monthly_rent || 0,
@@ -23,6 +25,19 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
 
   const [saving, setSaving] = useState(false);
   const [fetchingZillow, setFetchingZillow] = useState(false);
+
+  const loadReferenceProperties = async () => {
+    try {
+      const { default: apiClient } = await import('@/lib/apiClient');
+      const properties = await apiClient.getProperties();
+      // Filter out the current property being edited
+      const filteredProperties = properties.filter(p => p.id !== property.id);
+      setReferenceProperties(filteredProperties);
+      setShowExpenseReference(true);
+    } catch (error) {
+      console.error('Failed to load reference properties:', error);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -145,119 +160,96 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
 
   return (
     <div className="bg-white rounded-lg border p-6">
-      <h3 className="text-lg font-semibold mb-4 text-gray-700">Current Property Values</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold text-gray-700">Current Property Values</h3>
+        <button
+          type="button"
+          onClick={loadReferenceProperties}
+          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
+        >
+          📊 Reference Values
+        </button>
+      </div>
       <p className="text-sm text-gray-600 mb-4">
         Update current values for accurate performance comparison. Historical data is tracked separately.
       </p>
       
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Current Income & Expenses */}
-        <div>
-          <h4 className="text-md font-medium text-gray-800 mb-3">Current Income & Operating Expenses</h4>
-          
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Rent ($/month)</label>
-              <input 
-                type="number"
-                step="50"
-                className={inputCls}
-                value={form.currentRentMonthly}
-                onChange={handleChange('currentRentMonthly')}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Insurance ($/year)</label>
-              <input 
-                type="number"
-                step="100"
-                className={inputCls}
-                value={form.currentInsuranceAnnual}
-                onChange={handleChange('currentInsuranceAnnual')}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Expenses ($/year)</label>
-              <input 
-                type="number"
-                step="100"
-                className={inputCls}
-                value={form.currentExpensesAnnual}
-                onChange={handleChange('currentExpensesAnnual')}
-              />
-              <div className="text-xs text-gray-600 mt-1">
-                Maintenance, repairs, vacancy allowance, etc.
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Management (%)</label>
-              <input 
-                type="number"
-                step="0.5"
-                className={inputCls}
-                value={form.currentManagementPct}
-                onChange={handleChange('currentManagementPct')}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current HOA ($/month)</label>
-              <input 
-                type="number"
-                step="10"
-                className={inputCls}
-                value={form.currentHoaMonthly}
-                onChange={handleChange('currentHoaMonthly')}
-              />
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Rent and Income */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-800 mb-2">Rent</h4>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Current Rent ($/month)</label>
+            <input 
+              type="number"
+              step="50"
+              className={inputCls}
+              value={form.currentRentMonthly}
+              onChange={handleChange('currentRentMonthly')}
+            />
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-gray-800 mb-2">Insurance</h4>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Current Insurance ($/year)</label>
+            <input 
+              type="number"
+              step="100"
+              className={inputCls}
+              value={form.currentInsuranceAnnual}
+              onChange={handleChange('currentInsuranceAnnual')}
+            />
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-gray-800 mb-2">HOA</h4>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Current HOA ($/month)</label>
+            <input 
+              type="number"
+              step="10"
+              className={inputCls}
+              value={form.currentHoaMonthly}
+              onChange={handleChange('currentHoaMonthly')}
+            />
           </div>
         </div>
 
-        {/* Current Market Value */}
-        <div>
-          <h4 className="text-md font-medium text-gray-800 mb-3">Current Market Value</h4>
+        {/* Operating Expenses and Management */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-800 mb-2">Other Expenses</h4>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Current Annual Expenses ($)</label>
+            <input 
+              type="number"
+              step="100"
+              className={inputCls}
+              value={form.currentExpensesAnnual}
+              onChange={handleChange('currentExpensesAnnual')}
+            />
+            <div className="text-xs text-gray-600 mt-1">
+              Maintenance, repairs, vacancy, etc.
+            </div>
+          </div>
           
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Market Value ($)</label>
-              <input 
-                type="number"
-                step="1000"
-                className={inputCls}
-                value={form.currentMarketValue}
-                onChange={handleChange('currentMarketValue')}
-              />
-              <div className="text-xs text-gray-600 mt-1">
-                Current estimated market value
-              </div>
-            </div>
-            
-            <div className="flex flex-col justify-end">
-              <button
-                type="button"
-                onClick={fetchZillowValue}
-                disabled={fetchingZillow || !property.zillow_zpid}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {fetchingZillow ? 'Fetching...' : 'Get Zillow Value'}
-              </button>
-              <div className="text-xs text-gray-600 mt-1">
-                {property.zillow_zpid ? `ZPID: ${property.zillow_zpid}` : 'No ZPID set'}
-              </div>
-            </div>
+          <div>
+            <h4 className="text-sm font-semibold text-gray-800 mb-2">Management</h4>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Current Management (%)</label>
+            <input 
+              type="number"
+              step="0.5"
+              className={inputCls}
+              value={form.currentManagementPct}
+              onChange={handleChange('currentManagementPct')}
+            />
           </div>
         </div>
 
-        {/* Current Property Taxes */}
+        {/* Property Taxes */}
         <div>
-          <h4 className="text-md font-medium text-gray-800 mb-3">Current Property Taxes</h4>
-          
-          <div className="grid md:grid-cols-4 gap-4">
+          <h4 className="text-sm font-semibold text-gray-800 mb-2">Taxes</h4>
+          <div className="grid md:grid-cols-4 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Appraisal Value ($)</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Appraisal Value ($)</label>
               <input 
                 type="number"
                 step="1000"
@@ -268,7 +260,7 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">County Tax Rate (%)</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">County Rate (%)</label>
               <input 
                 type="number"
                 step="0.01"
@@ -279,7 +271,7 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City Tax Rate (%)</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">City Rate (%)</label>
               <input 
                 type="number"
                 step="0.01"
@@ -290,7 +282,7 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Assessment %</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Assessment %</label>
               <input 
                 type="number"
                 step="0.5"
@@ -301,23 +293,45 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
                 onChange={handleChange('assessmentPercentage')}
                 placeholder="25"
               />
-              <div className="text-xs text-gray-600 mt-1">
-                Percentage of appraisal value used for tax calculation
-              </div>
             </div>
           </div>
           
-          <div className="mt-2 p-3 bg-gray-50 rounded">
-            <div className="text-sm text-gray-600">
-              <div className="mb-2">
-                <strong>Assessed Value: ${assessedValue.toLocaleString()}</strong>
-                <span className="text-gray-600"> ({form.assessmentPercentage}% of ${form.currentAppraisalValue.toLocaleString()})</span>
-              </div>
-              <div>
-                <strong>Estimated Annual Taxes: ${currentAnnualTaxes.toLocaleString()}</strong>
-              </div>
+          <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+            <div>
+              <strong>Assessed: ${assessedValue.toLocaleString()}</strong> ({form.assessmentPercentage}% of ${form.currentAppraisalValue.toLocaleString()})
+            </div>
+            <div>
+              <strong>Annual Taxes: ${currentAnnualTaxes.toLocaleString()}</strong>
+            </div>
+          </div>
+        </div>
+
+        {/* Market Value */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-800 mb-2">Market Value</h4>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Current Market Value ($)</label>
+              <input 
+                type="number"
+                step="1000"
+                className={inputCls}
+                value={form.currentMarketValue}
+                onChange={handleChange('currentMarketValue')}
+              />
+            </div>
+            
+            <div className="flex flex-col justify-end">
+              <button
+                type="button"
+                onClick={fetchZillowValue}
+                disabled={fetchingZillow || !property.zillow_zpid}
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {fetchingZillow ? 'Fetching...' : 'Get Zillow Value'}
+              </button>
               <div className="text-xs text-gray-600 mt-1">
-                Assessed value × (County {form.currentCountyTaxRate}% + City {form.currentCityTaxRate}%)
+                {property.zillow_zpid ? `ZPID: ${property.zillow_zpid}` : 'No ZPID set'}
               </div>
             </div>
           </div>
@@ -326,11 +340,11 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
         {/* Current Mortgage (if not mortgage-free) */}
         {!property.mortgage_free && (
           <div>
-            <h4 className="text-md font-medium text-gray-800 mb-3">Current Mortgage</h4>
+            <h4 className="text-sm font-semibold text-gray-800 mb-2">Mortgage (P&I)</h4>
             
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-4 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Balance ($)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Balance ($)</label>
                 <input 
                   type="number"
                   step="1000"
@@ -341,7 +355,7 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Rate (%)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Rate (%)</label>
                 <input 
                   type="number"
                   step="0.125"
@@ -352,7 +366,7 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Payment ($/month)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Payment ($/month)</label>
                 <input 
                   type="number"
                   step="10"
@@ -363,7 +377,7 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Years Remaining</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Years Left</label>
                 <input 
                   type="number"
                   step="1"
@@ -394,6 +408,78 @@ export default function CurrentValuesEditor({ property, onUpdate, onCancel }) {
           </button>
         </div>
       </form>
+      
+      {/* Expense Reference Modal */}
+      {showExpenseReference && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-90vh overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-semibold">Expense Reference Values</h2>
+              <button
+                onClick={() => setShowExpenseReference(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left p-3 font-medium text-gray-900">Property</th>
+                    <th className="text-right p-3 font-medium text-gray-900">Insurance/year</th>
+                    <th className="text-right p-3 font-medium text-gray-900">County Tax %</th>
+                    <th className="text-right p-3 font-medium text-gray-900">City Tax %</th>
+                    <th className="text-right p-3 font-medium text-gray-900">HOA/mo</th>
+                    <th className="text-right p-3 font-medium text-gray-900">Expenses/year</th>
+                    <th className="text-right p-3 font-medium text-gray-900">Management %</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {referenceProperties.map((property) => (
+                    <tr key={property.id} className="hover:bg-gray-50">
+                      <td className="p-3">
+                        <div className="font-medium text-gray-900">{property.address}</div>
+                        <div className="text-xs text-gray-500">{property.city}, {property.state}</div>
+                      </td>
+                      <td className="p-3 text-right">
+                        ${(property.current_insurance_annual || (property.insurance_monthly * 12) || 0).toLocaleString()}
+                      </td>
+                      <td className="p-3 text-right">
+                        {property.current_county_tax_rate || 'N/A'}%
+                      </td>
+                      <td className="p-3 text-right">
+                        {property.current_city_tax_rate || 'N/A'}%
+                      </td>
+                      <td className="p-3 text-right">
+                        ${(property.current_hoa_monthly || property.hoa_monthly || 0).toLocaleString()}
+                      </td>
+                      <td className="p-3 text-right">
+                        ${(property.current_expenses_annual || 0).toLocaleString()}
+                      </td>
+                      <td className="p-3 text-right">
+                        {property.current_management_pct || property.management_pct_rent || 0}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {referenceProperties.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                <p>No properties found for reference.</p>
+              </div>
+            )}
+            
+            <div className="mt-6 text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded p-3">
+              💡 <strong>Tip:</strong> Use these values as reference when editing current property values. 
+              Similar properties in the same area often have comparable insurance, tax rates, and management costs.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

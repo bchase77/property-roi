@@ -41,12 +41,24 @@ function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
   
   // Determine data source for display
   const currentRent = property.current_rent_monthly || property.monthly_rent;
-  const usingCurrentValues = !!(property.current_rent_monthly || property.current_appraisal_value || property.current_market_value);
-  const dataSource = usingCurrentValues ? "Current Values" : "Purchase Data";
+  const hasCurrentData = !!(property.current_rent_monthly || property.current_appraisal_value || property.current_market_value);
+  const isPurchased = property.purchased;
+  
+  // Improved logic for data source labeling
+  let dataSource;
+  if (isPurchased) {
+    // Owned properties: prefer current data, fall back to purchase data
+    dataSource = hasCurrentData ? "Current Data" : "Purchase Data";
+  } else {
+    // Projected properties: all data is projected/estimated
+    dataSource = hasCurrentData ? "Current Market Data" : "Projected Data";
+  }
 
   // Determine ownership status styling
   const isOwned = property.purchased;
+  const isScenario = property.isScenario;
   const borderClass = isEditing ? 'border-blue-500 bg-blue-50' : 
+                     isScenario ? 'border-yellow-300 bg-yellow-50 border-l-4 border-l-yellow-400' :
                      isOwned ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50';
 
   return (
@@ -55,19 +67,42 @@ function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-1">
             <h3 className="font-medium text-gray-900">
-              {property.address}
-              {property.abbreviation && <span className="ml-2 text-blue-600">({property.abbreviation})</span>}
+              {isScenario ? (
+                <>
+                  <span>{property.address.split(' (')[0]}</span>
+                  <span className="ml-2 text-sm bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">
+                    📊 {property.scenarioName}
+                  </span>
+                </>
+              ) : (
+                <>
+                  {property.address}
+                  {property.abbreviation && <span className="ml-2 text-blue-600">({property.abbreviation})</span>}
+                </>
+              )}
             </h3>
-            <div className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-              isOwned 
-                ? 'bg-green-100 text-green-800 border border-green-200' 
-                : 'bg-orange-100 text-orange-800 border border-orange-200'
-            }`}>
-              {isOwned ? '✅ OWNED' : '📊 PROJECTED'}
-            </div>
+            {!isScenario && (
+              <div className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                isOwned 
+                  ? 'bg-green-100 text-green-800 border border-green-200' 
+                  : 'bg-orange-100 text-orange-800 border border-orange-200'
+              }`}>
+                {isOwned ? '✅ OWNED' : '📊 PROJECTED'}
+              </div>
+            )}
+            {isScenario && (
+              <div className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
+                🔬 SCENARIO
+              </div>
+            )}
           </div>
           <p className="text-sm text-gray-500 mb-2">
             {property.city}, {property.state} {property.zip}
+            {isScenario && (
+              <span className="ml-3 text-yellow-600 font-medium">
+                {property.down_payment_pct}% down, {property.interest_apr_pct}% APR, {property.loan_years}y
+              </span>
+            )}
           </p>
           {property.purchased && (
             <p className="text-xs text-blue-600 mb-2">
@@ -78,7 +113,7 @@ function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
             </p>
           )}
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 text-sm">
             <div>
               <div className="text-gray-600">Purchase Price:</div>
               <div className="font-medium text-green-600">${Number(property.purchase_price).toLocaleString()}</div>
@@ -103,6 +138,19 @@ function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
               </div>
               <div className={`font-medium text-xs ${(metrics.cashflowMonthly * 12) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 ${(metrics.cashflowMonthly * 12).toLocaleString()}/yr
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600">
+                DSCR:
+                <span className="text-xs text-gray-500 ml-1" title="Debt Service Coverage Ratio: Net Operating Income ÷ Mortgage Payment. Measures ability to cover debt payments. >1.25 is good, >1.0 is acceptable.">ⓘ</span>
+              </div>
+              <div className={`font-medium ${
+                property.mortgage_free ? 'text-gray-400' :
+                metrics.metrics.dscr >= 1.25 ? 'text-green-600' :
+                metrics.metrics.dscr >= 1.0 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {property.mortgage_free ? 'N/A' : metrics.metrics.dscr.toFixed(2)}
               </div>
             </div>
             <div>
@@ -227,14 +275,26 @@ function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
                 {metrics.metrics.tri30y.toFixed(2)}%
               </div>
             </div>
+            <div>
+              <div className="text-gray-600">
+                5y ROI:
+                <span className="text-xs text-gray-500 ml-1" title="5-Year Return on Investment: Conservative short-term analysis including sale proceeds, taxes, and costs.">ⓘ</span>
+              </div>
+              <div className={`font-medium ${
+                metrics.metrics.roi5y >= 10 ? 'text-green-600' : 
+                metrics.metrics.roi5y >= 7 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {metrics.metrics.roi5y.toFixed(2)}%
+              </div>
+            </div>
           </div>
           
           {/* Data Source Indicator and Additional Status */}
           <div className="mt-3 pt-2 border-t border-gray-100 flex flex-wrap items-center gap-2">
             <div className={`inline-block px-2 py-1 text-xs rounded ${
-              usingCurrentValues 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-yellow-100 text-yellow-700'
+              isPurchased 
+                ? (hasCurrentData ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700')
+                : (hasCurrentData ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700')
             }`}>
               Metrics from: {dataSource}
             </div>
@@ -252,28 +312,49 @@ function PropertyCard({ property, onEdit, onDelete, onArchive, isEditing }) {
         </div>
         
         <div className="flex space-x-2 ml-4">
-          <button 
-            onClick={onEdit}
-            className={`px-3 py-1 text-sm rounded border ${
-              isEditing 
-                ? 'bg-blue-600 text-white border-blue-600' 
-                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            {isEditing ? 'Editing' : 'Edit'}
-          </button>
-          <button 
-            onClick={onArchive}
-            className="px-3 py-1 text-sm rounded border border-orange-300 text-orange-700 hover:bg-orange-50"
-          >
-            Archive
-          </button>
-          <button 
-            onClick={onDelete}
-            className="px-3 py-1 text-sm rounded border border-red-300 text-red-700 hover:bg-red-50"
-          >
-            Delete
-          </button>
+          {isScenario ? (
+            // For scenarios, show button to edit the base property
+            <button 
+              onClick={() => {
+                // Find the base property and edit it
+                const basePropertyId = property.basePropertyId;
+                if (basePropertyId) {
+                  // This would need to be handled by the parent component
+                  console.log(`Edit base property ${basePropertyId} for scenario ${property.scenarioName}`);
+                }
+              }}
+              className="px-3 py-1 text-sm rounded border border-yellow-400 text-yellow-700 hover:bg-yellow-50"
+              title="Edit the base property to modify scenarios"
+            >
+              Edit Base Property
+            </button>
+          ) : (
+            // For regular properties, show normal buttons
+            <>
+              <button 
+                onClick={onEdit}
+                className={`px-3 py-1 text-sm rounded border ${
+                  isEditing 
+                    ? 'bg-blue-600 text-white border-blue-600' 
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {isEditing ? 'Editing' : 'Edit'}
+              </button>
+              <button 
+                onClick={onArchive}
+                className="px-3 py-1 text-sm rounded border border-orange-300 text-orange-700 hover:bg-orange-50"
+              >
+                Archive
+              </button>
+              <button 
+                onClick={onDelete}
+                className="px-3 py-1 text-sm rounded border border-red-300 text-red-700 hover:bg-red-50"
+              >
+                Delete
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

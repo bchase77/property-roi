@@ -40,6 +40,13 @@ export default function MetricsDefinitions({
         example: "Conservative but sophisticated analysis: with built-in 3% appreciation and tax benefits, 6-8% is realistic"
       },
       {
+        term: "5y ROI (5-Year Return on Investment)",
+        formula: "Present value of 5 years cash flows + sale proceeds, annualized",
+        description: "Conservative short-term analysis assuming sale after 5 years. Includes all tax benefits: mortgage interest deduction (44% income tax), depreciation recapture (25%), capital gains (15%), plus 6% selling costs.",
+        target: "Target: ≥7-10%",
+        example: "If you invest $70k and receive $100k present value after 5 years including sale, that's 7.4% annualized return"
+      },
+      {
         term: "Gross Yield",
         formula: "Annual Rent ÷ Purchase Price × 100",
         description: "Simple rental yield before any expenses. Quick screening metric.",

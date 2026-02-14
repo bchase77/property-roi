@@ -9,12 +9,12 @@ export default function ArchivePage() {
   const [errMsg, setErrMsg] = useState('');
 
   useEffect(() => {
-    document.title = 'PI Archive';
+    document.title = 'AR - Archive';
   }, []);
 
   // Also set title immediately for new tabs
   if (typeof window !== 'undefined') {
-    document.title = 'PI Archive';
+    document.title = 'AR - Archive';
   }
 
   useEffect(() => {

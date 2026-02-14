@@ -95,41 +95,22 @@ export default function AssetValueChart({ properties = [], scenarios = [], onRef
       adjustedData[0] = { ...sortedData[0], income: annualizedIncome };
     }
     
-    // Use recent trend if we have enough data (last 5-7 years)
-    const recentYears = adjustedData.slice(-Math.min(7, adjustedData.length));
-    
-    if (recentYears.length >= 3) {
-      // Calculate average year-over-year growth for recent years
-      let totalGrowth = 0;
-      let validYears = 0;
-      
-      for (let i = 1; i < recentYears.length; i++) {
-        const prevIncome = Number(recentYears[i-1].income);
-        const currIncome = Number(recentYears[i].income);
-        
-        if (prevIncome > 0) {
-          const yearGrowth = (currIncome - prevIncome) / prevIncome;
-          totalGrowth += yearGrowth;
-          validYears++;
-        }
-      }
-      
-      if (validYears > 0) {
-        const avgGrowthRate = totalGrowth / validYears;
-        // Cap growth rate between -5% and 15%
-        return Math.max(-0.05, Math.min(0.15, avgGrowthRate));
-      }
-    }
-    
-    // Fallback to CAGR if recent trend calculation fails
+    // Use overall CAGR for more stable projections instead of recent volatility
     const firstYear = adjustedData[0];
     const lastYear = adjustedData[adjustedData.length - 1];
     const yearsDiff = lastYear.year - firstYear.year;
     
     if (yearsDiff === 0) return 0.025;
     
-    const growthRate = (Number(lastYear.income) / Number(firstYear.income)) ** (1 / yearsDiff) - 1;
-    return Math.max(-0.05, Math.min(0.15, growthRate));
+    // Calculate compound annual growth rate over entire period
+    const cagr = (Number(lastYear.income) / Number(firstYear.income)) ** (1 / yearsDiff) - 1;
+    
+    // Apply some smoothing - blend CAGR with a reasonable default (2.5% inflation)
+    // This helps reduce impact of anomalous early/late years
+    const smoothedGrowthRate = (cagr * 0.7) + (0.025 * 0.3);
+    
+    // Cap growth rate between -3% and 10% (less extreme than before)
+    return Math.max(-0.03, Math.min(0.10, smoothedGrowthRate));
   };
 
   const calculateExpenseGrowthRate = (yearlyData, property) => {
@@ -150,41 +131,22 @@ export default function AssetValueChart({ properties = [], scenarios = [], onRef
       adjustedData[0] = { ...sortedData[0], expenses: annualizedExpenses };
     }
     
-    // Use recent trend if we have enough data (last 5-7 years)
-    const recentYears = adjustedData.slice(-Math.min(7, adjustedData.length));
-    
-    if (recentYears.length >= 3) {
-      // Calculate average year-over-year growth for recent years
-      let totalGrowth = 0;
-      let validYears = 0;
-      
-      for (let i = 1; i < recentYears.length; i++) {
-        const prevExpenses = Number(recentYears[i-1].expenses);
-        const currExpenses = Number(recentYears[i].expenses);
-        
-        if (prevExpenses > 0) {
-          const yearGrowth = (currExpenses - prevExpenses) / prevExpenses;
-          totalGrowth += yearGrowth;
-          validYears++;
-        }
-      }
-      
-      if (validYears > 0) {
-        const avgGrowthRate = totalGrowth / validYears;
-        // Cap growth rate between -5% and 15%
-        return Math.max(-0.05, Math.min(0.15, avgGrowthRate));
-      }
-    }
-    
-    // Fallback to CAGR if recent trend calculation fails
+    // Use overall CAGR for more stable projections instead of recent volatility
     const firstYear = adjustedData[0];
     const lastYear = adjustedData[adjustedData.length - 1];
     const yearsDiff = lastYear.year - firstYear.year;
     
     if (yearsDiff === 0) return 0.025;
     
-    const growthRate = (Number(lastYear.expenses) / Number(firstYear.expenses)) ** (1 / yearsDiff) - 1;
-    return Math.max(-0.05, Math.min(0.15, growthRate));
+    // Calculate compound annual growth rate over entire period
+    const cagr = (Number(lastYear.expenses) / Number(firstYear.expenses)) ** (1 / yearsDiff) - 1;
+    
+    // Apply more conservative smoothing for expenses - blend with inflation + 1%
+    // Expenses typically grow faster than income due to maintenance, repairs, etc.
+    const smoothedGrowthRate = (cagr * 0.6) + (0.035 * 0.4);
+    
+    // Cap growth rate between 0% and 8% (expenses rarely decrease long-term)
+    return Math.max(0.00, Math.min(0.08, smoothedGrowthRate));
   };
 
   // Calculate time range

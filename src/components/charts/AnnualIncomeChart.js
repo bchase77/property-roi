@@ -4,20 +4,107 @@ import { analyzeWithCurrentValues } from '@/lib/finance';
 import { getPropertyDisplayLabel } from '@/lib/propertyDisplay';
 import { projectRent, createPayoffScenarios } from '@/lib/rentProjections';
 
-export default function AnnualIncomeChart({ properties }) {
+export default function AnnualIncomeChart({ properties, onRefreshData }) {
   const [visibleProperties, setVisibleProperties] = useState(
     properties.reduce((acc, prop) => ({ ...acc, [prop.id]: true }), {})
   );
   const [visibleMetrics, setVisibleMetrics] = useState({
     NOI: true,
-    CashFlow: true
+    CashFlow: true,
+    Income: true,
+    Expenses: true
   });
   const [timeRange, setTimeRange] = useState('10y');
   const [refreshKey, setRefreshKey] = useState(0);
   const [historicalData, setHistoricalData] = useState({});
-  const [showProjections, setShowProjections] = useState(false);
+  const [showProjections, setShowProjections] = useState(true);
   const [selectedPayoffScenario, setSelectedPayoffScenario] = useState('current');
   const [rentAnalysis, setRentAnalysis] = useState({});
+
+  // Helper functions for income/expense extrapolation
+  const calculateIncomeGrowthRate = (yearlyData, property) => {
+    if (!yearlyData || yearlyData.length < 2) return 0.025;
+    
+    const sortedData = yearlyData.filter(d => d.grossIncome && Number(d.grossIncome) > 0).sort((a, b) => a.year - b.year);
+    if (sortedData.length < 2) return 0.025;
+    
+    // Adjust first year if partial
+    let adjustedData = [...sortedData];
+    const purchaseMonth = property.month_purchased;
+    if (purchaseMonth && purchaseMonth > 1 && sortedData[0].year === property.year_purchased) {
+      const monthsOwned = 13 - purchaseMonth;
+      const annualizedIncome = (Number(sortedData[0].grossIncome) * 12) / monthsOwned;
+      adjustedData[0] = { ...sortedData[0], grossIncome: annualizedIncome };
+    }
+    
+    // Use recent trend (last 7 years)
+    const recentYears = adjustedData.slice(-Math.min(7, adjustedData.length));
+    
+    if (recentYears.length >= 3) {
+      let totalGrowth = 0;
+      let validYears = 0;
+      
+      for (let i = 1; i < recentYears.length; i++) {
+        const prevIncome = Number(recentYears[i-1].grossIncome);
+        const currIncome = Number(recentYears[i].grossIncome);
+        
+        if (prevIncome > 0) {
+          const yearGrowth = (currIncome - prevIncome) / prevIncome;
+          totalGrowth += yearGrowth;
+          validYears++;
+        }
+      }
+      
+      if (validYears > 0) {
+        const avgGrowthRate = totalGrowth / validYears;
+        return Math.max(-0.05, Math.min(0.15, avgGrowthRate));
+      }
+    }
+    
+    return 0.025;
+  };
+
+  const calculateExpenseGrowthRate = (yearlyData, property) => {
+    if (!yearlyData || yearlyData.length < 2) return 0.025;
+    
+    const sortedData = yearlyData.filter(d => d.totalExpenses && Number(d.totalExpenses) > 0).sort((a, b) => a.year - b.year);
+    if (sortedData.length < 2) return 0.025;
+    
+    // Adjust first year if partial
+    let adjustedData = [...sortedData];
+    const purchaseMonth = property.month_purchased;
+    if (purchaseMonth && purchaseMonth > 1 && sortedData[0].year === property.year_purchased) {
+      const monthsOwned = 13 - purchaseMonth;
+      const annualizedExpenses = (Number(sortedData[0].totalExpenses) * 12) / monthsOwned;
+      adjustedData[0] = { ...sortedData[0], totalExpenses: annualizedExpenses };
+    }
+    
+    // Use recent trend (last 7 years)
+    const recentYears = adjustedData.slice(-Math.min(7, adjustedData.length));
+    
+    if (recentYears.length >= 3) {
+      let totalGrowth = 0;
+      let validYears = 0;
+      
+      for (let i = 1; i < recentYears.length; i++) {
+        const prevExpenses = Number(recentYears[i-1].totalExpenses);
+        const currExpenses = Number(recentYears[i].totalExpenses);
+        
+        if (prevExpenses > 0) {
+          const yearGrowth = (currExpenses - prevExpenses) / prevExpenses;
+          totalGrowth += yearGrowth;
+          validYears++;
+        }
+      }
+      
+      if (validYears > 0) {
+        const avgGrowthRate = totalGrowth / validYears;
+        return Math.max(-0.05, Math.min(0.15, avgGrowthRate));
+      }
+    }
+    
+    return 0.025;
+  };
   
   // Fetch historical actuals data
   useEffect(() => {
@@ -68,7 +155,8 @@ export default function AnnualIncomeChart({ properties }) {
     }
     
     const years = [];
-    for (let year = startYear; year <= currentYear; year++) {
+    const endYear = showProjections ? currentYear + 5 : currentYear; // Include 5 future years if projections enabled
+    for (let year = startYear; year <= endYear; year++) {
       years.push(year);
     }
 
@@ -88,18 +176,37 @@ export default function AnnualIncomeChart({ properties }) {
         if (yearsOwned >= 0) {
           let grossIncome, totalExpenses, netIncome, cashFlow;
           
-          if (yearData) {
+          if (year <= currentYear && yearData) {
             // Use real historical data
             grossIncome = yearData.grossIncome;
             totalExpenses = yearData.totalExpenses;
             netIncome = yearData.netIncome; // This is NOI equivalent (gross - expenses)
             
             // Estimate cash flow (net income minus debt service)
-            // We'll need to estimate debt service for historical years
             const metrics = analyzeWithCurrentValues(property);
             const currentDebtService = (metrics.pAndI || 0) * 12;
             
             // Assume debt service was similar (this is an approximation)
+            cashFlow = netIncome - currentDebtService;
+            
+          } else if (year > currentYear && showProjections && propertyHistoricalData.length > 0) {
+            // Use projected data for future years
+            const incomeGrowthRate = calculateIncomeGrowthRate(propertyHistoricalData, property);
+            const expenseGrowthRate = calculateExpenseGrowthRate(propertyHistoricalData, property);
+            
+            // Get most recent year's data as baseline
+            const latestData = propertyHistoricalData.reduce((latest, data) => 
+              data.year > latest.year ? data : latest, propertyHistoricalData[0]
+            );
+            
+            const yearsFromLatest = year - latestData.year;
+            grossIncome = Number(latestData.grossIncome || 0) * Math.pow(1 + incomeGrowthRate, yearsFromLatest);
+            totalExpenses = Number(latestData.totalExpenses || 0) * Math.pow(1 + expenseGrowthRate, yearsFromLatest);
+            netIncome = grossIncome - totalExpenses;
+            
+            // Estimate cash flow (net income minus debt service)
+            const metrics = analyzeWithCurrentValues(property);
+            const currentDebtService = (metrics.pAndI || 0) * 12;
             cashFlow = netIncome - currentDebtService;
             
           } else {
@@ -112,17 +219,17 @@ export default function AnnualIncomeChart({ properties }) {
             const baseNOI = metrics.noiAnnual / incomeMultiplier;
             netIncome = baseNOI * Math.pow(1 + growthRate, yearsFromPurchase);
             cashFlow = metrics.cashflowMonthly * 12 * Math.pow(1 + growthRate, yearsFromPurchase);
+            
+            // Estimate grossIncome and totalExpenses from netIncome
+            grossIncome = netIncome * 1.5; // Rough estimate
+            totalExpenses = grossIncome - netIncome;
           }
           
           const displayLabel = getPropertyDisplayLabel(property);
           dataPoint[`${displayLabel}_noi`] = Math.round(netIncome);
           dataPoint[`${displayLabel}_cashflow`] = Math.round(cashFlow);
-          
-          // Also include gross income and expenses if we have real data
-          if (yearData) {
-            dataPoint[`${displayLabel}_gross`] = Math.round(grossIncome);
-            dataPoint[`${displayLabel}_expenses`] = Math.round(totalExpenses);
-          }
+          dataPoint[`${displayLabel}_income`] = Math.round(grossIncome);
+          dataPoint[`${displayLabel}_expenses`] = Math.round(totalExpenses);
         }
       });
       
@@ -132,7 +239,12 @@ export default function AnnualIncomeChart({ properties }) {
 
   const chartData = generateChartData();
   
-  const refreshChart = () => {
+  const refreshChart = async () => {
+    // Refresh property data from database if function is provided
+    if (onRefreshData) {
+      await onRefreshData();
+    }
+    // Then refresh chart calculations
     setRefreshKey(prev => prev + 1);
   };
   
@@ -273,6 +385,38 @@ export default function AnnualIncomeChart({ properties }) {
                             <span className="text-xs" style={{ color: data.color }}>Cash Flow</span>
                           </div>
                         )}
+                        {visibleMetrics.Income && (
+                          <div className="flex items-center gap-1">
+                            <svg width="16" height="3">
+                              <line
+                                x1="0"
+                                y1="1.5"
+                                x2="16"
+                                y2="1.5"
+                                stroke={data.color}
+                                strokeWidth="2"
+                                strokeDasharray="3 3"
+                              />
+                            </svg>
+                            <span className="text-xs" style={{ color: data.color }}>Income</span>
+                          </div>
+                        )}
+                        {visibleMetrics.Expenses && (
+                          <div className="flex items-center gap-1">
+                            <svg width="16" height="3">
+                              <line
+                                x1="0"
+                                y1="1.5"
+                                x2="16"
+                                y2="1.5"
+                                stroke={data.color}
+                                strokeWidth="2"
+                                strokeDasharray="8 2"
+                              />
+                            </svg>
+                            <span className="text-xs" style={{ color: data.color }}>Expenses</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -306,6 +450,30 @@ export default function AnnualIncomeChart({ properties }) {
                       strokeDasharray="5 5"
                       name={`${displayLabel} - Cash Flow`}
                       connectNulls={false}
+                    />
+                  )}
+                  {visibleMetrics.Income && (
+                    <Line
+                      type="monotone"
+                      dataKey={`${displayLabel}_income`}
+                      stroke={color}
+                      strokeWidth={2}
+                      strokeDasharray="3 3"
+                      name={`${displayLabel} - Income`}
+                      connectNulls={false}
+                      opacity={0.7}
+                    />
+                  )}
+                  {visibleMetrics.Expenses && (
+                    <Line
+                      type="monotone"
+                      dataKey={`${displayLabel}_expenses`}
+                      stroke={color}
+                      strokeWidth={2}
+                      strokeDasharray="8 2"
+                      name={`${displayLabel} - Expenses`}
+                      connectNulls={false}
+                      opacity={0.7}
                     />
                   )}
                 </React.Fragment>
