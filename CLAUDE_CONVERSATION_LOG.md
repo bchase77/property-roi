@@ -8,6 +8,14 @@ This file tracks all user prompts and responses during current development sessi
 
 ---
 
+## Session Start: 2026-03-14
+
+**User Prompt:** Can you help me build a tool to traverse a website to find good properties to buy? This website is from a place which I already use to manage properties, in Texas. They periodically update this website with new properties and remove ones after they sell. I can give you the link, take a look. If you think it would be better to add this capability to the property-roi app then let's devise a plan to do that.
+
+**Response:** Acknowledged — tracking all prompts and work efforts. Waiting for the user to share the link to evaluate the site and determine whether to build a standalone scraper tool or integrate it into the property-roi app.
+
+---
+
 ## Session Start: 2025-12-28
 
 **User Prompt:** I got a notice from github that the fine-grained security token has expired, and it shows expired on github. what to do next? Can you rotate tokens for me?
@@ -57,3 +65,17 @@ Fine-grained PATs are designed to give minimal necessary access. Unless you need
 2. Modified `src/components/ui/PropertyList.js` — Added a "View" link before the Edit button that opens the detail page in a new tab.
 
 Files changed: 2 (1 new, 1 modified)
+
+---
+
+## Session Start: 2026-03-15
+
+**Tracking prompts and work efforts for this session.**
+
+**User Prompt:** Create two files in the property-roi Next.js app:
+
+1. `src/lib/dealAnalysis.js` — a pure calculation library (no React) exporting `calcDeal(inputs)`, `calcProjections(inputs, dealResult, years=5)`, and `formatDealSummary(inputs, dealResult)` for private-capital deal structuring with equity and debt tranches.
+
+2. `src/app/deal-analyzer/page.js` — a Next.js 'use client' page with URL param pre-fill (price, repairs, rent, address), six sections: Property Details inputs, Capital Structure with stack validation, Monthly P&L waterfall, Investor Returns (debt card + equity card), 5-Year Projection table, and auto-generated Pitch Summary with Copy/Print buttons. All calculations client-side, no API calls.
+
+**Response:** Created both files. `src/lib/dealAnalysis.js` implements all three exported functions with full capital stack math, interest-only debt service, NOI (excluding vacancy), break-even rent, DSCR, 5-year projections with 3% appreciation/2.5% rent growth, and 4-paragraph pitch summary generation. `src/app/deal-analyzer/page.js` implements all six sections with the specified UI, URL param hydration, useMemo recalculation on every input change, color-coded metrics, print CSS, and all defaults as specified. Files: `/Users/bmc/Documents/Claude/property-roi/src/lib/dealAnalysis.js`, `/Users/bmc/Documents/Claude/property-roi/src/app/deal-analyzer/page.js`.
