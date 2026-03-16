@@ -122,6 +122,7 @@ export default function PageHeader({ title, subtitle, currentPage }) {
     { name: 'Comparison', path: '/comparison', icon: '⚖️' },
     { name: 'Data Entry', path: '/data-entry', icon: '✏️' },
     { name: 'Bulk Lookup', path: '/bulk-lookup', icon: '🔍' },
+    { name: 'Scout', path: '/scout', icon: '🔭' },
     { name: 'Rent Research', path: '/rent-research', icon: '💰' },
     { name: 'Deal Analyzer', path: '/deal-analyzer', icon: '🤝' },
     { name: 'Archive', path: '/archive', icon: '📁' },
