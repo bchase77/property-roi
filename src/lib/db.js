@@ -174,6 +174,11 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_repair_costs NUMERIC;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS original_mortgage_free BOOLEAN DEFAULT false;`;
 
+  // Rent research — min/max range with source notes
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS rent_min NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS rent_max NUMERIC;`;
+  await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS rent_research_notes TEXT;`;
+
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
       id SERIAL PRIMARY KEY,
