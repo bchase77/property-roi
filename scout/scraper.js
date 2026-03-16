@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { ASSUMPTIONS, calculateMetrics, estimateRent } from './finance.js';
 import { loadHistory, loadMarks, saveHistory, updateHistory, getPriceInfo } from './storage.js';
+import { sql } from '@vercel/postgres';
 
 // ─── Load .env.local ──────────────────────────────────────────────────────────
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -46,16 +47,24 @@ const WITH_SCHOOLS = process.argv.includes('--with-schools');
 const BASE_URL  = 'https://pamtexas.idxbroker.com';
 const LOGIN_URL = `${BASE_URL}/idx/login`;
 
-// ─── Search URL ───────────────────────────────────────────────────────────────
-// Swap this to any IDXBroker search URL. Pagination (&start=N) is added automatically.
-const SEARCH_URL = 'https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=1245&ccz=county&lp=0&hp=500000&tb=3&per=50&srt=prd';
+// ─── Load search config from DB (falls back to defaults if DB unavailable) ───
+async function loadScoutConfig() {
+  try {
+    const { rows } = await sql`SELECT * FROM scout_config WHERE name = 'default' LIMIT 1;`;
+    if (rows[0]) {
+      const c = rows[0];
+      console.log(`  Loaded config from DB: max $${Number(c.max_price).toLocaleString()}, min ${c.min_beds}BR, ${c.max_pages} pages`);
+      return c;
+    }
+  } catch (e) {
+    console.warn(`  Warning: could not read scout_config from DB (${e.message}), using defaults`);
+  }
+  return { min_price: 0, max_price: 500000, min_beds: 3, county: '1245', max_pages: 10 };
+}
 
-// ─── Client-side safety filters (backup — the URL already handles most of these) ─
-const FILTERS = {
-  maxPrice: 500_000,
-  minBeds: 3,
-  minPrice: 50_000,   // exclude rentals listed at monthly rates
-};
+// SEARCH_URL and FILTERS are set dynamically in scrape() after loading config.
+let SEARCH_URL = '';
+let FILTERS    = { maxPrice: 500_000, minBeds: 3, minPrice: 50_000 };
 
 // ─── Scraper ──────────────────────────────────────────────────────────────────
 async function scrape() {
@@ -66,6 +75,11 @@ async function scrape() {
     console.error('    Add them:\n      PAMS_UNAME=your@email.com\n      PAMS_PW=yourpassword\n');
     process.exit(1);
   }
+
+  // ── Load config from DB ──────────────────────────────────────────────────────
+  const cfg = await loadScoutConfig();
+  SEARCH_URL = `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${cfg.min_price}&hp=${cfg.max_price}&tb=${cfg.min_beds}&per=50&srt=prd`;
+  FILTERS = { maxPrice: cfg.max_price, minBeds: cfg.min_beds, minPrice: 50_000 };
 
   const browser = await chromium.launch({
     headless: FORCE_HEADLESS ? true : !DEBUG,
@@ -162,6 +176,42 @@ async function scrape() {
   updateHistory(history, filtered);
   saveHistory(history);
   console.log(`→ Price history updated (${Object.keys(history).length} properties tracked)`);
+
+  // ── 5b. Write listings + price history to DB ───────────────────────────────
+  let dbOk = false;
+  try {
+    const now = new Date().toISOString();
+    for (const l of filtered) {
+      if (!l.mlsNum) continue;
+      await sql`
+        INSERT INTO scout_listings (mls_num, address, price, beds, baths, sqft, property_type, href, first_seen, last_seen)
+        VALUES (${l.mlsNum}, ${l.address}, ${l.price}, ${l.beds}, ${l.baths ?? null}, ${l.sqft ?? null}, ${l.propertyType ?? null}, ${l.href ?? null}, ${now}, ${now})
+        ON CONFLICT (mls_num) DO UPDATE SET
+          address   = EXCLUDED.address,
+          price     = EXCLUDED.price,
+          beds      = EXCLUDED.beds,
+          baths     = EXCLUDED.baths,
+          sqft      = EXCLUDED.sqft,
+          href      = EXCLUDED.href,
+          last_seen = EXCLUDED.last_seen;
+      `;
+      // Record price snapshot only if price changed
+      const hist = history[l.mlsNum];
+      const snaps = hist?.snapshots ?? [];
+      const lastSnap = snaps[snaps.length - 1];
+      if (lastSnap && (snaps.length === 1 || snaps[snaps.length - 2]?.price !== lastSnap.price)) {
+        await sql`
+          INSERT INTO scout_price_history (mls_num, price, recorded_at)
+          VALUES (${l.mlsNum}, ${lastSnap.price}, ${lastSnap.date})
+          ON CONFLICT DO NOTHING;
+        `.catch(() => {}); // ignore if already recorded
+      }
+    }
+    console.log(`→ DB updated (${filtered.length} listings upserted)`);
+    dbOk = true;
+  } catch (e) {
+    console.warn(`  Warning: DB write failed (${e.message}) — report still generated from local data`);
+  }
 
   // ── 6. School districts (optional) ─────────────────────────────────────────
   if (WITH_SCHOOLS) {

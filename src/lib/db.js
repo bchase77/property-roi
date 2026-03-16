@@ -179,6 +179,62 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS rent_max NUMERIC;`;
   await sql/*sql*/`ALTER TABLE properties ADD COLUMN IF NOT EXISTS rent_research_notes TEXT;`;
 
+  // ── Scout tables ────────────────────────────────────────────────────────────
+  await sql/*sql*/`
+    CREATE TABLE IF NOT EXISTS scout_config (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL DEFAULT 'default',
+      min_price INT NOT NULL DEFAULT 0,
+      max_price INT NOT NULL DEFAULT 500000,
+      min_beds INT NOT NULL DEFAULT 3,
+      county TEXT NOT NULL DEFAULT '1245',
+      max_pages INT NOT NULL DEFAULT 10,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+  `;
+  await sql/*sql*/`
+    INSERT INTO scout_config (name) VALUES ('default') ON CONFLICT (name) DO NOTHING;
+  `;
+  await sql/*sql*/`
+    CREATE TABLE IF NOT EXISTS scout_listings (
+      id SERIAL PRIMARY KEY,
+      mls_num TEXT UNIQUE NOT NULL,
+      address TEXT,
+      price NUMERIC,
+      beds INT,
+      baths NUMERIC,
+      sqft INT,
+      property_type TEXT,
+      href TEXT,
+      school_district TEXT,
+      first_seen TIMESTAMPTZ DEFAULT now(),
+      last_seen TIMESTAMPTZ DEFAULT now()
+    );
+  `;
+  await sql/*sql*/`
+    CREATE TABLE IF NOT EXISTS scout_price_history (
+      id SERIAL PRIMARY KEY,
+      mls_num TEXT NOT NULL,
+      price NUMERIC NOT NULL,
+      recorded_at TIMESTAMPTZ DEFAULT now()
+    );
+  `;
+  await sql/*sql*/`
+    CREATE TABLE IF NOT EXISTS scout_marks (
+      id SERIAL PRIMARY KEY,
+      mls_num TEXT UNIQUE NOT NULL,
+      status TEXT,
+      repair_costs NUMERIC,
+      hoa_quarterly NUMERIC,
+      rent_override NUMERIC,
+      rent_min NUMERIC,
+      rent_max NUMERIC,
+      rent_note TEXT,
+      notes TEXT,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+  `;
+
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
       id SERIAL PRIMARY KEY,
