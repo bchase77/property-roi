@@ -1,0 +1,72 @@
+# Scout — Automated Property Scraper
+# Runs daily at 7am Central (13:00 UTC) and can also be triggered manually.
+#
+# HOW IT WORKS:
+#   1. GitHub spins up a free Ubuntu VM
+#   2. It installs Node.js, dependencies, and a headless Chromium browser
+#   3. It runs the scraper using your credentials (stored as GitHub Secrets)
+#   4. Results are written directly to your Vercel Postgres database
+#   5. The VM shuts down — you're only charged for actual run time (~2-5 min)
+#
+# TO ADD SECRETS:
+#   Go to your GitHub repo → Settings → Secrets and variables → Actions
+#   Add each secret listed under "env:" below.
+
+name: Scout — Fetch Properties
+
+on:
+  # Run on a schedule (cron syntax: minute hour day month weekday)
+  # 13:00 UTC = 7:00am CT (CST) / 8:00am CDT
+  schedule:
+    - cron: '0 13 * * *'
+
+  # Allow manual trigger from the GitHub Actions UI ("Run workflow" button)
+  workflow_dispatch:
+    inputs:
+      with_schools:
+        description: 'Include school district data (slower)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  scout:
+    name: Scrape PAM Texas Listings
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # 1. Check out your code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Node.js (same version you use locally)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Install npm packages
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Install Playwright's Chromium browser
+      #    (Playwright is already in your devDependencies)
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      # 5. Run the scraper
+      #    Secrets are injected as environment variables — they never appear in logs
+      - name: Run Scout scraper
+        env:
+          PAMS_UNAME:   ${{ secrets.PAMS_UNAME }}
+          PAMS_PW:      ${{ secrets.PAMS_PW }}
+          PAMS_CORPID:  ${{ secrets.PAMS_CORPID }}
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+        run: |
+          if [ "${{ inputs.with_schools }}" = "true" ]; then
+            npm run scout:schools -- --headless
+          else
+            npm run scout -- --headless
+          fi

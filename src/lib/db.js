@@ -208,9 +208,15 @@ export async function init() {
       href TEXT,
       school_district TEXT,
       first_seen TIMESTAMPTZ DEFAULT now(),
-      last_seen TIMESTAMPTZ DEFAULT now()
+      last_seen TIMESTAMPTZ DEFAULT now(),
+      disappeared_at TIMESTAMPTZ,
+      reappeared_count INT NOT NULL DEFAULT 0,
+      last_absence_days INT
     );
   `;
+  await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS disappeared_at TIMESTAMPTZ;`;
+  await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS reappeared_count INT NOT NULL DEFAULT 0;`;
+  await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS last_absence_days INT;`;
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS scout_price_history (
       id SERIAL PRIMARY KEY,
