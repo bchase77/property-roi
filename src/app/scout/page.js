@@ -263,7 +263,8 @@ export default function ScoutPage() {
               </button>
             </div>
             <p className="mt-3 text-xs text-gray-500">
-              After saving, run <code className="bg-gray-700 px-1 rounded">npm run scout</code> locally to fetch updated listings.
+              After saving, the GitHub Actions workflow will pick up new settings on the next morning run.
+              Or run <code className="bg-gray-700 px-1 rounded">npm run scout</code> locally to fetch now.
             </p>
           </div>
         )}
@@ -333,7 +334,8 @@ export default function ScoutPage() {
         <div className="bg-gray-800 rounded-xl p-12 text-center">
           <p className="text-gray-400 text-lg mb-2">No listings yet.</p>
           <p className="text-gray-600 text-sm">
-            Run <code className="bg-gray-700 px-1.5 py-0.5 rounded">npm run scout</code> to fetch properties.
+            The GitHub Actions workflow will fetch properties automatically each morning,
+            or run <code className="bg-gray-700 px-1.5 py-0.5 rounded">npm run scout</code> locally to fetch now.
           </p>
         </div>
       ) : (
@@ -375,6 +377,13 @@ export default function ScoutPage() {
                   ? new Date(listing.first_seen).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
                   : null;
 
+                const isRelisted = listing.reappeared_count > 0;
+                const absenceDays = listing.last_absence_days;
+                const absenceLabel = absenceDays == null ? null
+                  : absenceDays >= 60 ? `${Math.round(absenceDays / 30)}mo`
+                  : absenceDays >= 14 ? `${Math.round(absenceDays / 7)}wk`
+                  : `${absenceDays}d`;
+
                 return (
                   <tr key={listing.mls_num} className="hover:bg-gray-750 align-top">
                     {/* Address */}
@@ -398,8 +407,15 @@ export default function ScoutPage() {
                           📋
                         </button>
                       </div>
+                      {isRelisted && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center gap-1 bg-orange-500/20 border border-orange-500/50 text-orange-300 text-xs font-bold px-1.5 py-0.5 rounded">
+                            ↩ RELISTED{absenceLabel ? ` (gone ${absenceLabel})` : ''}
+                          </span>
+                        </div>
+                      )}
                       {firstSeenDate && (
-                        <div className="text-gray-600 text-xs mt-0.5">{firstSeenDate}</div>
+                        <div className="text-gray-600 text-xs mt-0.5">First seen: {firstSeenDate}</div>
                       )}
                     </td>
 

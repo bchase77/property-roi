@@ -208,6 +208,37 @@ async function scrape() {
       }
     }
     console.log(`→ DB updated (${filtered.length} listings upserted)`);
+
+    // ── Track disappearances and reappearances ─────────────────────────────
+    const currentMlsNums = filtered.map(l => l.mlsNum).filter(Boolean);
+    if (currentMlsNums.length > 0) {
+      // 1. Mark reappeared: listings that had disappeared_at set but are back now
+      const { rows: reappeared } = await sql`
+        UPDATE scout_listings
+        SET
+          last_absence_days  = EXTRACT(DAY FROM now() - disappeared_at)::INT,
+          reappeared_count   = reappeared_count + 1,
+          disappeared_at     = NULL
+        WHERE mls_num = ANY(${currentMlsNums})
+          AND disappeared_at IS NOT NULL
+        RETURNING mls_num, address, reappeared_count, last_absence_days;
+      `;
+      if (reappeared.length > 0) {
+        console.log(`→ Reappeared (${reappeared.length}): ${reappeared.map(r => `${r.address} (gone ${r.last_absence_days}d)`).join(', ')}`);
+      }
+
+      // 2. Mark absent: listings not seen this run and not already marked absent
+      const { rowCount: markedAbsent } = await sql`
+        UPDATE scout_listings
+        SET disappeared_at = now()
+        WHERE mls_num != ALL(${currentMlsNums})
+          AND disappeared_at IS NULL;
+      `;
+      if (markedAbsent > 0) {
+        console.log(`→ Marked absent (${markedAbsent} listing${markedAbsent !== 1 ? 's' : ''} no longer on market)`);
+      }
+    }
+
     dbOk = true;
   } catch (e) {
     console.warn(`  Warning: DB write failed (${e.message}) — report still generated from local data`);
