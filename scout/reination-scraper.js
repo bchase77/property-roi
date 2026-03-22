@@ -90,48 +90,25 @@ async function scrapeProperty(id) {
   if (DEBUG) writeFileSync(join(__dirname, `rei-prop-${id}.html`), html);
 
   // ── Address ───────────────────────────────────────────────────────────────
-  // Title/og:title format: "Street Address | City, ST | Reination"
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  const titleText = titleMatch ? titleMatch[1] : '';
-  const ogTitle = html.match(/property="og:title"[^>]*content="([^"]+)"/i)
-                || html.match(/content="([^"]+)"[^>]*property="og:title"/i);
-  const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+  // Page has two <h2 class="houseHeaderSize"> elements:
+  //   First:  street address  e.g. "8131 Blooming Meadow Lane"
+  //   Second: city/state/zip  e.g. "Houston, TX 77016"
+  const headerMatches = [...html.matchAll(/class="houseHeaderSize"[^>]*>([^<]+)/gi)];
+  let street = (headerMatches[0]?.[1] ?? '').trim();
+  const cityLine = (headerMatches[1]?.[1] ?? '').trim();
 
-  const rawTitle = (ogTitle?.[1] || h1Match?.[1] || titleText).replace(/&amp;/g, '&');
-
-  let street = '', city = '', state = '', zip = '';
-
-  // Try pipe-separated format first: "Street | City, ST | Reination"
-  const pipeParts = rawTitle.split('|').map(s => s.trim()).filter(Boolean);
-  if (pipeParts.length >= 2) {
-    street = pipeParts[0].replace(/\s*-\s*Reination.*/i, '').trim();
-    // Second part is usually "City, ST" or "City, ST 12345"
-    const cityState = pipeParts[1].match(/^([^,]+),\s*([A-Z]{2})\s*(\d{5})?$/);
-    if (cityState) {
-      city  = cityState[1].trim();
-      state = cityState[2].trim();
-      zip   = cityState[3] ?? '';
-    } else {
-      city = pipeParts[1];
-    }
-  } else {
-    // Fallback: comma-separated "Street, City, ST 12345"
-    const addrClean = rawTitle.replace(/\s*\|.*/, '').replace(/\s*-\s*Reination.*/i, '').trim();
-    const addrParts = addrClean.match(/^(.+?),\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?$/);
-    if (addrParts) {
-      street = addrParts[1].trim();
-      city   = addrParts[2].trim();
-      state  = addrParts[3].trim();
-      zip    = addrParts[4] ?? '';
-    } else {
-      street = addrClean;
-    }
+  let city = '', state = '', zip = '';
+  const cityState = cityLine.match(/^([^,]+),\s*([A-Z]{2})\s*(\d{5})?$/);
+  if (cityState) {
+    city  = cityState[1].trim();
+    state = cityState[2].trim();
+    zip   = cityState[3] ?? '';
   }
 
-  // Last fallback: meta description
+  // Fallback: title tag
   if (!street) {
-    const metaDesc = html.match(/name="description"[^>]*content="([^"]+)"/i)?.[1] ?? '';
-    street = (metaDesc.match(/^([^.]+)/)?.[1] ?? '').trim();
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    street = (titleMatch?.[1] ?? '').replace(/\s*-\s*Reination.*/i, '').replace(/\s*\|.*/,'').trim();
   }
 
   // ── Beds / Baths / Sqft ───────────────────────────────────────────────────
