@@ -10,6 +10,7 @@ export async function GET() {
       m.status,
       m.repair_costs,
       m.hoa_quarterly,
+      m.hoa_set_at,
       m.rent_override,
       m.rent_min,
       m.rent_max,
