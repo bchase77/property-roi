@@ -78,7 +78,7 @@ async function scrape() {
 
   // ── Load config from DB ──────────────────────────────────────────────────────
   const cfg = await loadScoutConfig();
-  SEARCH_URL = `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${cfg.min_price}&hp=${cfg.max_price}&tb=${cfg.min_beds}&per=50&srt=prd`;
+  SEARCH_URL = `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${cfg.min_price}&hp=${cfg.max_price}&tb=${cfg.min_beds}&per=100&srt=prd`;
   FILTERS = { maxPrice: cfg.max_price, minBeds: cfg.min_beds, minPrice: 50_000 };
 
   const browser = await chromium.launch({
@@ -158,20 +158,30 @@ async function scrape() {
         }, targetUrl);
 
         if (clicked) {
-          await page.waitForLoadState('domcontentloaded', { timeout: 30_000 });
-          console.log(`  (navigated via link click → ${page.url().split('?')[1] ?? page.url()})`);
+          // Wait for network to settle (AJAX requests to finish), then scroll to trigger lazy-load
+          await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+          await page.evaluate(() => window.scrollBy(0, 400));
+          await page.waitForTimeout(2000);
+          console.log(`  (navigated via click → ${page.url().split('?')[1] ?? page.url()})`);
         } else {
           // Fallback: navigate directly
           console.log(`  (link not found on page, falling back to goto)`);
-          await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+          await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30_000 }).catch(() =>
+            page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 })
+          );
+          await page.evaluate(() => window.scrollBy(0, 400));
+          await page.waitForTimeout(2000);
         }
       }
 
       // Wait for listings to render
-      const appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
+      const appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 25_000 })
         .then(() => true).catch(() => false);
       if (!appeared) {
-        console.log(`  (no listings appeared after 20s — url: ${page.url()})`);
+        // Dump a snippet of the DOM to help diagnose what's on the page
+        const snippet = await page.evaluate(() => document.body?.innerHTML?.slice(0, 800) ?? '').catch(() => '');
+        console.log(`  (no listings after 25s — url: ${page.url()})`);
+        console.log(`  DOM snippet: ${snippet.replace(/\s+/g, ' ')}`);
         break;
       }
 
