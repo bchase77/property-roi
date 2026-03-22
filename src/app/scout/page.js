@@ -45,8 +45,9 @@ function calcM(listing, mark, A) {
   const depr = (price + cc + rep + ins * 12) / 27.5 / 12;
   te += Math.max(0, (eff - rent * (A.mgmtPctRent / 100) - rent * (A.maintPctRent / 100) - ins - depr - tax) * 0.44) * 12 * yrs;
   const atroiRaw = paid > 0 ? Math.round(((tv - te) / paid / yrs) * 1000) / 10 : 0;
-  const atroi = Number.isFinite(atroiRaw) ? atroiRaw : null;
-  return { cf, cap, coc, atroi, rent: Math.round(rent) };
+  const atroi = Number.isFinite(atroiRaw) && Math.abs(atroiRaw) <= 10000 ? atroiRaw : null;
+  const atroiErr = Number.isFinite(atroiRaw) && Math.abs(atroiRaw) > 10000;
+  return { cf, cap, coc, atroi, atroiErr, rent: Math.round(rent) };
 }
 
 function fmt$(n) {
@@ -58,7 +59,8 @@ function fmtPct(n) {
   return n.toFixed(1) + '%';
 }
 
-function AtroiBadge({ value }) {
+function AtroiBadge({ value, err }) {
+  if (err) return <span className="text-xs font-bold px-2 py-0.5 rounded bg-orange-900/60 text-orange-300" title="Data error — delete and re-add this listing">err</span>;
   if (value == null) return <span className="text-gray-500">—</span>;
   const color = value >= 10 ? 'bg-purple-900/60 text-purple-300' : value >= 5 ? 'bg-yellow-900/60 text-yellow-300' : 'bg-red-900/60 text-red-300';
   return <span className={`text-xs font-bold px-2 py-0.5 rounded ${color}`}>{value.toFixed(1)}%</span>;
@@ -852,7 +854,7 @@ export default function ScoutPage() {
 
                     {/* ATROI */}
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <AtroiBadge value={metrics?.atroi ?? null} />
+                      <AtroiBadge value={metrics?.atroi ?? null} err={metrics?.atroiErr} />
                     </td>
 
                     {/* Notes */}
