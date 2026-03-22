@@ -14,7 +14,7 @@ export async function PATCH(req, { params }) {
     await sql`UPDATE scout_listings SET price = ${Number(price)} WHERE mls_num = ${mls_num}`;
   }
   if (address != null) {
-    await sql`UPDATE scout_listings SET address = ${address} WHERE mls_num = ${mls_num}`;
+    await sql`UPDATE scout_listings SET address = ${address}, address_locked = true WHERE mls_num = ${mls_num}`;
   }
 
   return NextResponse.json({ ok: true });

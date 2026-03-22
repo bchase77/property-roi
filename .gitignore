@@ -53,3 +53,6 @@ scout/debug-*.png
 scout/report.html
 scout/price-history.json
 scout/page*.html
+scout/run-summary.log
+scout/rei-*.html
+scout/scout-pages*
