@@ -62,9 +62,77 @@ async function loadScoutConfig() {
   return { min_price: 0, max_price: 500000, min_beds: 3, county: '1245', max_pages: 10 };
 }
 
-// SEARCH_URL and FILTERS are set dynamically in scrape() after loading config.
-let SEARCH_URL = '';
-let FILTERS    = { maxPrice: 500_000, minBeds: 3, minPrice: 50_000 };
+let FILTERS = { maxPrice: 500_000, minBeds: 3, minPrice: 50_000 };
+
+function bandUrl(cfg, lp, hp) {
+  return `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${lp}&hp=${hp}&tb=${cfg.min_beds}&per=250&srt=prd`;
+}
+
+// Build overlapping price bands so no property falls through IDX Broker's 500-result cap.
+// Each band overlaps the next by $25K; duplicates are deduped by MLS# after merging.
+function buildBands(minPrice, maxPrice) {
+  const boundaries = [minPrice, 225_000, 350_000, 425_000, maxPrice]
+    .filter(b => b >= minPrice && b <= maxPrice)
+    .sort((a, b) => a - b);
+  const bands = [];
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const lp = i === 0 ? boundaries[i] : boundaries[i] - 25_000;
+    const hp = boundaries[i + 1];
+    bands.push({ lp: Math.max(minPrice, lp), hp });
+  }
+  return bands;
+}
+
+// ─── Scrape all pages for one price band ─────────────────────────────────────
+async function scrapeBand(page, url, cfg, label) {
+  console.log(`\n  ── Band ${label}: navigating…`);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.waitForTimeout(5000);
+
+  const bandListings = [];
+
+  const p1appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
+    .then(() => true).catch(() => false);
+  if (!p1appeared) {
+    console.log(`    No listings on page 1 — skipping band`);
+    return bandListings;
+  }
+  const p1 = await scrapePage(page);
+  console.log(`    Page 1: ${p1.length} listings`);
+  bandListings.push(...p1);
+
+  const pageUrls = await page.$$eval('a[href*="start="]', links => {
+    const seen = new Set();
+    return [...links]
+      .map(a => a.href)
+      .filter(h => { if (!h || seen.has(h)) return false; seen.add(h); return true; })
+      .sort((a, b) => {
+        const ma = a.match(/start=(\d+)/), mb = b.match(/start=(\d+)/);
+        return (ma ? +ma[1] : 0) - (mb ? +mb[1] : 0);
+      });
+  });
+
+  const maxPages = Math.min(pageUrls.length + 1, cfg.max_pages ?? 10);
+  for (let i = 0; i < pageUrls.length && bandListings.length < (maxPages - 1) * 250; i++) {
+    console.log(`    Page ${i + 2}/${maxPages}…`);
+    await page.goto(pageUrls[i], { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await page.waitForTimeout(5000);
+    const html = await page.content();
+    if (html.includes('cf-turnstile') || html.includes('security verification')) {
+      console.log(`    Cloudflare challenge — stopping band early`);
+      break;
+    }
+    const appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
+      .then(() => true).catch(() => false);
+    if (!appeared) break;
+    const pl = await scrapePage(page);
+    console.log(`    Page ${i + 2}: ${pl.length} listings`);
+    if (pl.length === 0) break;
+    bandListings.push(...pl);
+  }
+
+  return bandListings;
+}
 
 // ─── Scraper ──────────────────────────────────────────────────────────────────
 async function scrape() {
@@ -78,8 +146,9 @@ async function scrape() {
 
   // ── Load config from DB ──────────────────────────────────────────────────────
   const cfg = await loadScoutConfig();
-  SEARCH_URL = `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${cfg.min_price}&hp=${cfg.max_price}&tb=${cfg.min_beds}&per=250&srt=prd`;
   FILTERS = { maxPrice: cfg.max_price, minBeds: cfg.min_beds, minPrice: 50_000 };
+  const bands = buildBands(cfg.min_price || 50_000, cfg.max_price || 500_000);
+  console.log(`  Price bands (${bands.length}): ${bands.map(b => `$${(b.lp/1000).toFixed(0)}K–$${(b.hp/1000).toFixed(0)}K`).join(' | ')}`);
 
   const isHeadless = FORCE_HEADLESS ? true
     : process.env.HEADLESS === 'false' ? false
@@ -118,9 +187,10 @@ async function scrape() {
   let listings = [];
 
   try {
-    // ── 1. Check for login requirement ────────────────────────────────────
-    console.log('\n→ Loading search page…');
-    await page.goto(SEARCH_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    // ── 1. Check for login requirement using the first band URL ───────────
+    const band0url = bandUrl(cfg, bands[0].lp, bands[0].hp);
+    console.log('\n→ Loading first band to check login…');
+    await page.goto(band0url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await page.waitForTimeout(5000);
 
     const currentUrl = page.url();
@@ -129,22 +199,11 @@ async function scrape() {
     if (needsLogin) {
       console.log('→ Login required — signing in…');
       await login(page);
-      await page.goto(SEARCH_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.goto(band0url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
       await page.waitForTimeout(5000);
     }
 
-    // ── 2. Scrape page 1 (already loaded) ────────────────────────────────
-    console.log('\n→ Scraping page 1…');
-    const p1appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
-      .then(() => true).catch(() => false);
-
-    if (p1appeared) {
-      const p1listings = await scrapePage(page);
-      console.log(`  Found ${p1listings.length} listings`);
-      listings.push(...p1listings);
-    }
-
-    // Always save page 1 HTML for inspection
+    // Save page1.html from first band for artifact inspection
     writeFileSync(join(__dirname, 'page1.html'), await page.content());
 
     if (DEBUG) {
@@ -153,47 +212,26 @@ async function scrape() {
       console.log(`  Screenshot saved → ${shot}`);
     }
 
-    // ── 3. Try subsequent pages — save HTML when blocked ─────────────────
-    const pageUrls = await page.$$eval('a[href*="start="]', links => {
-      const seen = new Set();
-      return [...links]
-        .map(a => a.href)
-        .filter(h => { if (!h || seen.has(h)) return false; seen.add(h); return true; })
-        .sort((a, b) => {
-          const ma = a.match(/start=(\d+)/), mb = b.match(/start=(\d+)/);
-          return (ma ? +ma[1] : 0) - (mb ? +mb[1] : 0);
-        });
-    });
-    const maxPages = Math.min(pageUrls.length + 1, cfg.max_pages ?? 10);
-
-    for (let i = 0; i < pageUrls.length && listings.length < (maxPages - 1) * 100; i++) {
-      const url = pageUrls[i];
-      console.log(`\n→ Page ${i + 2}/${maxPages} — navigating…`);
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      // Give Cloudflare JS challenge time to run and redirect (if present)
-      await page.waitForTimeout(5000);
-
-      // Save full HTML so we can inspect it as an artifact
-      const html = await page.content();
-      writeFileSync(join(__dirname, `page${i + 2}.html`), html);
-
-      if (html.includes('cf-turnstile') || html.includes('security verification')) {
-        console.log(`  Cloudflare challenge — HTML saved to scout/page${i + 2}.html`);
-        break;
-      }
-
-      const appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
-        .then(() => true).catch(() => false);
-      if (!appeared) {
-        console.log(`  No listings appeared — HTML saved to scout/page${i + 2}.html`);
-        break;
-      }
-
-      const pageListings = await scrapePage(page);
-      console.log(`  Found ${pageListings.length} listings`);
-      if (pageListings.length === 0) break;
-      listings.push(...pageListings);
+    // ── 2. Scrape all bands ───────────────────────────────────────────────
+    // Band 0 is already loaded; pass its URL so scrapeBand re-navigates
+    // consistently (it always navigates at the start).
+    const allRaw = [];
+    for (let i = 0; i < bands.length; i++) {
+      const { lp, hp } = bands[i];
+      const label = `$${(lp / 1000).toFixed(0)}K–$${(hp / 1000).toFixed(0)}K`;
+      const url = bandUrl(cfg, lp, hp);
+      const bandResults = await scrapeBand(page, url, cfg, label);
+      console.log(`  Band ${label}: ${bandResults.length} listings`);
+      allRaw.push(...bandResults);
     }
+
+    // ── 3. Deduplicate by MLS# (overlapping bands produce duplicates) ─────
+    const seen = new Map();
+    for (const l of allRaw) {
+      if (l.mlsNum && !seen.has(l.mlsNum)) seen.set(l.mlsNum, l);
+    }
+    listings = [...seen.values()];
+    console.log(`\n→ Total unique listings after dedup: ${listings.length} (from ${allRaw.length} raw)`);
 
     await page.close();
 
