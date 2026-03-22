@@ -221,7 +221,8 @@ async function scrape() {
       const label = `$${(lp / 1000).toFixed(0)}K–$${(hp / 1000).toFixed(0)}K`;
       const url = bandUrl(cfg, lp, hp);
       const bandResults = await scrapeBand(page, url, cfg, label);
-      console.log(`  Band ${label}: ${bandResults.length} listings`);
+      const capped = bandResults.length >= 500;
+      console.log(`  Band ${label}: ${bandResults.length} listings${capped ? ' ⚠️  HIT 500-RESULT CAP — some properties may be missing, consider splitting this band' : ''}`);
       allRaw.push(...bandResults);
     }
 
