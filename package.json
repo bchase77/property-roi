@@ -10,7 +10,9 @@
     "lint": "eslint",
     "scout": "node scout/scraper.js",
     "scout:debug": "node scout/scraper.js --debug",
-    "scout:schools": "node scout/scraper.js --with-schools"
+    "scout:schools": "node scout/scraper.js --with-schools",
+    "scout:reination": "node scout/reination-scraper.js",
+    "scout:reination:debug": "node scout/reination-scraper.js --debug"
   },
   "dependencies": {
     "@vercel/postgres": "^0.10.0",
