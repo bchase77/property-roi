@@ -35,14 +35,17 @@ function calcM(listing, mark, A) {
   const opEx = tax + hoa + ins + maint + vac + mgmt;
   const cf = Math.round(rent - (pI + opEx));
   const noi = rent - (opEx - vac);
-  const cap = Math.round((noi * 12 / price) * 1000) / 10;
-  const coc = paid > 0 ? Math.round((cf * 12 / paid) * 1000) / 10 : null;
+  const capRaw = Math.round((noi * 12 / price) * 1000) / 10;
+  const cap = Number.isFinite(capRaw) ? capRaw : null;
+  const cocRaw = paid > 0 ? Math.round((cf * 12 / paid) * 1000) / 10 : null;
+  const coc = Number.isFinite(cocRaw) ? cocRaw : null;
   const yrs = 30, eff = rent * (1 - A.vacancyPctRent / 100);
   const tv = price + eff * 12 * yrs;
   let te = paid + rent * 12 * (A.mgmtPctRent / 100) * yrs + pI * 12 * yrs + tax * 12 * yrs + rent * 12 * (A.maintPctRent / 100) * yrs + ins * 12 * yrs + hoa * 12 * yrs;
   const depr = (price + cc + rep + ins * 12) / 27.5 / 12;
   te += Math.max(0, (eff - rent * (A.mgmtPctRent / 100) - rent * (A.maintPctRent / 100) - ins - depr - tax) * 0.44) * 12 * yrs;
-  const atroi = paid > 0 ? Math.round(((tv - te) / paid / yrs) * 1000) / 10 : 0;
+  const atroiRaw = paid > 0 ? Math.round(((tv - te) / paid / yrs) * 1000) / 10 : 0;
+  const atroi = Number.isFinite(atroiRaw) ? atroiRaw : null;
   return { cf, cap, coc, atroi, rent: Math.round(rent) };
 }
 
