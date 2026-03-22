@@ -47,7 +47,16 @@ function calcM(listing, mark, A) {
   const atroiRaw = paid > 0 ? Math.round(((tv - te) / paid / yrs) * 1000) / 10 : 0;
   const atroi = Number.isFinite(atroiRaw) && Math.abs(atroiRaw) <= 10000 ? atroiRaw : null;
   const atroiErr = Number.isFinite(atroiRaw) && Math.abs(atroiRaw) > 10000;
-  return { cf, cap, coc, atroi, atroiErr, rent: Math.round(rent) };
+  // ── 5-year equity ROI (appreciation + principal paydown + cash flows) ───────
+  const appRate = 0.03; // 3% annual appreciation assumption
+  const appGain = price * (Math.pow(1 + appRate, 5) - 1);
+  const pow60 = Math.pow(1 + r, 60), powN = Math.pow(1 + r, n);
+  const balance5 = r > 0 ? loan * (powN - pow60) / (powN - 1) : loan - pI * 60;
+  const principalPaid5 = loan - balance5;
+  const cashFlow5 = cf * 12 * 5;
+  const roi5Raw = paid > 0 ? Math.round(((appGain + principalPaid5 + cashFlow5) / paid / 5) * 1000) / 10 : null;
+  const roi5 = Number.isFinite(roi5Raw) && Math.abs(roi5Raw) <= 10000 ? roi5Raw : null;
+  return { cf, cap, coc, atroi, atroiErr, roi5, rent: Math.round(rent) };
 }
 
 function fmt$(n) {
@@ -98,6 +107,12 @@ function sourceLabel(source) {
   if (source === 'pam') return 'PAMS';
   if (source === 'manual') return 'Manual';
   return source ?? '—';
+}
+
+function Roi5Badge({ value }) {
+  if (value == null) return <span className="text-gray-500">—</span>;
+  const color = value >= 15 ? 'bg-purple-900/60 text-purple-300' : value >= 10 ? 'bg-yellow-900/60 text-yellow-300' : 'bg-red-900/60 text-red-300';
+  return <span className={`text-xs font-bold px-2 py-0.5 rounded ${color}`} title="5yr equity ROI: appreciation (3%/yr) + principal paydown + cash flows, annualized">{value.toFixed(1)}%</span>;
 }
 
 function AtroiBadge({ value, err }) {
@@ -272,6 +287,7 @@ export default function ScoutPage() {
         else if (col === 'price')  diff = Number(b.price) - Number(a.price);
         else if (col === 'beds')   diff = (b.beds ?? 0) - (a.beds ?? 0);
         else if (col === 'sqft')   diff = (b.sqft ?? 0) - (a.sqft ?? 0);
+        else if (col === 'roi5')   diff = (mb?.roi5 ?? -999) - (ma?.roi5 ?? -999);
         else if (col === 'state')  diff = (extractState(a.address) < extractState(b.address) ? -1 : 1);
         else if (col === 'source') diff = ((a.source ?? '') < (b.source ?? '') ? -1 : 1);
         return newDir === 'desc' ? diff : -diff;
@@ -849,6 +865,7 @@ export default function ScoutPage() {
                   { col: 'cf',    label: 'Cash Flow' },
                   { col: 'cap',   label: 'Cap' },
                   { col: 'coc',   label: 'CoC' },
+                  { col: 'roi5',  label: '5yr ROI' },
                   { col: 'atroi', label: '30y ATROI' },
                   { col: null,    label: 'Notes' },
                   { col: null,    label: 'Mark' },
@@ -1128,6 +1145,11 @@ export default function ScoutPage() {
                       {metrics ? fmtPct(metrics.coc) : '—'}
                     </td>
 
+                    {/* 5yr ROI */}
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <Roi5Badge value={metrics?.roi5 ?? null} />
+                    </td>
+
                     {/* ATROI */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       <AtroiBadge value={metrics?.atroi ?? null} err={metrics?.atroiErr} />
@@ -1141,27 +1163,27 @@ export default function ScoutPage() {
                         onChange={e => setTyping(listing.mls_num, 'mark_notes', e.target.value)}
                         onBlur={() => commitField(listing.mls_num, 'mark_notes', notesInput, notesVal)}
                         placeholder="Notes…"
-                        className="w-32 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500 resize-none"
+                        className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500 resize-none"
                         title="Click away or Tab to save"
                       />
                     </td>
 
                     {/* Mark */}
-                    <td className="px-3 py-2">
+                    <td className="px-1 py-2">
                       <div className="flex flex-col gap-1">
                         <button
                           onClick={() => patchMark(listing.mls_num, { status: mark.status === 'potential' ? null : 'potential' })}
-                          className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
+                          className={`px-1.5 py-0.5 text-xs rounded font-medium transition-colors ${
                             mark.status === 'potential'
                               ? 'bg-green-700 text-green-100'
                               : 'bg-gray-700 text-gray-400 hover:bg-green-900/50 hover:text-green-300'
                           }`}
                         >
-                          ✓ Potential
+                          ✓ Buy
                         </button>
                         <button
                           onClick={() => patchMark(listing.mls_num, { status: mark.status === 'skip' ? null : 'skip' })}
-                          className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
+                          className={`px-1.5 py-0.5 text-xs rounded font-medium transition-colors ${
                             mark.status === 'skip'
                               ? 'bg-red-800 text-red-100'
                               : 'bg-gray-700 text-gray-400 hover:bg-red-900/50 hover:text-red-300'
