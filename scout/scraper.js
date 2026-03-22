@@ -65,7 +65,7 @@ async function loadScoutConfig() {
 let FILTERS = { maxPrice: 500_000, minBeds: 3, minPrice: 50_000 };
 
 function bandUrl(cfg, lp, hp) {
-  return `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${lp}&hp=${hp}&tb=${cfg.min_beds}&per=250&srt=prd`;
+  return `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${lp}&hp=${hp}&per=250&srt=prd`;
 }
 
 // Build overlapping price bands so no property falls through IDX Broker's 500-result cap.
