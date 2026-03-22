@@ -65,20 +65,21 @@ async function loadScoutConfig() {
 let FILTERS = { maxPrice: 500_000, minBeds: 3, minPrice: 50_000 };
 
 function bandUrl(cfg, lp, hp) {
-  return `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${lp}&hp=${hp}&per=250&srt=prd`;
+  // idxStatus=a = active listings only (excludes pending, sold, expired)
+  return `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&idxStatus=a&lp=${lp}&hp=${hp}&per=250&srt=prd`;
 }
 
-// Build overlapping price bands so no property falls through IDX Broker's 500-result cap.
-// Each band overlaps the next by $25K; duplicates are deduped by MLS# after merging.
+// Build $5K price bands with $500 overlaps at each boundary.
+// Dedup by MLS# after merging all bands handles any duplicates from overlaps.
 function buildBands(minPrice, maxPrice) {
-  const boundaries = [minPrice, 225_000, 350_000, 425_000, maxPrice]
-    .filter(b => b >= minPrice && b <= maxPrice)
-    .sort((a, b) => a - b);
+  const STEP    = 5_000;
+  const OVERLAP = 500;
   const bands = [];
-  for (let i = 0; i < boundaries.length - 1; i++) {
-    const lp = i === 0 ? boundaries[i] : boundaries[i] - 25_000;
-    const hp = boundaries[i + 1];
-    bands.push({ lp: Math.max(minPrice, lp), hp });
+  for (let lp = minPrice; lp < maxPrice; lp += STEP) {
+    bands.push({
+      lp: lp === minPrice ? lp : lp - OVERLAP,
+      hp: Math.min(lp + STEP, maxPrice),
+    });
   }
   return bands;
 }
