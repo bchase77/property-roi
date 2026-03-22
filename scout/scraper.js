@@ -83,11 +83,30 @@ async function scrape() {
 
   const browser = await chromium.launch({
     headless: FORCE_HEADLESS ? true : !DEBUG,
+    args: [
+      '--disable-blink-features=AutomationControlled', // hides webdriver flag
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+    ],
   });
 
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     viewport: { width: 1280, height: 900 },
+  });
+
+  // Patch fingerprints that Cloudflare's JS challenge checks for headless browsers
+  await context.addInitScript(() => {
+    // Remove navigator.webdriver (the most obvious headless tell)
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    // Remove Playwright-specific globals
+    delete window.__playwright;
+    delete window.__pw_manual;
+    delete window.__pwInitScripts;
+    // Spoof plugins array (headless has 0 plugins, real Chrome has several)
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+    // Spoof languages
+    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
   });
 
   const page = await context.newPage();
@@ -146,6 +165,8 @@ async function scrape() {
       const url = pageUrls[i];
       console.log(`\n→ Page ${i + 2}/${maxPages} — navigating…`);
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      // Give Cloudflare JS challenge time to run and redirect (if present)
+      await page.waitForTimeout(5000);
 
       // Save full HTML so we can inspect it as an artifact
       const html = await page.content();
