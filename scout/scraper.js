@@ -78,7 +78,7 @@ async function scrape() {
 
   // ── Load config from DB ──────────────────────────────────────────────────────
   const cfg = await loadScoutConfig();
-  SEARCH_URL = `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${cfg.min_price}&hp=${cfg.max_price}&tb=${cfg.min_beds}&per=100&srt=prd`;
+  SEARCH_URL = `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${cfg.min_price}&hp=${cfg.max_price}&tb=${cfg.min_beds}&per=250&srt=prd`;
   FILTERS = { maxPrice: cfg.max_price, minBeds: cfg.min_beds, minPrice: 50_000 };
 
   const browser = await chromium.launch({
@@ -183,14 +183,21 @@ async function scrape() {
         }
       }
 
+      // Check for Cloudflare bot challenge before waiting (fast-fail)
+      const isBotChallenge = await page.evaluate(() =>
+        document.body?.innerHTML?.includes('cf-turnstile') ||
+        document.body?.innerHTML?.includes('security verification') || false
+      ).catch(() => false);
+      if (isBotChallenge) {
+        console.log(`  (Cloudflare bot challenge on page ${i + 1} — stopping pagination here)`);
+        break;
+      }
+
       // Wait for listings to render
       const appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 25_000 })
         .then(() => true).catch(() => false);
       if (!appeared) {
-        // Dump a snippet of the DOM to help diagnose what's on the page
-        const snippet = await page.evaluate(() => document.body?.innerHTML?.slice(0, 800) ?? '').catch(() => '');
         console.log(`  (no listings after 25s — url: ${page.url()})`);
-        console.log(`  DOM snippet: ${snippet.replace(/\s+/g, ' ')}`);
         break;
       }
 
