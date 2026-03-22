@@ -613,7 +613,7 @@ export default function ScoutPage() {
                             ? 'border border-green-600 focus:border-green-400'
                             : 'border border-cyan-800/60 focus:border-cyan-500'
                         }`}
-                        title="Type value then press Enter to save"
+                        title={hoaSetAt ? `Entered on ${hoaSetAt}` : 'Type value then press Enter to save'}
                       />
                       {hoaIsZero && (
                         <div
