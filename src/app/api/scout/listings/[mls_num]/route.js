@@ -8,10 +8,13 @@ export async function PATCH(req, { params }) {
   if (!mls_num) return NextResponse.json({ error: 'missing mls_num' }, { status: 400 });
 
   const body = await req.json();
-  const { price } = body;
+  const { price, address } = body;
 
   if (price != null) {
     await sql`UPDATE scout_listings SET price = ${Number(price)} WHERE mls_num = ${mls_num}`;
+  }
+  if (address != null) {
+    await sql`UPDATE scout_listings SET address = ${address} WHERE mls_num = ${mls_num}`;
   }
 
   return NextResponse.json({ ok: true });

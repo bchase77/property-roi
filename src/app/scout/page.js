@@ -89,6 +89,7 @@ export default function ScoutPage() {
   const [configOpen, setConfigOpen] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editingAddress, setEditingAddress] = useState(null); // mls_num being edited
 
   // Local edits per mls_num (committed values — used for metrics/sorting)
   const [localEdits, setLocalEdits] = useState({});
@@ -732,15 +733,35 @@ export default function ScoutPage() {
                   <tr key={listing.mls_num} className={`hover:bg-gray-750 align-top ${touched ? 'border-l-2 border-amber-500/70' : ''}`}>
                     {/* Address */}
                     <td className="px-3 py-2 max-w-[200px]">
-                      <div className="font-medium text-white text-xs leading-tight">
-                        {listing.href ? (
-                          <a href={listing.href} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
-                            {listing.address}
-                          </a>
-                        ) : (
-                          listing.address
-                        )}
-                      </div>
+                      {editingAddress === listing.mls_num ? (
+                        <input
+                          autoFocus
+                          type="text"
+                          defaultValue={listing.address}
+                          onBlur={e => {
+                            const val = e.target.value.trim();
+                            setEditingAddress(null);
+                            if (val && val !== listing.address) patchListing(listing.mls_num, { address: val });
+                          }}
+                          onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { setEditingAddress(null); } }}
+                          className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1 text-white text-xs focus:outline-none"
+                        />
+                      ) : (
+                        <div
+                          className="font-medium text-white text-xs leading-tight cursor-pointer hover:text-blue-300 group"
+                          title="Click to edit address"
+                          onClick={() => setEditingAddress(listing.mls_num)}
+                        >
+                          {listing.href ? (
+                            <a href={listing.href} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors" onClick={e => e.stopPropagation()}>
+                              {listing.address}
+                            </a>
+                          ) : (
+                            listing.address
+                          )}
+                          <span className="ml-1 text-gray-600 opacity-0 group-hover:opacity-100 text-xs">✎</span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className="text-gray-600 text-xs">{listing.mls_num}</span>
                         <button
