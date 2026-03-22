@@ -191,6 +191,11 @@ async function main() {
   const { init } = await import('../src/lib/db.js');
   await init();
 
+  // Snapshot existing REI listings before upsert
+  const { rows: existingRei } = await sql`SELECT mls_num, address FROM scout_listings WHERE source = 'reination'`;
+  const existingReiSet = new Set(existingRei.map(r => r.mls_num));
+  const scrapedSet = new Set(results.map(p => p.mls_num));
+
   const now = new Date().toISOString();
 
   for (const p of results) {
@@ -222,6 +227,24 @@ async function main() {
       `;
     }
   }
+
+  // ── Prominent run summary ────────────────────────────────────────────────
+  const newListings = results.filter(p => !existingReiSet.has(p.mls_num));
+  const disappeared = existingRei.filter(r => !scrapedSet.has(r.mls_num) && !r.address.toLowerCase().includes('property listing'));
+  const line = '═'.repeat(46);
+  console.log(`\n╔${line}╗`);
+  console.log(`║  REI NATION SCOUT SUMMARY — ${new Date().toLocaleDateString('en-US')}${' '.repeat(13)}║`);
+  console.log(`╠${line}╣`);
+  console.log(`║  ✅ New this run:          ${String(newListings.length).padEnd(19)}║`);
+  if (newListings.length > 0) {
+    newListings.forEach(p => console.log(`║     + ${p.address.slice(0, 38).padEnd(39)}║`));
+  }
+  console.log(`║  🔴 No longer listed:      ${String(disappeared.length).padEnd(19)}║`);
+  if (disappeared.length > 0) {
+    disappeared.forEach(r => console.log(`║     - ${r.address.slice(0, 38).padEnd(39)}║`));
+  }
+  console.log(`║  📋 Total REI Nation in DB: ${String(results.length).padEnd(18)}║`);
+  console.log(`╚${line}╝\n`);
 
   // Clean up any phantom "Property Listings" entries left from previous runs
   const { rows: phantoms } = await sql`
