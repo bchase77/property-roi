@@ -406,6 +406,17 @@ export default function ScoutPage() {
                         >
                           📋
                         </button>
+                        {listing.address && (
+                          <a
+                            href={`https://www.zillow.com/homes/${encodeURIComponent(listing.address)}_rb/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-300 text-xs font-bold"
+                            title="Open on Zillow"
+                          >
+                            Z
+                          </a>
+                        )}
                       </div>
                       {isRelisted && (
                         <div className="mt-1">
