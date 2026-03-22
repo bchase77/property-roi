@@ -339,6 +339,18 @@ export default function ScoutPage() {
     }
   };
 
+  const deleteListing = useCallback(async (mls_num) => {
+    if (!confirm(`Delete ${mls_num}? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/scout/listings/${mls_num}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      setListings(ls => ls.filter(l => l.mls_num !== mls_num));
+      setSortOrder(so => so.filter(m => m !== mls_num));
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-6">
@@ -879,6 +891,15 @@ export default function ScoutPage() {
                         >
                           ✗ Skip
                         </button>
+                        {listing.source === 'manual' && (
+                          <button
+                            onClick={() => deleteListing(listing.mls_num)}
+                            className="px-2 py-1 text-xs rounded font-medium bg-gray-700 text-gray-500 hover:bg-red-900/60 hover:text-red-400 transition-colors"
+                            title="Delete this manually-added listing"
+                          >
+                            🗑 Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
