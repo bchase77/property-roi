@@ -1169,11 +1169,11 @@ export default function ScoutPage() {
                         >
                           ✗ Skip
                         </button>
-                        {listing.source === 'manual' && (
+                        {listing.source !== 'pam' && (
                           <button
                             onClick={() => deleteListing(listing.mls_num)}
                             className="px-2 py-1 text-xs rounded font-medium bg-gray-700 text-gray-500 hover:bg-red-900/60 hover:text-red-400 transition-colors"
-                            title="Delete this manually-added listing"
+                            title="Delete this listing"
                           >
                             🗑 Delete
                           </button>
