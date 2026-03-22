@@ -84,6 +84,7 @@ export default function ScoutPage() {
 
   // Filter / sort / search / page
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
+  const [filterEntry, setFilterEntry] = useState('all');   // 'all' | 'entered' | 'not-entered'
   const [sortBy, setSortBy] = useState('atroi');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -193,12 +194,23 @@ export default function ScoutPage() {
     return { total: listings.length, potential, skip, great };
   }, [listings, localEdits, metricsMap, getMark]);
 
+  const hasManualEntry = useCallback((listing) => {
+    const local = localEdits[listing.mls_num] ?? {};
+    const rentOvr   = local.rent_override   !== undefined ? local.rent_override   : listing.rent_override;
+    const repairs   = local.repair_costs    !== undefined ? local.repair_costs    : listing.repair_costs;
+    const hoa       = local.hoa_quarterly   !== undefined ? local.hoa_quarterly   : listing.hoa_quarterly;
+    const notes     = local.mark_notes      !== undefined ? local.mark_notes      : listing.mark_notes;
+    return rentOvr != null || repairs != null || hoa != null || (notes != null && notes !== '');
+  }, [localEdits]);
+
   // Filter + sort + search
   const filtered = useMemo(() => {
     let result = listings.filter(l => {
       const mark = getMark(l);
       if (filterStatus === 'potential' && mark.status !== 'potential') return false;
       if (filterStatus === 'skip' && mark.status !== 'skip') return false;
+      if (filterEntry === 'entered'     && !hasManualEntry(l)) return false;
+      if (filterEntry === 'not-entered' &&  hasManualEntry(l)) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!l.address?.toLowerCase().includes(q) && !l.mls_num?.toLowerCase().includes(q)) return false;
@@ -224,7 +236,7 @@ export default function ScoutPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Reset to page 1 when filter/sort/search changes
-  useEffect(() => { setPage(1); }, [filterStatus, sortBy, search]);
+  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortBy, search]);
 
   const saveConfig = async () => {
     try {
@@ -359,6 +371,26 @@ export default function ScoutPage() {
           ))}
         </div>
 
+        <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
+          {[
+            { key: 'all',         label: 'All' },
+            { key: 'entered',     label: '✏ Entered' },
+            { key: 'not-entered', label: '○ Blank' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilterEntry(key)}
+              className={`px-3 py-1 text-xs rounded font-medium transition-colors ${
+                filterEntry === key
+                  ? 'bg-amber-600 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value)}
@@ -443,8 +475,10 @@ export default function ScoutPage() {
                   : absenceDays >= 14 ? `${Math.round(absenceDays / 7)}wk`
                   : `${absenceDays}d`;
 
+                const touched = hasManualEntry(listing);
+
                 return (
-                  <tr key={listing.mls_num} className="hover:bg-gray-750 align-top">
+                  <tr key={listing.mls_num} className={`hover:bg-gray-750 align-top ${touched ? 'border-l-2 border-amber-500/70' : ''}`}>
                     {/* Address */}
                     <td className="px-3 py-2 max-w-[200px]">
                       <div className="font-medium text-white text-xs leading-tight">
