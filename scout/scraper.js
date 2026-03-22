@@ -109,14 +109,25 @@ async function scrape() {
       await page.waitForTimeout(5000);
     }
 
-    // ── 2. Detect last page number from pagination links ──────────────────
-    const lastPage = await page.$$eval('a[href*="start="]', links => {
-      const nums = links
-        .map(a => { const m = a.href.match(/[&?]start=(\d+)/); return m ? parseInt(m[1]) : 0; })
-        .filter(n => n > 0);
-      return nums.length ? Math.max(...nums) : 1;
+    // ── 2. Collect actual pagination URLs from the page ───────────────────
+    // IDXBroker uses offset-based pagination (start=50, start=100, …),
+    // not sequential page numbers. Extract the real URLs from the links.
+    const pageOffsets = await page.$$eval('a[href*="start="]', links => {
+      const seen = new Set();
+      const offsets = [];
+      for (const a of links) {
+        const m = a.href.match(/[&?]start=(\d+)/);
+        if (m) {
+          const n = parseInt(m[1]);
+          if (!seen.has(n)) { seen.add(n); offsets.push(n); }
+        }
+      }
+      return offsets.sort((a, b) => a - b);
     });
-    console.log(`→ Detected ${lastPage} page(s) of results`);
+    // Page 1 (offset 0 / no start= param) is already loaded; remaining pages follow
+    const allOffsets = [null, ...pageOffsets]; // null = current page (page 1)
+    const maxPages = Math.min(allOffsets.length, cfg.max_pages ?? 10);
+    console.log(`→ Detected ${allOffsets.length} page(s) of results (offsets: ${pageOffsets.join(', ')})`);
 
     if (DEBUG) {
       const shot = join(__dirname, 'debug-screenshot.png');
@@ -130,13 +141,13 @@ async function scrape() {
     // Reuse the same page and navigate between pages — opening new context
     // pages loses session state in headless mode. Page 1 is already loaded.
     const sep = SEARCH_URL.includes('?') ? '&' : '?';
-    const maxPages = Math.min(lastPage, cfg.max_pages ?? 10);
 
-    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
-      console.log(`\n→ Scraping page ${pageNum} / ${maxPages}…`);
+    for (let i = 0; i < maxPages; i++) {
+      const offset = allOffsets[i];
+      console.log(`\n→ Scraping page ${i + 1} / ${maxPages}…`);
 
-      if (pageNum > 1) {
-        const url = `${SEARCH_URL}${sep}start=${pageNum}`;
+      if (offset !== null) {
+        const url = `${SEARCH_URL}${sep}start=${offset}`;
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
       }
       // Page 1 is already loaded; wait for listings to render on all pages
