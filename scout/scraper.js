@@ -308,9 +308,14 @@ async function scrape() {
     }
 
     // ── Prominent run summary ──────────────────────────────────────────────
+    const currentSet = new Set(currentMlsNums);
     const newListings = filtered.filter(l => l.mlsNum && !existingPamSet.has(l.mlsNum));
+    const disappearedMls = [...existingPamSet].filter(m => !currentSet.has(m));
+    // Fetch addresses for disappeared listings
+    const { rows: disappearedRows } = disappearedMls.length > 0
+      ? await sql`SELECT mls_num, address FROM scout_listings WHERE mls_num = ANY(${disappearedMls})`
+      : { rows: [] };
     const { rows: totalRows } = await sql`SELECT COUNT(*)::int AS n FROM scout_listings WHERE source = 'pam'`;
-    const disappeared2d = await sql`SELECT COUNT(*)::int AS n FROM scout_listings WHERE source = 'pam' AND disappeared_at IS NOT NULL AND disappeared_at < now() - INTERVAL '2 days'`;
     const line = '═'.repeat(46);
     console.log(`\n╔${line}╗`);
     console.log(`║  PAMS SCOUT SUMMARY — ${new Date().toLocaleDateString('en-US')}${' '.repeat(20)}║`);
@@ -319,8 +324,11 @@ async function scrape() {
     if (newListings.length > 0) {
       newListings.forEach(l => console.log(`║     + ${l.address.slice(0, 38).padEnd(39)}║`));
     }
-    console.log(`║  🔴 Gone 2+ days:    ${String(disappeared2d.rows[0].n).padEnd(24)}║`);
-    console.log(`║  📋 Total PAM in DB: ${String(totalRows[0].n).padEnd(24)}║`);
+    console.log(`║  🔴 No longer listed: ${String(disappearedRows.length).padEnd(23)}║`);
+    if (disappearedRows.length > 0) {
+      disappearedRows.forEach(r => console.log(`║     - ${r.address.slice(0, 38).padEnd(39)}║`));
+    }
+    console.log(`║  📋 Total PAM in DB:  ${String(totalRows[0].n).padEnd(23)}║`);
     console.log(`╚${line}╝\n`);
 
     dbOk = true;
