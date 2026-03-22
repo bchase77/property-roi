@@ -46,3 +46,9 @@ my-next-app/
 
 # OS files
 .DS_Store
+
+# Scout local artifacts (debug files, reports, price history cache)
+scout/debug-*.html
+scout/debug-*.png
+scout/report.html
+scout/price-history.json
