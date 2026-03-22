@@ -82,12 +82,16 @@ export default function ScoutPage() {
   // Undo stack: [{mls_num, field, prevValue, label}]
   const [undoStack, setUndoStack] = useState([]);
 
-  // Filter / sort / search / page
+  // Filter / search / page
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
   const [filterEntry, setFilterEntry] = useState('all');   // 'all' | 'entered' | 'not-entered'
-  const [sortBy, setSortBy] = useState('atroi');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+
+  // Sort: stored as an ordered array of mls_nums so edits never re-trigger a sort
+  const [sortOrder, setSortOrder] = useState([]);   // mls_nums in current sort order
+  const [sortCol, setSortCol] = useState('atroi');
+  const [sortDir, setSortDir] = useState('desc');
 
   useEffect(() => {
     Promise.all([
@@ -98,6 +102,13 @@ export default function ScoutPage() {
         setListings(listingsData);
         setConfig(configData);
         setConfigDraft(configData);
+        // Initialize sort order by default sort (atroi desc)
+        const sorted = [...listingsData].sort((a, b) => {
+          const ma = calcM(a, { rent_min: a.rent_min, rent_max: a.rent_max, rent_override: a.rent_override, repair_costs: a.repair_costs, hoa_quarterly: a.hoa_quarterly }, DEFAULTS);
+          const mb = calcM(b, { rent_min: b.rent_min, rent_max: b.rent_max, rent_override: b.rent_override, repair_costs: b.repair_costs, hoa_quarterly: b.hoa_quarterly }, DEFAULTS);
+          return (mb?.atroi ?? -999) - (ma?.atroi ?? -999);
+        });
+        setSortOrder(sorted.map(l => l.mls_num));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -173,6 +184,30 @@ export default function ScoutPage() {
     setLocalEdits(e => ({ ...e, [mls_num]: { ...(e[mls_num] ?? {}), [field]: value } }));
   };
 
+  // Handle column header click: re-sort and update sortOrder
+  const handleSort = useCallback((col) => {
+    const newDir = sortCol === col && sortDir === 'desc' ? 'asc' : 'desc';
+    setSortCol(col);
+    setSortDir(newDir);
+    // Re-sort using metricsMap (which is already computed from current listings + localEdits)
+    setSortOrder(prev => {
+      // listings is captured via closure (stable ref from useState)
+      return [...listings].sort((a, b) => {
+        const ma = metricsMap[a.mls_num];
+        const mb = metricsMap[b.mls_num];
+        let diff = 0;
+        if (col === 'atroi') diff = (mb?.atroi ?? -999) - (ma?.atroi ?? -999);
+        else if (col === 'cf')    diff = (mb?.cf ?? -999999) - (ma?.cf ?? -999999);
+        else if (col === 'cap')   diff = (mb?.cap ?? -999) - (ma?.cap ?? -999);
+        else if (col === 'coc')   diff = (mb?.coc ?? -999) - (ma?.coc ?? -999);
+        else if (col === 'price') diff = Number(b.price) - Number(a.price);
+        else if (col === 'beds')  diff = (b.beds ?? 0) - (a.beds ?? 0);
+        else if (col === 'sqft')  diff = (b.sqft ?? 0) - (a.sqft ?? 0);
+        return newDir === 'desc' ? diff : -diff;
+      }).map(l => l.mls_num);
+    });
+  }, [sortCol, sortDir, listings, metricsMap]);
+
   // Compute metrics for all listings (memoized)
   const metricsMap = useMemo(() => {
     const m = {};
@@ -204,39 +239,36 @@ export default function ScoutPage() {
   }, [localEdits]);
 
   // Filter + sort + search
+  // Sort order is stored as sortOrder (mls_num array) — only updated on header click, never on edit
   const filtered = useMemo(() => {
-    let result = listings.filter(l => {
+    // Build a lookup by mls_num so we can respect sortOrder
+    const byMls = Object.fromEntries(listings.map(l => [l.mls_num, l]));
+
+    // Listings that pass the filters, ordered by sortOrder
+    const result = [];
+    for (const mls of sortOrder) {
+      const l = byMls[mls];
+      if (!l) continue;
       const mark = getMark(l);
-      if (filterStatus === 'potential' && mark.status !== 'potential') return false;
-      if (filterStatus === 'skip' && mark.status !== 'skip') return false;
-      if (filterEntry === 'entered'     && !hasManualEntry(l)) return false;
-      if (filterEntry === 'not-entered' &&  hasManualEntry(l)) return false;
+      if (filterStatus === 'potential' && mark.status !== 'potential') continue;
+      if (filterStatus === 'skip' && mark.status !== 'skip') continue;
+      if (filterEntry === 'entered'     && !hasManualEntry(l)) continue;
+      if (filterEntry === 'not-entered' &&  hasManualEntry(l)) continue;
       if (search) {
         const q = search.toLowerCase();
-        if (!l.address?.toLowerCase().includes(q) && !l.mls_num?.toLowerCase().includes(q)) return false;
+        if (!l.address?.toLowerCase().includes(q) && !l.mls_num?.toLowerCase().includes(q)) continue;
       }
-      return true;
-    });
-
-    result = [...result].sort((a, b) => {
-      const ma = metricsMap[a.mls_num];
-      const mb = metricsMap[b.mls_num];
-      if (sortBy === 'atroi') return (mb?.atroi ?? -999) - (ma?.atroi ?? -999);
-      if (sortBy === 'cf') return (mb?.cf ?? -999999) - (ma?.cf ?? -999999);
-      if (sortBy === 'cap') return (mb?.cap ?? -999) - (ma?.cap ?? -999);
-      if (sortBy === 'coc') return (mb?.coc ?? -999) - (ma?.coc ?? -999);
-      if (sortBy === 'price') return Number(b.price) - Number(a.price);
-      return 0;
-    });
+      result.push(l);
+    }
 
     return result;
-  }, [listings, filterStatus, sortBy, search, metricsMap, localEdits, getMark]);
+  }, [listings, filterStatus, filterEntry, sortOrder, search, localEdits, getMark, hasManualEntry]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Reset to page 1 when filter/sort/search changes
-  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortBy, search]);
+  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortCol, search]);
 
   const saveConfig = async () => {
     try {
@@ -391,18 +423,6 @@ export default function ScoutPage() {
           ))}
         </div>
 
-        <select
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
-        >
-          <option value="atroi">Sort: 30y ATROI</option>
-          <option value="cf">Sort: Cash Flow</option>
-          <option value="cap">Sort: Cap Rate</option>
-          <option value="coc">Sort: CoC</option>
-          <option value="price">Sort: Price</option>
-        </select>
-
         <input
           type="text"
           value={search}
@@ -426,19 +446,36 @@ export default function ScoutPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-400 border-b border-gray-700 text-xs">
-                <th className="px-3 py-3 font-medium">Address</th>
-                <th className="px-3 py-3 font-medium">Price</th>
-                <th className="px-3 py-3 font-medium">Bd/Ba</th>
-                <th className="px-3 py-3 font-medium">Sqft</th>
-                <th className="px-3 py-3 font-medium">Repairs $</th>
-                <th className="px-3 py-3 font-medium">HOA $/qtr</th>
-                <th className="px-3 py-3 font-medium">Est. Rent</th>
-                <th className="px-3 py-3 font-medium">Cash Flow</th>
-                <th className="px-3 py-3 font-medium">Cap</th>
-                <th className="px-3 py-3 font-medium">CoC</th>
-                <th className="px-3 py-3 font-medium">30y ATROI</th>
-                <th className="px-3 py-3 font-medium">Notes</th>
-                <th className="px-3 py-3 font-medium">Mark</th>
+                {[
+                  { col: null,    label: 'Address' },
+                  { col: 'price', label: 'Price' },
+                  { col: 'beds',  label: 'Bd/Ba' },
+                  { col: 'sqft',  label: 'Sqft' },
+                  { col: null,    label: 'Repairs $' },
+                  { col: null,    label: 'HOA $/qtr' },
+                  { col: null,    label: 'Est. Rent' },
+                  { col: 'cf',    label: 'Cash Flow' },
+                  { col: 'cap',   label: 'Cap' },
+                  { col: 'coc',   label: 'CoC' },
+                  { col: 'atroi', label: '30y ATROI' },
+                  { col: null,    label: 'Notes' },
+                  { col: null,    label: 'Mark' },
+                ].map(({ col, label }) => (
+                  <th
+                    key={label}
+                    className={`px-3 py-3 font-medium select-none ${col ? 'cursor-pointer hover:text-white' : ''}`}
+                    onClick={col ? () => handleSort(col) : undefined}
+                    title={col ? `Sort by ${label}` : undefined}
+                  >
+                    {label}
+                    {col && sortCol === col && (
+                      <span className="ml-1 text-blue-400">{sortDir === 'desc' ? '↓' : '↑'}</span>
+                    )}
+                    {col && sortCol !== col && (
+                      <span className="ml-1 text-gray-600">↕</span>
+                    )}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
