@@ -494,7 +494,7 @@ export default function ScoutPage() {
                 const repairInput = inp.repair_costs !== undefined ? inp.repair_costs : (repairVal !== '' ? String(repairVal) : '');
                 const hoaInput    = inp.hoa_quarterly !== undefined ? inp.hoa_quarterly : (hoaVal !== '' ? String(hoaVal) : '');
                 const rentInput   = inp.rent_override !== undefined ? inp.rent_override : (rentVal !== '' ? String(rentVal) : '');
-                const notesInput  = inp.mark_notes !== undefined ? inp.mark_notes : String(notesVal);
+                const notesInput  = inp.mark_notes !== undefined ? inp.mark_notes : (notesVal != null ? String(notesVal) : '');
 
                 const priceDiff = listing.first_price && listing.first_price !== listing.price
                   ? Number(listing.price) - Number(listing.first_price)
