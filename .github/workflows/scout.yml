@@ -3,14 +3,13 @@
 #
 # HOW IT WORKS:
 #   1. GitHub spins up a free Ubuntu VM
-#   2. It installs Node.js, dependencies, and a headless Chromium browser
-#   3. It runs the scraper using your credentials (stored as GitHub Secrets)
+#   2. It installs Node.js and dependencies
+#   3. It runs the Reination scraper (public site, no login needed)
 #   4. Results are written directly to your Vercel Postgres database
-#   5. The VM shuts down — you're only charged for actual run time (~2-5 min)
+#   5. The VM shuts down — you're only charged for actual run time (~1-2 min)
 #
-# TO ADD SECRETS:
-#   Go to your GitHub repo → Settings → Secrets and variables → Actions
-#   Add each secret listed under "env:" below.
+# NOTE: PAM scraper runs locally on your Mac via LaunchAgent (7am daily).
+#       GitHub only handles Reination. Add PAM back here if PAM allows GH scraping.
 
 name: Scout — Fetch Properties
 
@@ -22,21 +21,15 @@ on:
 
   # Allow manual trigger from the GitHub Actions UI ("Run workflow" button)
   workflow_dispatch:
-    inputs:
-      with_schools:
-        description: 'Include school district data (slower)'
-        required: false
-        default: 'false'
-        type: boolean
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   scout:
-    name: Scrape PAM Texas Listings
+    name: Scrape Reination Listings
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
 
     steps:
       # 1. Check out your code
@@ -54,48 +47,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4. Install Playwright's Chromium browser
-      #    (Playwright is already in your devDependencies)
-      - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
-
-      # 5. Start a virtual display (Xvfb) so Chrome can run in non-headless mode.
-      #    Cloudflare's Turnstile challenge is much harder to trigger against a
-      #    headed browser than a headless one.
-      - name: Start virtual display (Xvfb)
-        run: |
-          sudo apt-get install -y xvfb
-          Xvfb :99 -screen 0 1280x720x24 &
-          echo "DISPLAY=:99" >> $GITHUB_ENV
-
-      # 6. Run the scraper in non-headless mode via the virtual display
-      - name: Run Scout scraper
-        env:
-          PAMS_UNAME:   ${{ secrets.PAMS_UNAME }}
-          PAMS_PW:      ${{ secrets.PAMS_PW }}
-          PAMS_CORPID:  ${{ secrets.PAMS_CORPID }}
-          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
-          HEADLESS: 'false'
-        run: |
-          if [ "${{ inputs.with_schools }}" = "true" ]; then
-            npm run scout:schools
-          else
-            npm run scout
-          fi
-
-      # 7. Run the Reination scraper (public site, no browser needed)
+      # 4. Run the Reination scraper (public site, no browser needed)
       - name: Run Reination scraper
         env:
           POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
         run: npm run scout:reination
-
-      # Upload page HTMLs as artifacts so we can inspect them
-      # Runs even if the scraper failed (if: always())
-      - name: Upload page HTML artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: scout-pages
-          path: scout/page*.html
-          if-no-files-found: ignore
-          retention-days: 3
