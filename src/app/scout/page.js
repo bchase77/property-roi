@@ -85,6 +85,8 @@ export default function ScoutPage() {
   // Filter / search / page
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
   const [filterEntry, setFilterEntry] = useState('all');   // 'all' | 'entered' | 'not-entered'
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -253,6 +255,8 @@ export default function ScoutPage() {
       if (filterStatus === 'skip' && mark.status !== 'skip') continue;
       if (filterEntry === 'entered'     && !hasManualEntry(l)) continue;
       if (filterEntry === 'not-entered' &&  hasManualEntry(l)) continue;
+      if (priceMin !== '' && Number(l.price) < Number(priceMin)) continue;
+      if (priceMax !== '' && Number(l.price) > Number(priceMax)) continue;
       if (search) {
         const q = search.toLowerCase();
         if (!l.address?.toLowerCase().includes(q) && !l.mls_num?.toLowerCase().includes(q)) continue;
@@ -261,13 +265,13 @@ export default function ScoutPage() {
     }
 
     return result;
-  }, [listings, filterStatus, filterEntry, sortOrder, search, localEdits, getMark, hasManualEntry]);
+  }, [listings, filterStatus, filterEntry, sortOrder, priceMin, priceMax, search, localEdits, getMark, hasManualEntry]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Reset to page 1 when filter/sort/search changes
-  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortCol, search]);
+  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortCol, priceMin, priceMax, search]);
 
   const saveConfig = async () => {
     try {
@@ -420,6 +424,25 @@ export default function ScoutPage() {
               {label}
             </button>
           ))}
+        </div>
+
+        <div className="flex items-center gap-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1">
+          <span className="text-xs text-gray-500">$</span>
+          <input
+            type="number"
+            value={priceMin}
+            onChange={e => setPriceMin(e.target.value)}
+            placeholder="Min price"
+            className="w-24 bg-transparent text-sm text-gray-300 focus:outline-none"
+          />
+          <span className="text-xs text-gray-500">–</span>
+          <input
+            type="number"
+            value={priceMax}
+            onChange={e => setPriceMax(e.target.value)}
+            placeholder="Max price"
+            className="w-24 bg-transparent text-sm text-gray-300 focus:outline-none"
+          />
         </div>
 
         <input
