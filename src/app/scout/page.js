@@ -436,7 +436,7 @@ export default function ScoutPage() {
                   ? new Date(listing.first_seen).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
                   : null;
 
-                const isRelisted = listing.reappeared_count > 0;
+                const isRelisted = listing.reappeared_count > 0 && listing.last_absence_days >= 2;
                 const absenceDays = listing.last_absence_days;
                 const absenceLabel = absenceDays == null ? null
                   : absenceDays >= 60 ? `${Math.round(absenceDays / 30)}mo`
