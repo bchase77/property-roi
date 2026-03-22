@@ -258,32 +258,47 @@ async function scrape() {
     console.log(`→ DB updated (${filtered.length} listings upserted)`);
 
     // ── Track disappearances and reappearances ─────────────────────────────
+    // We only scrape a subset of all listings per run, so we use a 2-day
+    // threshold: a listing must be absent for 2+ days before it's considered
+    // truly gone, and must have been gone 2+ days to count as a relisting.
     const currentMlsNums = filtered.map(l => l.mlsNum).filter(Boolean);
     if (currentMlsNums.length > 0) {
-      // 1. Mark reappeared: listings that had disappeared_at set but are back now
+      // 1. True reappearances: gone 2+ days, now back → increment count
       const { rows: reappeared } = await sql`
         UPDATE scout_listings
         SET
-          last_absence_days  = EXTRACT(DAY FROM now() - disappeared_at)::INT,
-          reappeared_count   = reappeared_count + 1,
-          disappeared_at     = NULL
+          last_absence_days = EXTRACT(DAY FROM now() - disappeared_at)::INT,
+          reappeared_count  = reappeared_count + 1,
+          disappeared_at    = NULL
         WHERE mls_num = ANY(${currentMlsNums})
           AND disappeared_at IS NOT NULL
+          AND disappeared_at < now() - INTERVAL '2 days'
         RETURNING mls_num, address, reappeared_count, last_absence_days;
       `;
       if (reappeared.length > 0) {
-        console.log(`→ Reappeared (${reappeared.length}): ${reappeared.map(r => `${r.address} (gone ${r.last_absence_days}d)`).join(', ')}`);
+        console.log(`→ Relisted (${reappeared.length}): ${reappeared.map(r => `${r.address} (gone ${r.last_absence_days}d)`).join(', ')}`);
       }
 
-      // 2. Mark absent: listings not seen this run and not already marked absent
+      // 2. False alarms: gone < 2 days, back now → just clear the flag silently
+      await sql`
+        UPDATE scout_listings
+        SET disappeared_at = NULL
+        WHERE mls_num = ANY(${currentMlsNums})
+          AND disappeared_at IS NOT NULL
+          AND disappeared_at >= now() - INTERVAL '2 days';
+      `;
+
+      // 3. Mark absent: only if not seen for 2+ days (avoids false positives
+      //    from listings that simply weren't in this run's top-100 results)
       const { rowCount: markedAbsent } = await sql`
         UPDATE scout_listings
         SET disappeared_at = now()
         WHERE mls_num != ALL(${currentMlsNums})
-          AND disappeared_at IS NULL;
+          AND disappeared_at IS NULL
+          AND last_seen < now() - INTERVAL '2 days';
       `;
       if (markedAbsent > 0) {
-        console.log(`→ Marked absent (${markedAbsent} listing${markedAbsent !== 1 ? 's' : ''} no longer on market)`);
+        console.log(`→ Marked absent: ${markedAbsent} listing${markedAbsent !== 1 ? 's' : ''} not seen in 2+ days`);
       }
     }
 
