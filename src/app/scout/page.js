@@ -61,9 +61,37 @@ function fmtPct(n) {
 
 function extractState(address) {
   if (!address) return '';
-  const m = address.match(/,\s*([A-Z]{2})\s*\d*\s*$/);
+  // Handles: "City, TX 75201"  "City, TX, 75201"  "City, TX"
+  const m = address.match(/,\s*([A-Z]{2})(?:\s+\d{5}|,\s*\d{5})?\s*$/);
   return m ? m[1] : '';
 }
+
+function addrKey(address) {
+  if (!address) return null;
+  const norm = address.toLowerCase()
+    .replace(/\bdrive\b/g, 'dr').replace(/\bstreet\b/g, 'st').replace(/\bavenue\b/g, 'ave')
+    .replace(/\bboulevard\b/g, 'blvd').replace(/\broad\b/g, 'rd').replace(/\blane\b/g, 'ln')
+    .replace(/\bcourt\b/g, 'ct').replace(/\bcircle\b/g, 'cir').replace(/\bplace\b/g, 'pl')
+    .replace(/[.,#]/g, '').replace(/\s+/g, ' ').trim();
+  const tokens = norm.split(' ');
+  if (tokens.length < 2 || !/^\d+/.test(tokens[0])) return null;
+  return tokens[0] + ' ' + tokens[1]; // e.g. "1712 haven"
+}
+
+const MERGE_FIELDS = [
+  { key: 'address',       label: 'Address',    src: 'listing' },
+  { key: 'price',         label: 'Price',      src: 'listing' },
+  { key: 'beds',          label: 'Beds',       src: 'listing' },
+  { key: 'baths',         label: 'Baths',      src: 'listing' },
+  { key: 'sqft',          label: 'Sqft',       src: 'listing' },
+  { key: 'year_built',    label: 'Year Built', src: 'listing' },
+  { key: 'href',          label: 'Link',       src: 'listing' },
+  { key: 'repair_costs',  label: 'Repairs $',  src: 'mark'    },
+  { key: 'hoa_quarterly', label: 'HOA $/qtr',  src: 'mark'    },
+  { key: 'rent_override', label: 'Rent',       src: 'mark'    },
+  { key: 'status',        label: 'Status',     src: 'mark'    },
+  { key: 'mark_notes',    label: 'Notes',      src: 'mark'    },
+];
 
 function sourceLabel(source) {
   if (source === 'reination') return 'REI Nation';
@@ -100,6 +128,11 @@ export default function ScoutPage() {
 
   // Undo stack: [{mls_num, field, prevValue, label}]
   const [undoStack, setUndoStack] = useState([]);
+
+  // Merge modal
+  const [mergePair, setMergePair] = useState(null); // { manual, scraped }
+  const [mergeChoices, setMergeChoices] = useState({}); // { keep:'scraped'|'manual', [field]:'manual'|'scraped' }
+  const [mergeSaving, setMergeSaving] = useState(false);
 
   // Manual-add modal
   const [addOpen, setAddOpen] = useState(false);
@@ -384,6 +417,70 @@ export default function ScoutPage() {
     }
   }, []);
 
+  // Detect potential duplicates: manual entry vs scraped entry with same street number + name
+  const duplicatePairs = useMemo(() => {
+    const manuals = listings.filter(l => l.source === 'manual');
+    const scraped = listings.filter(l => l.source !== 'manual');
+    const pairs = [];
+    for (const m of manuals) {
+      const mk = addrKey(m.address);
+      if (!mk) continue;
+      for (const s of scraped) {
+        if (addrKey(s.address) === mk) pairs.push({ manual: m, scraped: s });
+      }
+    }
+    return pairs;
+  }, [listings]);
+
+  // Set of mls_nums that have a potential duplicate
+  const duplicateSet = useMemo(() => new Set(duplicatePairs.flatMap(p => [p.manual.mls_num, p.scraped.mls_num])), [duplicatePairs]);
+
+  const openMerge = useCallback((pair) => {
+    const { manual, scraped } = pair;
+    const choices = { keep: 'scraped' };
+    MERGE_FIELDS.forEach(({ key, src }) => {
+      const mv = manual[key]; const sv = scraped[key];
+      if (mv == null && sv != null) choices[key] = 'scraped';
+      else if (sv == null && mv != null) choices[key] = 'manual';
+      else choices[key] = src === 'listing' ? 'scraped' : 'manual';
+    });
+    setMergeChoices(choices);
+    setMergePair(pair);
+  }, []);
+
+  const handleMerge = useCallback(async () => {
+    if (!mergePair) return;
+    setMergeSaving(true);
+    const { manual, scraped } = mergePair;
+    const keepMls = mergeChoices.keep === 'scraped' ? scraped.mls_num : manual.mls_num;
+    const dropMls = mergeChoices.keep === 'scraped' ? manual.mls_num : scraped.mls_num;
+    const pick = (key) => {
+      const src = mergeChoices[key] ?? 'scraped';
+      return src === 'manual' ? manual[key] : scraped[key];
+    };
+    const listing_fields = { address: pick('address'), price: pick('price'), beds: pick('beds'), baths: pick('baths'), sqft: pick('sqft'), year_built: pick('year_built'), href: pick('href') };
+    const mark_fields = { repair_costs: pick('repair_costs'), hoa_quarterly: pick('hoa_quarterly'), rent_override: pick('rent_override'), status: pick('status'), mark_notes: pick('mark_notes') };
+    try {
+      const res = await fetch('/api/scout/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keep_mls: keepMls, drop_mls: dropMls, listing_fields, mark_fields }),
+      });
+      if (!res.ok) throw new Error('Merge failed');
+      // Update local state: remove dropped listing, update kept listing
+      setListings(ls => ls.filter(l => l.mls_num !== dropMls).map(l =>
+        l.mls_num === keepMls ? { ...l, ...listing_fields, ...mark_fields } : l
+      ));
+      setSortOrder(so => so.filter(m => m !== dropMls));
+      setMergePair(null);
+    } catch (err) {
+      console.error(err);
+      alert('Merge failed: ' + err.message);
+    } finally {
+      setMergeSaving(false);
+    }
+  }, [mergePair, mergeChoices]);
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-6">
@@ -414,6 +511,92 @@ export default function ScoutPage() {
           </button>
         </div>
       </div>
+
+      {/* Merge Modal */}
+      {mergePair && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-xl w-full max-w-2xl shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+              <div>
+                <h2 className="text-white font-semibold">Potential Duplicate Detected</h2>
+                <p className="text-gray-400 text-xs mt-0.5">Choose which values to keep, then merge into one record.</p>
+              </div>
+              <button onClick={() => setMergePair(null)} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
+              {/* Keep which record */}
+              <div className="flex items-center gap-6 mb-4 p-3 bg-gray-700/50 rounded-lg">
+                <span className="text-xs text-gray-400 font-medium">Keep record:</span>
+                {[
+                  { val: 'scraped', label: `${sourceLabel(mergePair.scraped.source)} (${mergePair.scraped.mls_num})` },
+                  { val: 'manual',  label: `Manual (${mergePair.manual.mls_num})` },
+                ].map(({ val, label }) => (
+                  <label key={val} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-200">
+                    <input type="radio" name="keep" value={val} checked={mergeChoices.keep === val}
+                      onChange={() => setMergeChoices(c => ({ ...c, keep: val }))} className="accent-blue-500" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              {/* Field-by-field table */}
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-gray-500 border-b border-gray-700">
+                    <th className="text-left py-1.5 w-24">Field</th>
+                    <th className="text-left py-1.5">Manual entry</th>
+                    <th className="text-left py-1.5">{sourceLabel(mergePair.scraped.source)}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {MERGE_FIELDS.filter(({ key }) => mergePair.manual[key] != null || mergePair.scraped[key] != null).map(({ key, label }) => {
+                    const mv = mergePair.manual[key];
+                    const sv = mergePair.scraped[key];
+                    const same = String(mv ?? '') === String(sv ?? '');
+                    const display = v => v == null ? <span className="text-gray-600">—</span> : key === 'href' ? <span className="truncate max-w-[200px] inline-block">{String(v).slice(0, 40)}…</span> : String(v);
+                    return (
+                      <tr key={key} className="border-b border-gray-700/50">
+                        <td className="py-1.5 text-gray-400 font-medium">{label}</td>
+                        <td className="py-1.5 pr-4">
+                          {same ? (
+                            <span className="text-gray-300">{display(mv)}</span>
+                          ) : (
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input type="radio" name={`f_${key}`} checked={mergeChoices[key] === 'manual'}
+                                onChange={() => setMergeChoices(c => ({ ...c, [key]: 'manual' }))} className="accent-blue-500" />
+                              <span className={mergeChoices[key] === 'manual' ? 'text-white' : 'text-gray-400'}>{display(mv)}</span>
+                            </label>
+                          )}
+                        </td>
+                        <td className="py-1.5">
+                          {same ? (
+                            <span className="text-gray-500 text-xs italic">(same)</span>
+                          ) : (
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input type="radio" name={`f_${key}`} checked={mergeChoices[key] === 'scraped'}
+                                onChange={() => setMergeChoices(c => ({ ...c, [key]: 'scraped' }))} className="accent-blue-500" />
+                              <span className={mergeChoices[key] === 'scraped' ? 'text-white' : 'text-gray-400'}>{display(sv)}</span>
+                            </label>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-700">
+              <button onClick={() => setMergePair(null)} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+              <button
+                onClick={handleMerge}
+                disabled={mergeSaving}
+                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg font-medium"
+              >
+                {mergeSaving ? 'Merging…' : 'Merge Records →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Property Modal */}
       {addOpen && (
@@ -783,6 +966,19 @@ export default function ScoutPage() {
                           </a>
                         )}
                       </div>
+                      {duplicateSet.has(listing.mls_num) && (() => {
+                        const pair = duplicatePairs.find(p => p.manual.mls_num === listing.mls_num || p.scraped.mls_num === listing.mls_num);
+                        return pair ? (
+                          <div className="mt-1">
+                            <button
+                              onClick={() => openMerge(pair)}
+                              className="inline-flex items-center gap-1 bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 text-xs font-bold px-1.5 py-0.5 rounded hover:bg-yellow-500/30"
+                            >
+                              ⚠ Duplicate — Merge
+                            </button>
+                          </div>
+                        ) : null;
+                      })()}
                       {isRelisted && (
                         <div className="mt-1">
                           <span className="inline-flex items-center gap-1 bg-orange-500/20 border border-orange-500/50 text-orange-300 text-xs font-bold px-1.5 py-0.5 rounded">
