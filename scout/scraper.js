@@ -301,7 +301,6 @@ async function scrape() {
         `.catch(() => {}); // ignore if already recorded
       }
     }
-    console.log(`→ DB updated (${filtered.length} listings upserted)`);
 
     // ── Track disappearances and reappearances ─────────────────────────────
     // We only scrape a subset of all listings per run, so we use a 2-day
@@ -372,6 +371,7 @@ async function scrape() {
       ...disappearedRows.map(r => `║     - ${r.address.slice(0, 38).padEnd(39)}║`),
       `║  🔒 Addr preserved:   ${String(addrConflicts.length).padEnd(23)}║`,
       ...addrConflicts.map(l => `║     ✎ ${l.address.slice(0, 38).padEnd(39)}║`),
+      `║  💾 Upserted this run: ${String(filtered.length).padEnd(22)}║`,
       `║  📋 Total PAM in DB:  ${String(totalRows[0].n).padEnd(23)}║`,
       `╚${line}╝`,
     ];
