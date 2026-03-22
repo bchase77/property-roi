@@ -90,40 +90,48 @@ async function scrapeProperty(id) {
   if (DEBUG) writeFileSync(join(__dirname, `rei-prop-${id}.html`), html);
 
   // ── Address ───────────────────────────────────────────────────────────────
-  // Title tag is usually "Street Address | City, State | Reination"
+  // Title/og:title format: "Street Address | City, ST | Reination"
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
   const titleText = titleMatch ? titleMatch[1] : '';
-
-  // Try og:title or h1 for address
   const ogTitle = html.match(/property="og:title"[^>]*content="([^"]+)"/i)
                 || html.match(/content="([^"]+)"[^>]*property="og:title"/i);
-
-  // Try H1 tag
   const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
 
-  // Try to find address from page URL path doesn't help; use page content
-  // Look for a structured address block
-  const addrFull = ogTitle?.[1] || h1Match?.[1] || titleText.split('|')[0] || '';
-  const addrClean = addrFull.replace(/\s*\|.*/, '').replace(/\s*-\s*Reination.*/i, '').trim();
+  const rawTitle = (ogTitle?.[1] || h1Match?.[1] || titleText).replace(/&amp;/g, '&');
 
-  // Try to split address into street / city / state / zip
-  // Pattern: "1234 Street Name, City, ST 12345"
-  const addrParts = addrClean.match(/^(.+?),\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?$/);
   let street = '', city = '', state = '', zip = '';
-  if (addrParts) {
-    street = addrParts[1].trim();
-    city   = addrParts[2].trim();
-    state  = addrParts[3].trim();
-    zip    = addrParts[4] ?? '';
+
+  // Try pipe-separated format first: "Street | City, ST | Reination"
+  const pipeParts = rawTitle.split('|').map(s => s.trim()).filter(Boolean);
+  if (pipeParts.length >= 2) {
+    street = pipeParts[0].replace(/\s*-\s*Reination.*/i, '').trim();
+    // Second part is usually "City, ST" or "City, ST 12345"
+    const cityState = pipeParts[1].match(/^([^,]+),\s*([A-Z]{2})\s*(\d{5})?$/);
+    if (cityState) {
+      city  = cityState[1].trim();
+      state = cityState[2].trim();
+      zip   = cityState[3] ?? '';
+    } else {
+      city = pipeParts[1];
+    }
   } else {
-    street = addrClean;
+    // Fallback: comma-separated "Street, City, ST 12345"
+    const addrClean = rawTitle.replace(/\s*\|.*/, '').replace(/\s*-\s*Reination.*/i, '').trim();
+    const addrParts = addrClean.match(/^(.+?),\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?$/);
+    if (addrParts) {
+      street = addrParts[1].trim();
+      city   = addrParts[2].trim();
+      state  = addrParts[3].trim();
+      zip    = addrParts[4] ?? '';
+    } else {
+      street = addrClean;
+    }
   }
 
-  // Fallback: look for address-like text in meta description
+  // Last fallback: meta description
   if (!street) {
     const metaDesc = html.match(/name="description"[^>]*content="([^"]+)"/i)?.[1] ?? '';
-    const metaAddr = metaDesc.match(/^([^.]+)/)?.[1] ?? '';
-    street = metaAddr.trim();
+    street = (metaDesc.match(/^([^.]+)/)?.[1] ?? '').trim();
   }
 
   // ── Beds / Baths / Sqft ───────────────────────────────────────────────────
