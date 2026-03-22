@@ -42,14 +42,13 @@ export async function POST(req) {
     const mls_num = `MAN-${Date.now()}`;
     const now = new Date().toISOString();
 
-    const { rows: [listing] } = await sql`
+    await sql`
       INSERT INTO scout_listings
         (mls_num, address, price, beds, baths, sqft, year_built, hoa_yn, href, source, first_seen, last_seen)
       VALUES
         (${mls_num}, ${address}, ${price ?? null}, ${beds ?? null}, ${baths ?? null},
          ${sqft ?? null}, ${year_built ?? null}, ${hoa_yn ?? null}, ${href ?? null},
-         ${source}, ${now}, ${now})
-      RETURNING *;
+         ${source}, ${now}, ${now});
     `;
 
     // Save any mark fields provided
@@ -67,7 +66,15 @@ export async function POST(req) {
       `;
     }
 
-    return NextResponse.json({ ...listing, mls_num });
+    // Return the full joined row so the UI has all fields (including marks)
+    const { rows: [full] } = await sql`
+      SELECT l.*, m.status, m.repair_costs, m.hoa_quarterly, m.hoa_set_at,
+             m.rent_override, m.rent_min, m.rent_max, m.rent_note, m.notes AS mark_notes
+      FROM scout_listings l
+      LEFT JOIN scout_marks m ON l.mls_num = m.mls_num
+      WHERE l.mls_num = ${mls_num};
+    `;
+    return NextResponse.json(full);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
