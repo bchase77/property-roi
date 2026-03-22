@@ -59,6 +59,19 @@ function fmtPct(n) {
   return n.toFixed(1) + '%';
 }
 
+function extractState(address) {
+  if (!address) return '';
+  const m = address.match(/,\s*([A-Z]{2})\s*\d*\s*$/);
+  return m ? m[1] : '';
+}
+
+function sourceLabel(source) {
+  if (source === 'reination') return 'REI Nation';
+  if (source === 'pam') return 'PAMS';
+  if (source === 'manual') return 'Manual';
+  return source ?? '—';
+}
+
 function AtroiBadge({ value, err }) {
   if (err) return <span className="text-xs font-bold px-2 py-0.5 rounded bg-orange-900/60 text-orange-300" title="Data error — delete and re-add this listing">err</span>;
   if (value == null) return <span className="text-gray-500">—</span>;
@@ -222,9 +235,11 @@ export default function ScoutPage() {
         else if (col === 'cf')    diff = (mb?.cf ?? -999999) - (ma?.cf ?? -999999);
         else if (col === 'cap')   diff = (mb?.cap ?? -999) - (ma?.cap ?? -999);
         else if (col === 'coc')   diff = (mb?.coc ?? -999) - (ma?.coc ?? -999);
-        else if (col === 'price') diff = Number(b.price) - Number(a.price);
-        else if (col === 'beds')  diff = (b.beds ?? 0) - (a.beds ?? 0);
-        else if (col === 'sqft')  diff = (b.sqft ?? 0) - (a.sqft ?? 0);
+        else if (col === 'price')  diff = Number(b.price) - Number(a.price);
+        else if (col === 'beds')   diff = (b.beds ?? 0) - (a.beds ?? 0);
+        else if (col === 'sqft')   diff = (b.sqft ?? 0) - (a.sqft ?? 0);
+        else if (col === 'state')  diff = (extractState(a.address) < extractState(b.address) ? -1 : 1);
+        else if (col === 'source') diff = ((a.source ?? '') < (b.source ?? '') ? -1 : 1);
         return newDir === 'desc' ? diff : -diff;
       }).map(l => l.mls_num);
     });
@@ -638,12 +653,14 @@ export default function ScoutPage() {
             <thead>
               <tr className="text-left text-gray-400 border-b border-gray-700 text-xs">
                 {[
-                  { col: null,    label: 'Address' },
-                  { col: 'price', label: 'Price' },
-                  { col: 'beds',  label: 'Bd/Ba' },
-                  { col: 'sqft',  label: 'Sqft' },
-                  { col: null,    label: 'Repairs $' },
-                  { col: null,    label: 'HOA $/qtr' },
+                  { col: null,     label: 'Address' },
+                  { col: 'state',  label: 'State' },
+                  { col: 'source', label: 'Source' },
+                  { col: 'price',  label: 'Price' },
+                  { col: 'beds',   label: 'Bd/Ba' },
+                  { col: 'sqft',   label: 'Sqft' },
+                  { col: null,     label: 'Repairs $' },
+                  { col: null,     label: 'HOA $/qtr' },
                   { col: null,    label: 'Est. Rent' },
                   { col: 'cf',    label: 'Cash Flow' },
                   { col: 'cap',   label: 'Cap' },
@@ -767,6 +784,16 @@ export default function ScoutPage() {
                       )}
                     </td>
 
+                    {/* State */}
+                    <td className="px-3 py-2 text-gray-300 text-xs whitespace-nowrap">
+                      {extractState(listing.address) || '—'}
+                    </td>
+
+                    {/* Source */}
+                    <td className="px-3 py-2 text-gray-300 text-xs whitespace-nowrap">
+                      {sourceLabel(listing.source)}
+                    </td>
+
                     {/* Price */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       <input
@@ -827,7 +854,7 @@ export default function ScoutPage() {
                         onBlur={() => commitField(listing.mls_num, 'hoa_quarterly', hoaInput, hoaVal)}
                         onKeyDown={e => e.key === 'Enter' && e.target.blur()}
                         placeholder="0"
-                        className={`w-20 bg-gray-700 rounded px-2 py-1 text-white text-xs focus:outline-none ${
+                        className={`w-14 bg-gray-700 rounded px-2 py-1 text-white text-xs focus:outline-none ${
                           hoaIsZero
                             ? 'border border-green-600 focus:border-green-400'
                             : 'border border-cyan-800/60 focus:border-cyan-500'
@@ -836,7 +863,7 @@ export default function ScoutPage() {
                       />
                       {hoaIsZero && (
                         <div
-                          className="mt-0.5 inline-flex items-center gap-0.5 bg-green-900/50 border border-green-700/60 text-green-300 text-xs font-bold px-1.5 py-0.5 rounded cursor-default"
+                          className="mt-0.5 flex items-center gap-0.5 bg-green-900/50 border border-green-700/60 text-green-300 text-xs font-bold px-1.5 py-0.5 rounded cursor-default w-fit"
                           title={hoaSetAt ? `Confirmed $0 HOA on ${hoaSetAt}` : 'Confirmed $0 HOA'}
                         >
                           ✓ No HOA
