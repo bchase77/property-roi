@@ -514,6 +514,12 @@ export default function ScoutPage() {
 
                 const touched = hasManualEntry(listing);
 
+                // HOA confirmed at $0 — compute the tooltip date
+                const hoaIsZero = hoaVal === 0 || hoaVal === '0';
+                const hoaSetAt = listing.hoa_set_at
+                  ? new Date(listing.hoa_set_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit', hour: 'numeric', minute: '2-digit' })
+                  : null;
+
                 return (
                   <tr key={listing.mls_num} className={`hover:bg-gray-750 align-top ${touched ? 'border-l-2 border-amber-500/70' : ''}`}>
                     {/* Address */}
@@ -603,9 +609,21 @@ export default function ScoutPage() {
                         onBlur={() => commitField(listing.mls_num, 'hoa_quarterly', hoaInput, hoaVal)}
                         onKeyDown={e => e.key === 'Enter' && e.target.blur()}
                         placeholder="0"
-                        className="w-20 bg-gray-700 border border-cyan-800/60 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-cyan-500"
+                        className={`w-20 bg-gray-700 rounded px-2 py-1 text-white text-xs focus:outline-none ${
+                          hoaIsZero
+                            ? 'border border-green-600 focus:border-green-400'
+                            : 'border border-cyan-800/60 focus:border-cyan-500'
+                        }`}
                         title="Type value then press Enter to save"
                       />
+                      {hoaIsZero && (
+                        <div
+                          className="mt-0.5 inline-flex items-center gap-0.5 bg-green-900/50 border border-green-700/60 text-green-300 text-xs font-bold px-1.5 py-0.5 rounded cursor-default"
+                          title={hoaSetAt ? `Confirmed $0 HOA on ${hoaSetAt}` : 'Confirmed $0 HOA'}
+                        >
+                          ✓ No HOA
+                        </div>
+                      )}
                     </td>
 
                     {/* Est. Rent */}

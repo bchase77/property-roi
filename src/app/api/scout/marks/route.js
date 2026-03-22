@@ -9,13 +9,17 @@ export async function PATCH(req) {
     const { mls_num, status, repair_costs, hoa_quarterly, rent_override, rent_min, rent_max, rent_note, notes } = body;
     if (!mls_num) return NextResponse.json({ error: 'missing mls_num' }, { status: 400 });
 
+    // Track when HOA was explicitly confirmed (including $0). null = not being set this request.
+    const hoa_set_at = hoa_quarterly != null ? new Date().toISOString() : null;
+
     const { rows } = await sql`
-      INSERT INTO scout_marks (mls_num, status, repair_costs, hoa_quarterly, rent_override, rent_min, rent_max, rent_note, notes, updated_at)
+      INSERT INTO scout_marks (mls_num, status, repair_costs, hoa_quarterly, hoa_set_at, rent_override, rent_min, rent_max, rent_note, notes, updated_at)
       VALUES (
         ${mls_num},
         ${status ?? null},
         ${repair_costs ?? null},
         ${hoa_quarterly ?? null},
+        ${hoa_set_at},
         ${rent_override ?? null},
         ${rent_min ?? null},
         ${rent_max ?? null},
@@ -27,6 +31,7 @@ export async function PATCH(req) {
         status        = COALESCE(EXCLUDED.status,        scout_marks.status),
         repair_costs  = COALESCE(EXCLUDED.repair_costs,  scout_marks.repair_costs),
         hoa_quarterly = COALESCE(EXCLUDED.hoa_quarterly, scout_marks.hoa_quarterly),
+        hoa_set_at    = COALESCE(EXCLUDED.hoa_set_at,    scout_marks.hoa_set_at),
         rent_override = COALESCE(EXCLUDED.rent_override, scout_marks.rent_override),
         rent_min      = COALESCE(EXCLUDED.rent_min,      scout_marks.rent_min),
         rent_max      = COALESCE(EXCLUDED.rent_max,      scout_marks.rent_max),
