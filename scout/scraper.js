@@ -149,23 +149,32 @@ async function scrape() {
       console.log(`\n→ Scraping page ${i + 1} / ${maxPages}…`);
 
       if (targetUrl !== null) {
-        // Click the matching link via JS evaluate (uses absolute href to match exactly)
-        const clicked = await page.evaluate((href) => {
-          const link = [...document.querySelectorAll('a[href*="start="]')]
-            .find(a => a.href === href);
-          if (link) { link.click(); return true; }
-          return false;
-        }, targetUrl);
-
-        if (clicked) {
-          // Wait for network to settle (AJAX requests to finish), then scroll to trigger lazy-load
-          await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-          await page.evaluate(() => window.scrollBy(0, 400));
-          await page.waitForTimeout(2000);
-          console.log(`  (navigated via click → ${page.url().split('?')[1] ?? page.url()})`);
-        } else {
-          // Fallback: navigate directly
-          console.log(`  (link not found on page, falling back to goto)`);
+        const m = targetUrl.match(/[?&]start=(\d+)/);
+        let navOk = false;
+        if (m) {
+          try {
+            // Promise.all is the canonical Playwright pattern for click-triggered navigation:
+            // waitForNavigation must be set up BEFORE the click to avoid a race condition,
+            // and it prevents "Execution context was destroyed" errors.
+            await Promise.all([
+              page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30_000 }),
+              page.evaluate((startVal) => {
+                const link = [...document.querySelectorAll('a[href*="start="]')]
+                  .find(a => /[?&]start=(\d+)/.exec(a.href)?.[1] === startVal);
+                if (link) link.click();
+              }, m[1]),
+            ]);
+            await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+            await page.evaluate(() => window.scrollBy(0, 400));
+            await page.waitForTimeout(2000);
+            console.log(`  (navigated via click → ${page.url().split('?')[1] ?? page.url()})`);
+            navOk = true;
+          } catch (e) {
+            console.log(`  (click nav failed: ${e.message.slice(0, 100)})`);
+          }
+        }
+        if (!navOk) {
+          console.log(`  (falling back to goto)`);
           await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30_000 }).catch(() =>
             page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 })
           );
