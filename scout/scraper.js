@@ -127,35 +127,33 @@ async function scrape() {
     }
 
     // ── 3. Scrape all pages ────────────────────────────────────────────────
-    // Open a fresh page per URL — reusing the same page causes stale JS state.
-    // Pagination: append &start=N to the base search URL.
-    await page.close();
-
+    // Reuse the same page and navigate between pages — opening new context
+    // pages loses session state in headless mode. Page 1 is already loaded.
     const sep = SEARCH_URL.includes('?') ? '&' : '?';
+    const maxPages = Math.min(lastPage, cfg.max_pages ?? 10);
 
-    for (let pageNum = 1; pageNum <= lastPage; pageNum++) {
-      const url = `${SEARCH_URL}${sep}start=${pageNum}`;
-      console.log(`\n→ Scraping page ${pageNum} / ${lastPage}…`);
+    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+      console.log(`\n→ Scraping page ${pageNum} / ${maxPages}…`);
 
-      const p = await context.newPage();
-      await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      // Wait until listing cells actually appear (IDXBroker renders via AJAX;
-      // GitHub Actions VMs are slower than local — dynamic wait beats fixed timeout)
-      const appeared = await p.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
+      if (pageNum > 1) {
+        const url = `${SEARCH_URL}${sep}start=${pageNum}`;
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      }
+      // Page 1 is already loaded; wait for listings to render on all pages
+      const appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
         .then(() => true).catch(() => false);
       if (!appeared) {
         console.log(`  (no listings appeared after 20s — stopping pagination)`);
-        await p.close();
         break;
       }
 
-      const pageListings = await scrapePage(p);
-      await p.close();
-
+      const pageListings = await scrapePage(page);
       console.log(`  Found ${pageListings.length} listings`);
       if (pageListings.length === 0) break;
       listings.push(...pageListings);
     }
+
+    await page.close();
 
   } finally {
     await browser.close();
