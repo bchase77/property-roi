@@ -109,50 +109,64 @@ async function scrape() {
       await page.waitForTimeout(5000);
     }
 
+    // ── 2. Scrape page 1 (already loaded) ────────────────────────────────
+    console.log('\n→ Scraping page 1…');
+    const p1appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
+      .then(() => true).catch(() => false);
+
+    if (p1appeared) {
+      const p1listings = await scrapePage(page);
+      console.log(`  Found ${p1listings.length} listings`);
+      listings.push(...p1listings);
+    }
+
+    // Always save page 1 HTML for inspection
+    writeFileSync(join(__dirname, 'page1.html'), await page.content());
+
     if (DEBUG) {
       const shot = join(__dirname, 'debug-screenshot.png');
       await page.screenshot({ path: shot, fullPage: true });
       console.log(`  Screenshot saved → ${shot}`);
-      writeFileSync(join(__dirname, 'debug-page.html'), await page.content());
-      console.log(`  Page HTML saved → scout/debug-page.html`);
     }
 
-    // ── 2. Price-band strategy ─────────────────────────────────────────────
-    // Cloudflare Turnstile blocks headless browsers on page 2+ of any search.
-    // Workaround: split the price range into N bands and scrape page 1 of each.
-    // Each band navigation is a fresh request that Cloudflare allows through.
-    const numBands = Math.min(Number(cfg.max_pages ?? 5), 5);
-    const lo = Number(cfg.min_price ?? 0);
-    const hi = Number(cfg.max_price ?? 500_000);
-    const step = Math.round((hi - lo) / numBands);
-    const bands = Array.from({ length: numBands }, (_, i) => ({
-      lp: lo + i * step,
-      hp: i === numBands - 1 ? hi : lo + (i + 1) * step,
-    }));
-    console.log(`→ Scraping ${numBands} price bands to work around pagination bot check`);
-    console.log(`  Bands: ${bands.map(b => `$${(b.lp/1000).toFixed(0)}k–$${(b.hp/1000).toFixed(0)}k`).join('  ')}`);
+    // ── 3. Try subsequent pages — save HTML when blocked ─────────────────
+    const pageUrls = await page.$$eval('a[href*="start="]', links => {
+      const seen = new Set();
+      return [...links]
+        .map(a => a.href)
+        .filter(h => { if (!h || seen.has(h)) return false; seen.add(h); return true; })
+        .sort((a, b) => {
+          const ma = a.match(/start=(\d+)/), mb = b.match(/start=(\d+)/);
+          return (ma ? +ma[1] : 0) - (mb ? +mb[1] : 0);
+        });
+    });
+    const maxPages = Math.min(pageUrls.length + 1, cfg.max_pages ?? 10);
 
-    // ── 3. Scrape page 1 of each band ─────────────────────────────────────
-    const seenMls = new Set();
-    for (let i = 0; i < bands.length; i++) {
-      const { lp, hp } = bands[i];
-      const bandUrl = `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${lp}&hp=${hp}&tb=${cfg.min_beds}&per=100&srt=prd`;
-      console.log(`\n→ Band ${i + 1}/${numBands}: $${lp.toLocaleString()}–$${hp.toLocaleString()}…`);
+    for (let i = 0; i < pageUrls.length && listings.length < (maxPages - 1) * 100; i++) {
+      const url = pageUrls[i];
+      console.log(`\n→ Page ${i + 2}/${maxPages} — navigating…`);
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
 
-      await page.goto(bandUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      // Save full HTML so we can inspect it as an artifact
+      const html = await page.content();
+      writeFileSync(join(__dirname, `page${i + 2}.html`), html);
+
+      if (html.includes('cf-turnstile') || html.includes('security verification')) {
+        console.log(`  Cloudflare challenge — HTML saved to scout/page${i + 2}.html`);
+        break;
+      }
 
       const appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
         .then(() => true).catch(() => false);
       if (!appeared) {
-        console.log(`  (no listings appeared — skipping band)`);
-        continue;
+        console.log(`  No listings appeared — HTML saved to scout/page${i + 2}.html`);
+        break;
       }
 
-      const bandListings = await scrapePage(page);
-      const newListings = bandListings.filter(l => l.mlsNum && !seenMls.has(l.mlsNum));
-      newListings.forEach(l => seenMls.add(l.mlsNum));
-      console.log(`  Found ${bandListings.length} listings (${newListings.length} new)`);
-      listings.push(...newListings);
+      const pageListings = await scrapePage(page);
+      console.log(`  Found ${pageListings.length} listings`);
+      if (pageListings.length === 0) break;
+      listings.push(...pageListings);
     }
 
     await page.close();
