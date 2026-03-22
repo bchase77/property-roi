@@ -59,19 +59,28 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
-      # 5. Run the scraper
-      #    Secrets are injected as environment variables — they never appear in logs
+      # 5. Start a virtual display (Xvfb) so Chrome can run in non-headless mode.
+      #    Cloudflare's Turnstile challenge is much harder to trigger against a
+      #    headed browser than a headless one.
+      - name: Start virtual display (Xvfb)
+        run: |
+          sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1280x720x24 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      # 6. Run the scraper in non-headless mode via the virtual display
       - name: Run Scout scraper
         env:
           PAMS_UNAME:   ${{ secrets.PAMS_UNAME }}
           PAMS_PW:      ${{ secrets.PAMS_PW }}
           PAMS_CORPID:  ${{ secrets.PAMS_CORPID }}
           POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+          HEADLESS: 'false'
         run: |
           if [ "${{ inputs.with_schools }}" = "true" ]; then
-            npm run scout:schools -- --headless
+            npm run scout:schools
           else
-            npm run scout -- --headless
+            npm run scout
           fi
 
       # Upload page HTMLs as artifacts so we can inspect them

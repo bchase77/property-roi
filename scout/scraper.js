@@ -81,8 +81,13 @@ async function scrape() {
   SEARCH_URL = `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${cfg.min_price}&hp=${cfg.max_price}&tb=${cfg.min_beds}&per=250&srt=prd`;
   FILTERS = { maxPrice: cfg.max_price, minBeds: cfg.min_beds, minPrice: 50_000 };
 
+  const isHeadless = FORCE_HEADLESS ? true
+    : process.env.HEADLESS === 'false' ? false
+    : !DEBUG;
+  console.log(`  Browser mode: ${isHeadless ? 'headless' : 'headed (Xvfb)'}`);
+
   const browser = await chromium.launch({
-    headless: FORCE_HEADLESS ? true : !DEBUG,
+    headless: isHeadless,
     args: [
       '--disable-blink-features=AutomationControlled', // hides webdriver flag
       '--no-sandbox',
