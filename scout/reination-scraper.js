@@ -3,7 +3,7 @@
 // Usage:  node scout/reination-scraper.js
 //         node scout/reination-scraper.js --debug
 
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, appendFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { sql } from '@vercel/postgres';
@@ -192,7 +192,7 @@ async function main() {
   await init();
 
   // Snapshot existing REI listings before upsert
-  const { rows: existingRei } = await sql`SELECT mls_num, address FROM scout_listings WHERE source = 'reination'`;
+  const { rows: existingRei } = await sql`SELECT mls_num, address, address_locked FROM scout_listings WHERE source = 'reination'`;
   const existingReiSet = new Set(existingRei.map(r => r.mls_num));
   const scrapedSet = new Set(results.map(p => p.mls_num));
 
@@ -206,7 +206,7 @@ async function main() {
         (${p.mls_num}, ${p.address}, ${p.beds}, ${p.baths}, ${p.sqft},
          ${p.year_built}, ${p.hoa_yn}, ${p.href}, ${p.source}, ${now}, ${now})
       ON CONFLICT (mls_num) DO UPDATE SET
-        address   = EXCLUDED.address,
+        address   = CASE WHEN scout_listings.address_locked THEN scout_listings.address ELSE EXCLUDED.address END,
         beds      = COALESCE(EXCLUDED.beds,      scout_listings.beds),
         baths     = COALESCE(EXCLUDED.baths,     scout_listings.baths),
         sqft      = COALESCE(EXCLUDED.sqft,      scout_listings.sqft),
@@ -231,20 +231,29 @@ async function main() {
   // ── Prominent run summary ────────────────────────────────────────────────
   const newListings = results.filter(p => !existingReiSet.has(p.mls_num));
   const disappeared = existingRei.filter(r => !scrapedSet.has(r.mls_num) && !r.address.toLowerCase().includes('property listing'));
+  const existingReiMap = new Map(existingRei.map(r => [r.mls_num, r]));
+  const addrConflicts = results.filter(p => {
+    const ex = existingReiMap.get(p.mls_num);
+    return ex?.address_locked && ex.address !== p.address;
+  });
+  const runDate = new Date().toLocaleString('en-US');
   const line = '═'.repeat(46);
-  console.log(`\n╔${line}╗`);
-  console.log(`║  REI NATION SCOUT SUMMARY — ${new Date().toLocaleDateString('en-US')}${' '.repeat(13)}║`);
-  console.log(`╠${line}╣`);
-  console.log(`║  ✅ New this run:          ${String(newListings.length).padEnd(19)}║`);
-  if (newListings.length > 0) {
-    newListings.forEach(p => console.log(`║     + ${p.address.slice(0, 38).padEnd(39)}║`));
-  }
-  console.log(`║  🔴 No longer listed:      ${String(disappeared.length).padEnd(19)}║`);
-  if (disappeared.length > 0) {
-    disappeared.forEach(r => console.log(`║     - ${r.address.slice(0, 38).padEnd(39)}║`));
-  }
-  console.log(`║  📋 Total REI Nation in DB: ${String(results.length).padEnd(18)}║`);
-  console.log(`╚${line}╝\n`);
+  const lines = [
+    `╔${line}╗`,
+    `║  REI NATION SCOUT SUMMARY — ${runDate.padEnd(17)}║`,
+    `╠${line}╣`,
+    `║  ✅ New this run:          ${String(newListings.length).padEnd(19)}║`,
+    ...newListings.map(p => `║     + ${p.address.slice(0, 38).padEnd(39)}║`),
+    `║  🔴 No longer listed:      ${String(disappeared.length).padEnd(19)}║`,
+    ...disappeared.map(r => `║     - ${r.address.slice(0, 38).padEnd(39)}║`),
+    `║  🔒 Addr preserved:        ${String(addrConflicts.length).padEnd(19)}║`,
+    ...addrConflicts.map(p => `║     ✎ ${p.address.slice(0, 38).padEnd(39)}║`),
+    `║  📋 Total REI Nation in DB: ${String(results.length).padEnd(18)}║`,
+    `╚${line}╝`,
+  ];
+  lines.forEach(l => console.log(l));
+  const logPath = join(__dirname, 'run-summary.log');
+  appendFileSync(logPath, '\n' + lines.join('\n') + '\n');
 
   // Clean up any phantom "Property Listings" entries left from previous runs
   const { rows: phantoms } = await sql`

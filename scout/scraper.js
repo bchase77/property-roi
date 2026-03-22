@@ -6,7 +6,7 @@
 //         node scout/scraper.js --with-schools  (scrape school district from detail pages)
 
 import { chromium } from 'playwright';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, appendFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { ASSUMPTIONS, calculateMetrics, estimateRent } from './finance.js';
@@ -230,8 +230,9 @@ async function scrape() {
   try {
     const now = new Date().toISOString();
 
-    // Snapshot existing PAM mls_nums before upsert so we can detect new arrivals
-    const { rows: existingRows } = await sql`SELECT mls_num FROM scout_listings WHERE source = 'pam'`;
+    // Snapshot existing PAM listings before upsert so we can detect new/gone/address conflicts
+    const { rows: existingRows } = await sql`SELECT mls_num, address, address_locked FROM scout_listings WHERE source = 'pam'`;
+    const existingPamMap = new Map(existingRows.map(r => [r.mls_num, r]));
     const existingPamSet = new Set(existingRows.map(r => r.mls_num));
 
     for (const l of filtered) {
@@ -240,7 +241,7 @@ async function scrape() {
         INSERT INTO scout_listings (mls_num, address, price, beds, baths, sqft, property_type, href, first_seen, last_seen)
         VALUES (${l.mlsNum}, ${l.address}, ${l.price}, ${l.beds}, ${l.baths ?? null}, ${l.sqft ?? null}, ${l.propertyType ?? null}, ${l.href ?? null}, ${now}, ${now})
         ON CONFLICT (mls_num) DO UPDATE SET
-          address   = EXCLUDED.address,
+          address   = CASE WHEN scout_listings.address_locked THEN scout_listings.address ELSE EXCLUDED.address END,
           price     = EXCLUDED.price,
           beds      = EXCLUDED.beds,
           baths     = EXCLUDED.baths,
@@ -311,25 +312,32 @@ async function scrape() {
     const currentSet = new Set(currentMlsNums);
     const newListings = filtered.filter(l => l.mlsNum && !existingPamSet.has(l.mlsNum));
     const disappearedMls = [...existingPamSet].filter(m => !currentSet.has(m));
-    // Fetch addresses for disappeared listings
     const { rows: disappearedRows } = disappearedMls.length > 0
       ? await sql`SELECT mls_num, address FROM scout_listings WHERE mls_num = ANY(${disappearedMls})`
       : { rows: [] };
+    const addrConflicts = filtered.filter(l => {
+      const ex = existingPamMap.get(l.mlsNum);
+      return ex?.address_locked && ex.address !== l.address;
+    });
     const { rows: totalRows } = await sql`SELECT COUNT(*)::int AS n FROM scout_listings WHERE source = 'pam'`;
+    const runDate = new Date().toLocaleString('en-US');
     const line = '═'.repeat(46);
-    console.log(`\n╔${line}╗`);
-    console.log(`║  PAMS SCOUT SUMMARY — ${new Date().toLocaleDateString('en-US')}${' '.repeat(20)}║`);
-    console.log(`╠${line}╣`);
-    console.log(`║  ✅ New this run:     ${String(newListings.length).padEnd(24)}║`);
-    if (newListings.length > 0) {
-      newListings.forEach(l => console.log(`║     + ${l.address.slice(0, 38).padEnd(39)}║`));
-    }
-    console.log(`║  🔴 No longer listed: ${String(disappearedRows.length).padEnd(23)}║`);
-    if (disappearedRows.length > 0) {
-      disappearedRows.forEach(r => console.log(`║     - ${r.address.slice(0, 38).padEnd(39)}║`));
-    }
-    console.log(`║  📋 Total PAM in DB:  ${String(totalRows[0].n).padEnd(23)}║`);
-    console.log(`╚${line}╝\n`);
+    const lines = [
+      `╔${line}╗`,
+      `║  PAMS SCOUT SUMMARY — ${runDate.padEnd(23)}║`,
+      `╠${line}╣`,
+      `║  ✅ New this run:     ${String(newListings.length).padEnd(24)}║`,
+      ...newListings.map(l => `║     + ${l.address.slice(0, 38).padEnd(39)}║`),
+      `║  🔴 No longer listed: ${String(disappearedRows.length).padEnd(23)}║`,
+      ...disappearedRows.map(r => `║     - ${r.address.slice(0, 38).padEnd(39)}║`),
+      `║  🔒 Addr preserved:   ${String(addrConflicts.length).padEnd(23)}║`,
+      ...addrConflicts.map(l => `║     ✎ ${l.address.slice(0, 38).padEnd(39)}║`),
+      `║  📋 Total PAM in DB:  ${String(totalRows[0].n).padEnd(23)}║`,
+      `╚${line}╝`,
+    ];
+    lines.forEach(l => console.log(l));
+    const logPath = join(__dirname, 'run-summary.log');
+    appendFileSync(logPath, '\n' + lines.join('\n') + '\n');
 
     dbOk = true;
   } catch (e) {
