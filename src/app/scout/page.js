@@ -184,6 +184,16 @@ export default function ScoutPage() {
     setLocalEdits(e => ({ ...e, [mls_num]: { ...(e[mls_num] ?? {}), [field]: value } }));
   };
 
+  // Compute metrics for all listings (memoized)
+  const metricsMap = useMemo(() => {
+    const m = {};
+    listings.forEach(l => {
+      const mark = getMark(l);
+      m[l.mls_num] = calcM(l, mark, DEFAULTS);
+    });
+    return m;
+  }, [listings, localEdits, getMark]);
+
   // Handle column header click: re-sort and update sortOrder
   const handleSort = useCallback((col) => {
     const newDir = sortCol === col && sortDir === 'desc' ? 'asc' : 'desc';
@@ -191,7 +201,6 @@ export default function ScoutPage() {
     setSortDir(newDir);
     // Re-sort using metricsMap (which is already computed from current listings + localEdits)
     setSortOrder(prev => {
-      // listings is captured via closure (stable ref from useState)
       return [...listings].sort((a, b) => {
         const ma = metricsMap[a.mls_num];
         const mb = metricsMap[b.mls_num];
@@ -207,16 +216,6 @@ export default function ScoutPage() {
       }).map(l => l.mls_num);
     });
   }, [sortCol, sortDir, listings, metricsMap]);
-
-  // Compute metrics for all listings (memoized)
-  const metricsMap = useMemo(() => {
-    const m = {};
-    listings.forEach(l => {
-      const mark = getMark(l);
-      m[l.mls_num] = calcM(l, mark, DEFAULTS);
-    });
-    return m;
-  }, [listings, localEdits, getMark]);
 
   // Stats
   const stats = useMemo(() => {
