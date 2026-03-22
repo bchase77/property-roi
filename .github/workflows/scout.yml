@@ -83,6 +83,12 @@ jobs:
             npm run scout
           fi
 
+      # 7. Run the Reination scraper (public site, no browser needed)
+      - name: Run Reination scraper
+        env:
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+        run: npm run scout:reination
+
       # Upload page HTMLs as artifacts so we can inspect them
       # Runs even if the scraper failed (if: always())
       - name: Upload page HTML artifacts

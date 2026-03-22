@@ -82,6 +82,12 @@ export default function ScoutPage() {
   // Undo stack: [{mls_num, field, prevValue, label}]
   const [undoStack, setUndoStack] = useState([]);
 
+  // Manual-add modal
+  const [addOpen, setAddOpen] = useState(false);
+  const EMPTY_FORM = { address: '', price: '', beds: '', baths: '', sqft: '', year_built: '', hoa_yn: '', href: '', rent_override: '', repair_costs: '', hoa_quarterly: '', notes: '' };
+  const [addForm, setAddForm] = useState(EMPTY_FORM);
+  const [addSaving, setAddSaving] = useState(false);
+
   // Filter / search / page
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
   const [filterEntry, setFilterEntry] = useState('all');   // 'all' | 'entered' | 'not-entered'
@@ -293,6 +299,43 @@ export default function ScoutPage() {
     navigator.clipboard.writeText(text).catch(() => {});
   };
 
+  const saveManual = async () => {
+    if (!addForm.address.trim()) return;
+    setAddSaving(true);
+    try {
+      const body = {
+        address: addForm.address.trim(),
+        price:         addForm.price        !== '' ? Number(addForm.price)        : null,
+        beds:          addForm.beds         !== '' ? Number(addForm.beds)         : null,
+        baths:         addForm.baths        !== '' ? Number(addForm.baths)        : null,
+        sqft:          addForm.sqft         !== '' ? Number(addForm.sqft)         : null,
+        year_built:    addForm.year_built   !== '' ? Number(addForm.year_built)   : null,
+        hoa_yn:        addForm.hoa_yn       !== '' ? addForm.hoa_yn === 'true'    : null,
+        href:          addForm.href.trim()  || null,
+        rent_override: addForm.rent_override !== '' ? Number(addForm.rent_override) : null,
+        repair_costs:  addForm.repair_costs  !== '' ? Number(addForm.repair_costs)  : null,
+        hoa_quarterly: addForm.hoa_quarterly !== '' ? Number(addForm.hoa_quarterly) : null,
+        notes:         addForm.notes.trim() || null,
+        source: 'manual',
+      };
+      const res = await fetch('/api/scout/listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      const newListing = await res.json();
+      setListings(ls => [newListing, ...ls]);
+      setSortOrder(so => [newListing.mls_num, ...so]);
+      setAddForm(EMPTY_FORM);
+      setAddOpen(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-6">
@@ -308,13 +351,107 @@ export default function ScoutPage() {
         <div className="flex-1">
           <PageHeader title="Scout" subtitle="PAM Texas MLS listings" currentPage="/scout" />
         </div>
-        <button
-          onClick={() => router.push('/scout/compare')}
-          className="mt-1 ml-4 px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-sm font-medium rounded-lg whitespace-nowrap"
-        >
-          Compare Potentials →
-        </button>
+        <div className="flex gap-2 mt-1 ml-4">
+          <button
+            onClick={() => setAddOpen(true)}
+            className="px-4 py-2 bg-green-700 hover:bg-green-600 text-white text-sm font-medium rounded-lg whitespace-nowrap"
+          >
+            + Add Property
+          </button>
+          <button
+            onClick={() => router.push('/scout/compare')}
+            className="px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-sm font-medium rounded-lg whitespace-nowrap"
+          >
+            Compare Potentials →
+          </button>
+        </div>
       </div>
+
+      {/* Add Property Modal */}
+      {addOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-xl w-full max-w-xl shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+              <h2 className="text-white font-semibold">Add Property Manually</h2>
+              <button onClick={() => setAddOpen(false)} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <div className="px-6 py-4 grid grid-cols-2 gap-3 overflow-y-auto max-h-[70vh]">
+              {/* Address spans full width */}
+              <label className="col-span-2 flex flex-col gap-1">
+                <span className="text-xs text-gray-400">Address *</span>
+                <input
+                  type="text"
+                  value={addForm.address}
+                  onChange={e => setAddForm(f => ({ ...f, address: e.target.value }))}
+                  placeholder="1234 Main St, Dallas, TX 75201"
+                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </label>
+              {[
+                { key: 'price',        label: 'List Price ($)',    type: 'number' },
+                { key: 'rent_override',label: 'Monthly Rent ($)',  type: 'number' },
+                { key: 'beds',         label: 'Beds',              type: 'number' },
+                { key: 'baths',        label: 'Baths',             type: 'number' },
+                { key: 'sqft',         label: 'Sqft',              type: 'number' },
+                { key: 'year_built',   label: 'Year Built',        type: 'number' },
+                { key: 'repair_costs', label: 'Est. Repair Costs ($)', type: 'number' },
+                { key: 'hoa_quarterly',label: 'HOA ($/qtr)',       type: 'number' },
+              ].map(({ key, label, type }) => (
+                <label key={key} className="flex flex-col gap-1">
+                  <span className="text-xs text-gray-400">{label}</span>
+                  <input
+                    type={type}
+                    value={addForm[key]}
+                    onChange={e => setAddForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </label>
+              ))}
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-gray-400">HOA?</span>
+                <select
+                  value={addForm.hoa_yn}
+                  onChange={e => setAddForm(f => ({ ...f, hoa_yn: e.target.value }))}
+                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Unknown</option>
+                  <option value="false">No HOA</option>
+                  <option value="true">Yes, has HOA</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-gray-400">Listing URL (optional)</span>
+                <input
+                  type="url"
+                  value={addForm.href}
+                  onChange={e => setAddForm(f => ({ ...f, href: e.target.value }))}
+                  placeholder="https://…"
+                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </label>
+              <label className="col-span-2 flex flex-col gap-1">
+                <span className="text-xs text-gray-400">Notes</span>
+                <textarea
+                  rows={2}
+                  value={addForm.notes}
+                  onChange={e => setAddForm(f => ({ ...f, notes: e.target.value }))}
+                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 resize-none"
+                />
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-700">
+              <button onClick={() => setAddOpen(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+              <button
+                onClick={saveManual}
+                disabled={!addForm.address.trim() || addSaving}
+                className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg"
+              >
+                {addSaving ? 'Saving…' : 'Add to Scout List'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Config Panel */}
       <div className="bg-gray-800 rounded-xl mb-4">
@@ -585,6 +722,16 @@ export default function ScoutPage() {
                       )}
                       {firstSeenDate && (
                         <div className="text-gray-600 text-xs mt-0.5">First seen: {firstSeenDate}</div>
+                      )}
+                      {listing.source && listing.source !== 'pam' && (
+                        <div className="mt-0.5">
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                            listing.source === 'reination' ? 'bg-indigo-900/50 text-indigo-300' :
+                            listing.source === 'manual'    ? 'bg-gray-700 text-gray-400' : 'bg-gray-700 text-gray-500'
+                          }`}>
+                            {listing.source === 'reination' ? 'Reination' : listing.source === 'manual' ? 'Manual' : listing.source}
+                          </span>
+                        </div>
                       )}
                     </td>
 
