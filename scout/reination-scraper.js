@@ -111,6 +111,12 @@ async function scrapeProperty(id) {
     street = (titleMatch?.[1] ?? '').replace(/\s*-\s*Reination.*/i, '').replace(/\s*\|.*/,'').trim();
   }
 
+  // If we landed on the main listings page (redirected), skip this entry
+  if (!street || street.toLowerCase().includes('property listing') || street.toLowerCase() === 'reination') {
+    console.warn(`  ⚠ REI-${id} redirected to listings page — skipping`);
+    return null;
+  }
+
   // ── Beds / Baths / Sqft ───────────────────────────────────────────────────
   const bedsMatch  = html.match(/(\d+)\s*(?:BEDS?|bed(?:room)?s?)/i);
   const bathsMatch = html.match(/([\d.]+)\s*(?:BATHS?|bath(?:room)?s?)/i);
@@ -214,6 +220,20 @@ async function main() {
           rent_min = COALESCE(scout_marks.rent_min, EXCLUDED.rent_min),
           rent_max = COALESCE(scout_marks.rent_max, EXCLUDED.rent_max);
       `;
+    }
+  }
+
+  // Clean up any phantom "Property Listings" entries left from previous runs
+  const { rows: phantoms } = await sql`
+    SELECT mls_num FROM scout_listings
+    WHERE source = 'reination' AND (address ILIKE '%property listing%' OR address = '' OR address IS NULL)
+  `;
+  if (phantoms.length) {
+    console.log(`🧹 Removing ${phantoms.length} phantom listing(s)…`);
+    for (const { mls_num } of phantoms) {
+      await sql`DELETE FROM scout_marks    WHERE mls_num = ${mls_num}`;
+      await sql`DELETE FROM scout_listings WHERE mls_num = ${mls_num}`;
+      console.log(`  Deleted ${mls_num}`);
     }
   }
 
