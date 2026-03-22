@@ -110,24 +110,28 @@ async function scrape() {
     }
 
     // ── 2. Collect actual pagination URLs from the page ───────────────────
-    // IDXBroker uses offset-based pagination (start=50, start=100, …),
-    // not sequential page numbers. Extract the real URLs from the links.
-    const pageOffsets = await page.$$eval('a[href*="start="]', links => {
+    // Use the real hrefs from pagination links — avoids any URL construction
+    // guesswork (IDXBroker may use offsets, tokens, or other param formats).
+    const pageUrls = await page.$$eval('a[href*="start="]', links => {
       const seen = new Set();
-      const offsets = [];
+      const urls = [];
       for (const a of links) {
-        const m = a.href.match(/[&?]start=(\d+)/);
-        if (m) {
-          const n = parseInt(m[1]);
-          if (!seen.has(n)) { seen.add(n); offsets.push(n); }
+        const href = a.href;
+        if (href && !seen.has(href)) {
+          seen.add(href);
+          urls.push(href);
         }
       }
-      return offsets.sort((a, b) => a - b);
+      // Sort by the start= value so pages are in order
+      return urls.sort((a, b) => {
+        const ma = a.match(/start=(\d+)/), mb = b.match(/start=(\d+)/);
+        return (ma ? parseInt(ma[1]) : 0) - (mb ? parseInt(mb[1]) : 0);
+      });
     });
-    // Page 1 (offset 0 / no start= param) is already loaded; remaining pages follow
-    const allOffsets = [null, ...pageOffsets]; // null = current page (page 1)
-    const maxPages = Math.min(allOffsets.length, cfg.max_pages ?? 10);
-    console.log(`→ Detected ${allOffsets.length} page(s) of results (offsets: ${pageOffsets.join(', ')})`);
+    // null = page 1 (already loaded); subsequent entries are the real URLs
+    const allPageUrls = [null, ...pageUrls];
+    const maxPages = Math.min(allPageUrls.length, cfg.max_pages ?? 10);
+    console.log(`→ Detected ${allPageUrls.length} page(s). Next pages: ${pageUrls.slice(0, 3).map(u => u.split('?')[1] ?? u).join(' | ')}…`);
 
     if (DEBUG) {
       const shot = join(__dirname, 'debug-screenshot.png');
@@ -138,23 +142,36 @@ async function scrape() {
     }
 
     // ── 3. Scrape all pages ────────────────────────────────────────────────
-    // Reuse the same page and navigate between pages — opening new context
-    // pages loses session state in headless mode. Page 1 is already loaded.
-    const sep = SEARCH_URL.includes('?') ? '&' : '?';
-
+    // Page 1 is already loaded. For subsequent pages, click the pagination
+    // link like a real user — direct goto() triggers bot detection.
     for (let i = 0; i < maxPages; i++) {
-      const offset = allOffsets[i];
+      const targetUrl = allPageUrls[i];
       console.log(`\n→ Scraping page ${i + 1} / ${maxPages}…`);
 
-      if (offset !== null) {
-        const url = `${SEARCH_URL}${sep}start=${offset}`;
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      if (targetUrl !== null) {
+        // Click the matching link via JS evaluate (uses absolute href to match exactly)
+        const clicked = await page.evaluate((href) => {
+          const link = [...document.querySelectorAll('a[href*="start="]')]
+            .find(a => a.href === href);
+          if (link) { link.click(); return true; }
+          return false;
+        }, targetUrl);
+
+        if (clicked) {
+          await page.waitForLoadState('domcontentloaded', { timeout: 30_000 });
+          console.log(`  (navigated via link click → ${page.url().split('?')[1] ?? page.url()})`);
+        } else {
+          // Fallback: navigate directly
+          console.log(`  (link not found on page, falling back to goto)`);
+          await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+        }
       }
-      // Page 1 is already loaded; wait for listings to render on all pages
+
+      // Wait for listings to render
       const appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
         .then(() => true).catch(() => false);
       if (!appeared) {
-        console.log(`  (no listings appeared after 20s — stopping pagination)`);
+        console.log(`  (no listings appeared after 20s — url: ${page.url()})`);
         break;
       }
 
