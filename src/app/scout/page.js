@@ -72,8 +72,15 @@ export default function ScoutPage() {
   const [configSaved, setConfigSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Local edits per mls_num (before save)
+  // Local edits per mls_num (committed values — used for metrics/sorting)
   const [localEdits, setLocalEdits] = useState({});
+
+  // Raw typing buffer — updated on every keystroke but NOT used for metrics/sorting
+  // This prevents re-sorting mid-type which was causing the 1-digit bug
+  const [inputValues, setInputValues] = useState({});
+
+  // Undo stack: [{mls_num, field, prevValue, label}]
+  const [undoStack, setUndoStack] = useState([]);
 
   // Filter / sort / search / page
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
@@ -125,6 +132,41 @@ export default function ScoutPage() {
       console.error('Failed to save mark:', err);
     }
   }, []);
+
+  // Update raw typing buffer only (no metrics recalc, no re-sort)
+  const setTyping = (mls_num, field, value) => {
+    setInputValues(v => ({ ...v, [mls_num]: { ...(v[mls_num] ?? {}), [field]: value } }));
+  };
+
+  // Commit a field: update metrics + save to DB + push to undo stack
+  const commitField = useCallback(async (mls_num, field, rawValue, prevValue) => {
+    const isNumeric = field !== 'mark_notes';
+    const value = isNumeric
+      ? (rawValue === '' || rawValue == null ? null : Number(rawValue))
+      : (rawValue === '' ? null : rawValue);
+    if (isNumeric && rawValue !== '' && rawValue != null && isNaN(Number(rawValue))) return;
+
+    // Clear from typing buffer
+    setInputValues(v => {
+      const next = { ...v, [mls_num]: { ...(v[mls_num] ?? {}) } };
+      delete next[mls_num][field];
+      return next;
+    });
+
+    // Push undo entry if value actually changed
+    if (value !== prevValue) {
+      setUndoStack(s => [{ mls_num, field, prevValue, label: field.replace(/_/g, ' ') }, ...s.slice(0, 19)]);
+    }
+
+    await patchMark(mls_num, { [field]: value });
+  }, [patchMark]);
+
+  const undo = useCallback(async () => {
+    const [last, ...rest] = undoStack;
+    if (!last) return;
+    setUndoStack(rest);
+    await patchMark(last.mls_num, { [last.field]: last.prevValue });
+  }, [undoStack, patchMark]);
 
   const setLocalField = (mls_num, field, value) => {
     setLocalEdits(e => ({ ...e, [mls_num]: { ...(e[mls_num] ?? {}), [field]: value } }));
@@ -284,6 +326,15 @@ export default function ScoutPage() {
         <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
           Great ATROI (≥10%): <span className="font-bold text-purple-400">{stats.great}</span>
         </span>
+        {undoStack.length > 0 && (
+          <button
+            onClick={undo}
+            className="ml-auto px-3 py-1.5 bg-yellow-700/60 hover:bg-yellow-600/60 text-yellow-200 text-xs rounded-lg font-medium"
+            title={`Undo: ${undoStack[0]?.label} on ${undoStack[0]?.mls_num}`}
+          >
+            ↩ Undo ({undoStack.length})
+          </button>
+        )}
       </div>
 
       {/* Filter / Sort Bar */}
@@ -364,10 +415,18 @@ export default function ScoutPage() {
                 const metrics = metricsMap[listing.mls_num];
                 const local = localEdits[listing.mls_num] ?? {};
 
+                // Committed values (used for metrics/sorting)
                 const repairVal = local.repair_costs !== undefined ? local.repair_costs : (listing.repair_costs ?? '');
                 const hoaVal = local.hoa_quarterly !== undefined ? local.hoa_quarterly : (listing.hoa_quarterly ?? '');
                 const rentVal = local.rent_override !== undefined ? local.rent_override : (listing.rent_override ?? '');
                 const notesVal = local.mark_notes !== undefined ? local.mark_notes : (listing.mark_notes ?? '');
+
+                // Raw typing buffer values (shown while user is typing — don't affect metrics)
+                const inp = inputValues[listing.mls_num] ?? {};
+                const repairInput = inp.repair_costs !== undefined ? inp.repair_costs : (repairVal !== '' ? String(repairVal) : '');
+                const hoaInput    = inp.hoa_quarterly !== undefined ? inp.hoa_quarterly : (hoaVal !== '' ? String(hoaVal) : '');
+                const rentInput   = inp.rent_override !== undefined ? inp.rent_override : (rentVal !== '' ? String(rentVal) : '');
+                const notesInput  = inp.mark_notes !== undefined ? inp.mark_notes : String(notesVal);
 
                 const priceDiff = listing.first_price && listing.first_price !== listing.price
                   ? Number(listing.price) - Number(listing.first_price)
@@ -454,11 +513,13 @@ export default function ScoutPage() {
                     <td className="px-3 py-2">
                       <input
                         type="number"
-                        value={repairVal}
-                        onChange={e => setLocalField(listing.mls_num, 'repair_costs', e.target.value === '' ? '' : Number(e.target.value))}
-                        onBlur={() => patchMark(listing.mls_num, { repair_costs: repairVal === '' ? null : Number(repairVal) })}
+                        value={repairInput}
+                        onChange={e => setTyping(listing.mls_num, 'repair_costs', e.target.value)}
+                        onBlur={() => commitField(listing.mls_num, 'repair_costs', repairInput, repairVal)}
+                        onKeyDown={e => e.key === 'Enter' && e.target.blur()}
                         placeholder={String(DEFAULTS.repairCosts)}
                         className="w-20 bg-gray-700 border border-amber-800/60 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-amber-500"
+                        title="Type value then press Enter to save"
                       />
                     </td>
 
@@ -466,11 +527,13 @@ export default function ScoutPage() {
                     <td className="px-3 py-2">
                       <input
                         type="number"
-                        value={hoaVal}
-                        onChange={e => setLocalField(listing.mls_num, 'hoa_quarterly', e.target.value === '' ? '' : Number(e.target.value))}
-                        onBlur={() => patchMark(listing.mls_num, { hoa_quarterly: hoaVal === '' ? null : Number(hoaVal) })}
+                        value={hoaInput}
+                        onChange={e => setTyping(listing.mls_num, 'hoa_quarterly', e.target.value)}
+                        onBlur={() => commitField(listing.mls_num, 'hoa_quarterly', hoaInput, hoaVal)}
+                        onKeyDown={e => e.key === 'Enter' && e.target.blur()}
                         placeholder="0"
                         className="w-20 bg-gray-700 border border-cyan-800/60 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-cyan-500"
+                        title="Type value then press Enter to save"
                       />
                     </td>
 
@@ -478,11 +541,13 @@ export default function ScoutPage() {
                     <td className="px-3 py-2">
                       <input
                         type="number"
-                        value={rentVal}
-                        onChange={e => setLocalField(listing.mls_num, 'rent_override', e.target.value === '' ? '' : Number(e.target.value))}
-                        onBlur={() => patchMark(listing.mls_num, { rent_override: rentVal === '' ? null : Number(rentVal) })}
+                        value={rentInput}
+                        onChange={e => setTyping(listing.mls_num, 'rent_override', e.target.value)}
+                        onBlur={() => commitField(listing.mls_num, 'rent_override', rentInput, rentVal)}
+                        onKeyDown={e => e.key === 'Enter' && e.target.blur()}
                         placeholder={listing.sqft ? String(Math.round(listing.sqft * DEFAULTS.rentPerSqft)) : ''}
                         className="w-20 bg-gray-700 border border-blue-800/60 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"
+                        title="Type value then press Enter to save"
                       />
                       {listing.rent_min != null && listing.rent_max != null && (
                         <div className="text-gray-600 text-xs mt-0.5">
@@ -521,11 +586,12 @@ export default function ScoutPage() {
                     <td className="px-3 py-2">
                       <textarea
                         rows={2}
-                        value={notesVal}
-                        onChange={e => setLocalField(listing.mls_num, 'mark_notes', e.target.value)}
-                        onBlur={() => patchMark(listing.mls_num, { mark_notes: notesVal || null })}
+                        value={notesInput}
+                        onChange={e => setTyping(listing.mls_num, 'mark_notes', e.target.value)}
+                        onBlur={() => commitField(listing.mls_num, 'mark_notes', notesInput, notesVal)}
                         placeholder="Notes…"
                         className="w-32 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500 resize-none"
+                        title="Click away or Tab to save"
                       />
                     </td>
 
