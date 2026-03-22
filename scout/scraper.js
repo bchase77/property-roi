@@ -97,7 +97,7 @@ async function scrape() {
     // ── 1. Check for login requirement ────────────────────────────────────
     console.log('\n→ Loading search page…');
     await page.goto(SEARCH_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(5000);
 
     const currentUrl = page.url();
     const needsLogin = currentUrl.includes('login') || currentUrl.includes('signin') ||
@@ -106,7 +106,7 @@ async function scrape() {
       console.log('→ Login required — signing in…');
       await login(page);
       await page.goto(SEARCH_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(5000);
     }
 
     // ── 2. Detect last page number from pagination links ──────────────────
@@ -139,7 +139,15 @@ async function scrape() {
 
       const p = await context.newPage();
       await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      await p.waitForTimeout(5000);   // IDXBroker listings render via AJAX
+      // Wait until listing cells actually appear (IDXBroker renders via AJAX;
+      // GitHub Actions VMs are slower than local — dynamic wait beats fixed timeout)
+      const appeared = await p.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
+        .then(() => true).catch(() => false);
+      if (!appeared) {
+        console.log(`  (no listings appeared after 20s — stopping pagination)`);
+        await p.close();
+        break;
+      }
 
       const pageListings = await scrapePage(p);
       await p.close();
