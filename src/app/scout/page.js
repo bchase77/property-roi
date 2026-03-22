@@ -341,6 +341,21 @@ export default function ScoutPage() {
     }
   };
 
+  const patchListing = useCallback(async (mls_num, fields) => {
+    // Optimistic update so metrics recalculate immediately
+    setListings(ls => ls.map(l => l.mls_num === mls_num ? { ...l, ...fields } : l));
+    try {
+      const res = await fetch(`/api/scout/listings/${mls_num}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
+      });
+      if (!res.ok) throw new Error('Save failed');
+    } catch (err) {
+      console.error('Failed to save listing:', err);
+    }
+  }, []);
+
   const deleteListing = useCallback(async (mls_num) => {
     if (!confirm(`Delete ${mls_num}? This cannot be undone.`)) return;
     try {
@@ -754,7 +769,24 @@ export default function ScoutPage() {
 
                     {/* Price */}
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <div className="font-mono text-white text-xs">{fmt$(listing.price)}</div>
+                      <input
+                        type="number"
+                        value={inputValues[listing.mls_num]?.price ?? (listing.price != null ? String(listing.price) : '')}
+                        onChange={e => setTyping(listing.mls_num, 'price', e.target.value)}
+                        onBlur={e => {
+                          const raw = e.target.value;
+                          const prev = listing.price;
+                          setInputValues(v => {
+                            const next = { ...v, [listing.mls_num]: { ...(v[listing.mls_num] ?? {}) } };
+                            delete next[listing.mls_num].price;
+                            return next;
+                          });
+                          const val = raw === '' ? null : Number(raw);
+                          if (val !== prev) patchListing(listing.mls_num, { price: val });
+                        }}
+                        placeholder="—"
+                        className="w-24 bg-transparent font-mono text-white text-xs focus:outline-none focus:bg-gray-700 rounded px-1"
+                      />
                       {priceDiff !== null && (
                         <div className={`text-xs font-medium ${priceDiff < 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {priceDiff < 0 ? '↓' : '↑'}{fmt$(Math.abs(priceDiff))}

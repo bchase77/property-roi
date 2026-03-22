@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { init } from '@/lib/db';
 
+export async function PATCH(req, { params }) {
+  await init();
+  const { mls_num } = await params;
+  if (!mls_num) return NextResponse.json({ error: 'missing mls_num' }, { status: 400 });
+
+  const body = await req.json();
+  const { price } = body;
+
+  if (price != null) {
+    await sql`UPDATE scout_listings SET price = ${Number(price)} WHERE mls_num = ${mls_num}`;
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function DELETE(req, { params }) {
   await init();
   const { mls_num } = await params;
