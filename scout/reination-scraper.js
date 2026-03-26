@@ -238,6 +238,7 @@ async function main() {
   });
   const runDate = new Date().toLocaleString('en-US');
   const line = '═'.repeat(46);
+  // Full detail saved to log file
   const lines = [
     `╔${line}╗`,
     `║  REI NATION SCOUT SUMMARY — ${runDate.padEnd(17)}║`,
@@ -251,9 +252,22 @@ async function main() {
     `║  📋 Total REI Nation in DB: ${String(results.length).padEnd(18)}║`,
     `╚${line}╝`,
   ];
-  lines.forEach(l => console.log(l));
   const logPath = join(__dirname, 'run-summary.log');
   appendFileSync(logPath, '\n' + lines.join('\n') + '\n');
+
+  // Compact version for terminal (counts only)
+  const compact = [
+    `╔${line}╗`,
+    `║  REI NATION SCOUT SUMMARY — ${runDate.padEnd(17)}║`,
+    `╠${line}╣`,
+    `║  ✅ New this run:          ${String(newListings.length).padEnd(19)}║`,
+    `║  🔴 No longer listed:      ${String(disappeared.length).padEnd(19)}║`,
+    `║  🔒 Addr preserved:        ${String(addrConflicts.length).padEnd(19)}║`,
+    `║  📋 Total REI Nation in DB: ${String(results.length).padEnd(18)}║`,
+    `╚${line}╝`,
+    `   (full address list saved to scout/run-summary.log)`,
+  ];
+  compact.forEach(l => console.log(l));
 
   // Clean up any phantom "Property Listings" entries left from previous runs
   const { rows: phantoms } = await sql`
