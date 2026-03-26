@@ -65,8 +65,7 @@ async function loadScoutConfig() {
 let FILTERS = { maxPrice: 500_000, minBeds: 3, minPrice: 50_000 };
 
 function bandUrl(cfg, lp, hp) {
-  // idxStatus=a = active listings only (excludes pending, sold, expired)
-  return `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&idxStatus=a&lp=${lp}&hp=${hp}&per=250&srt=prd`;
+  return `https://pamtexas.idxbroker.com/idx/results/listings?pt=sfr&county%5B%5D=${cfg.county}&ccz=county&lp=${lp}&hp=${hp}&per=250&srt=prd`;
 }
 
 // Build $5K price bands with $500 overlaps at each boundary.
