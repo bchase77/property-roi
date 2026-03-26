@@ -360,6 +360,7 @@ async function scrape() {
     const { rows: totalRows } = await sql`SELECT COUNT(*)::int AS n FROM scout_listings WHERE source = 'pam'`;
     const runDate = new Date().toLocaleString('en-US');
     const line = '═'.repeat(46);
+    // Full detail saved to log file
     const lines = [
       `╔${line}╗`,
       `║  PAMS SCOUT SUMMARY — ${runDate.padEnd(23)}║`,
@@ -374,9 +375,23 @@ async function scrape() {
       `║  📋 Total PAM in DB:  ${String(totalRows[0].n).padEnd(23)}║`,
       `╚${line}╝`,
     ];
-    lines.forEach(l => console.log(l));
     const logPath = join(__dirname, 'run-summary.log');
     appendFileSync(logPath, '\n' + lines.join('\n') + '\n');
+
+    // Compact version for terminal (counts only, no address lists)
+    const compact = [
+      `╔${line}╗`,
+      `║  PAMS SCOUT SUMMARY — ${runDate.padEnd(23)}║`,
+      `╠${line}╣`,
+      `║  ✅ New this run:     ${String(newListings.length).padEnd(24)}║`,
+      `║  🔴 No longer listed: ${String(disappearedRows.length).padEnd(23)}║`,
+      `║  🔒 Addr preserved:   ${String(addrConflicts.length).padEnd(23)}║`,
+      `║  💾 Upserted this run: ${String(filtered.length).padEnd(22)}║`,
+      `║  📋 Total PAM in DB:  ${String(totalRows[0].n).padEnd(23)}║`,
+      `╚${line}╝`,
+      `   (full address list saved to scout/run-summary.log)`,
+    ];
+    compact.forEach(l => console.log(l));
 
     dbOk = true;
   } catch (e) {
