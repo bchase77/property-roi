@@ -253,6 +253,7 @@ async function scrape() {
     if (l.price < FILTERS.minPrice) return false;   // exclude rentals at monthly rates
     if (l.price > FILTERS.maxPrice) return false;
     if (l.beds < FILTERS.minBeds) return false;
+    if (l.status && l.status.toLowerCase() !== 'active') return false;
     return true;
   });
 
@@ -554,8 +555,11 @@ async function scrapePage(page) {
       // ── HOA (not on list view — will be null, user can edit) ──────────
       const hoaMonthly = 0;
 
+      // ── Status ────────────────────────────────────────────────────────
+      const status = el.querySelector('.IDX-results--details-field-propStatus .IDX-resultsText')?.textContent?.trim() || '';
+
       if (price > 50_000) {
-        listings.push({ price, address, beds, baths, sqft, propertyType, mlsPtId, hoaMonthly, href, mlsNum, idxId });
+        listings.push({ price, address, beds, baths, sqft, propertyType, mlsPtId, hoaMonthly, href, mlsNum, idxId, status });
       }
     }
 
