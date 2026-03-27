@@ -79,16 +79,19 @@ export async function POST(request) {
       }
 
       // Restore property_scenarios table
+      // Column names were renamed: down_payment_pct→down_pct, interest_apr_pct→rate_apr, loan_years→years
+      // Support both old and new backup formats.
       if (backup.tables.property_scenarios?.length > 0) {
         for (const scenario of backup.tables.property_scenarios) {
           await sql`
             INSERT INTO property_scenarios (
-              id, property_id, name, down_payment_pct, interest_apr_pct, 
-              loan_years, created_at
+              id, property_id, name, down_pct, rate_apr, years, created_at
             ) VALUES (
               ${scenario.id}, ${scenario.property_id}, ${scenario.name},
-              ${scenario.down_payment_pct}, ${scenario.interest_apr_pct},
-              ${scenario.loan_years}, ${scenario.created_at}
+              ${scenario.down_pct ?? scenario.down_payment_pct},
+              ${scenario.rate_apr ?? scenario.interest_apr_pct},
+              ${scenario.years ?? scenario.loan_years},
+              ${scenario.created_at}
             )
           `;
         }
