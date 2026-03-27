@@ -56,8 +56,8 @@ export async function GET(req) {
     great:     withMetrics.filter(r => r.atroi != null && r.atroi >= 10).length,
   };
 
-  // Apply search filter
-  let filtered = withMetrics;
+  // Exclude non-Active listings (Pending, Sold, etc.) — null means status unknown (REI Nation etc.), keep those
+  let filtered = withMetrics.filter(r => !r.listing_status || r.listing_status.toLowerCase() === 'active');
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter(r =>

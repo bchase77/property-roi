@@ -278,16 +278,17 @@ async function scrape() {
     for (const l of filtered) {
       if (!l.mlsNum) continue;
       await sql`
-        INSERT INTO scout_listings (mls_num, address, price, beds, baths, sqft, property_type, href, first_seen, last_seen)
-        VALUES (${l.mlsNum}, ${l.address}, ${l.price}, ${l.beds}, ${l.baths ?? null}, ${l.sqft ?? null}, ${l.propertyType ?? null}, ${l.href ?? null}, ${now}, ${now})
+        INSERT INTO scout_listings (mls_num, address, price, beds, baths, sqft, property_type, href, listing_status, first_seen, last_seen)
+        VALUES (${l.mlsNum}, ${l.address}, ${l.price}, ${l.beds}, ${l.baths ?? null}, ${l.sqft ?? null}, ${l.propertyType ?? null}, ${l.href ?? null}, ${l.status || null}, ${now}, ${now})
         ON CONFLICT (mls_num) DO UPDATE SET
-          address   = CASE WHEN scout_listings.address_locked THEN scout_listings.address ELSE EXCLUDED.address END,
-          price     = EXCLUDED.price,
-          beds      = EXCLUDED.beds,
-          baths     = EXCLUDED.baths,
-          sqft      = EXCLUDED.sqft,
-          href      = EXCLUDED.href,
-          last_seen = EXCLUDED.last_seen;
+          address        = CASE WHEN scout_listings.address_locked THEN scout_listings.address ELSE EXCLUDED.address END,
+          price          = EXCLUDED.price,
+          beds           = EXCLUDED.beds,
+          baths          = EXCLUDED.baths,
+          sqft           = EXCLUDED.sqft,
+          href           = EXCLUDED.href,
+          listing_status = EXCLUDED.listing_status,
+          last_seen      = EXCLUDED.last_seen;
       `;
       // Record price snapshot only if price changed
       const hist = history[l.mlsNum];

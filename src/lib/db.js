@@ -222,6 +222,7 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS year_built INT;`;
   await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS hoa_yn BOOLEAN;`;
   await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS address_locked BOOLEAN NOT NULL DEFAULT FALSE;`;
+  await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS listing_status TEXT;`;
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS scout_price_history (
       id SERIAL PRIMARY KEY,
