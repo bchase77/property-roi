@@ -8,6 +8,45 @@ This file tracks all user prompts and responses during current development sessi
 
 ---
 
+## Session Start: 2026-03-25
+
+**User Prompt:** (Session continued from previous context) Multiple tasks completed this session — see summary below.
+
+**Work completed:**
+- Completed PAM scraper refactor to use overlapping price bands ($5K bands, $500 overlap) — fixes IDX Broker 500-result cap that was hiding ~5000+ properties
+- Removed `tb=` (min beds) filter from IDX URL — use site defaults
+- Added ⚠️ warning when any band hits 500-result cap
+- Removed `idxStatus=a` filter after it broke all bands (IDX Broker rejected it)
+- Moved upserted count from console into run-summary.log summary box
+- Created GitHub release tag v1.0.0
+- Made terminal summary compact (counts only); full address list saved to run-summary.log
+- First full scrape completed: 6,154 unique listings, 5,575 after filter, 5,658 total PAM in DB
+
+**User Prompts (word for word):**
+1. "3" (selecting option 3: remove IDX URL bed filter, use site defaults)
+2. "Can the scraper check if it got 500 properties? because it would mean it probably did not get them all from IDX"
+3. "How do I run the PAMS scraper locally?"
+4. "If I do it now, I should see that printing you mentioned, per band, yes?"
+5. "Seems like all the bands are too wide! Each got >500 listings. I did some small test and it seems like bands of $5000 will return <500 properties. Are you including only those in Tarrant County? You should do that. Have the search use STATUS = ACTIVE (not pending nor sold nor anything else). If my database grows to 12000 entries, how will that affect my database size, how much I need to pay to Vercel every month, and the overall responsiveness of this app?"
+6. "Before I do that, I see you printed the number of listings upserted into the console. Save that to a file instead."
+7. "OK then make a formal release of this into GitHub so we can roll back to it if needed later. Then I want to try the $5000 bands version."
+8. "Is this expected? [scraper output showing startup]"
+9. "The first band found 2 listings. 2nd found 6. 3rd found 4. It's still running."
+10. "Why is there only 2 or 3 listings on page 1, then 3 or 2 listings on page 2?"
+11. "In band 100-105 it's getting 26 listings. Still running."
+12. "What's the limit? band 155-160 got 90 listings."
+13. "Are these OK? [Band $220K–$225K: 207 listings]"
+14. "Can you tell how big the DB is getting?"
+15. "$295-300 Has 331 listings. Still going." / "$345-350 had 441."
+16. "We don't need to do this every day, do we? Will IDX Broker start charging for API hits?"
+17. "Yes, let's keep it polite. It's in the 405-410 range now."
+18. "No cap warning yet. At 450k."
+19. "It's done"
+20. "Yes, cap it. It's OK to have it save all those added and removed into a file, but don't print them each in the terminal."
+21. "You are storing all my prompts and our time together, yes?"
+
+---
+
 ## Session Start: 2026-03-14
 
 **User Prompt:** Can you help me build a tool to traverse a website to find good properties to buy? This website is from a place which I already use to manage properties, in Texas. They periodically update this website with new properties and remove ones after they sell. I can give you the link, take a look. If you think it would be better to add this capability to the property-roi app then let's devise a plan to do that.
