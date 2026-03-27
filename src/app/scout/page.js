@@ -1,63 +1,8 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
-
-const DEFAULTS = {
-  downPct: 25, rateApr: 6.4, loanYears: 30,
-  closingCostsPct: 3, repairCosts: 5000,
-  taxPct: 2.1, insuranceMonthly: 150,
-  maintPctRent: 5, vacancyPctRent: 5, mgmtPctRent: 8,
-  rentPerSqft: 1.00,
-};
-
-function calcM(listing, mark, A) {
-  const price = Number(listing.price);
-  const hoa = mark?.hoa_quarterly != null ? mark.hoa_quarterly / 3 : 0;
-  const rep = mark?.repair_costs ?? A.repairCosts;
-  const rentBase = mark?.rent_override
-    || (mark?.rent_min != null && mark?.rent_max != null ? Math.round((mark.rent_min + mark.rent_max) / 2) : null)
-    || (mark?.rent_min ?? mark?.rent_max)
-    || (listing.sqft ? Math.round(listing.sqft * A.rentPerSqft) : 0);
-  const rent = rentBase;
-  if (!price || !rent) return null;
-  const down = price * (A.downPct / 100);
-  const cc = price * (A.closingCostsPct / 100);
-  const paid = down + cc + rep;
-  const loan = price - down;
-  const r = A.rateApr / 100 / 12, n = A.loanYears * 12;
-  const pI = loan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-  const tax = (price * (A.taxPct / 100)) / 12;
-  const ins = A.insuranceMonthly;
-  const mgmt = rent * (A.mgmtPctRent / 100);
-  const maint = rent * (A.maintPctRent / 100);
-  const vac = rent * (A.vacancyPctRent / 100);
-  const opEx = tax + hoa + ins + maint + vac + mgmt;
-  const cf = Math.round(rent - (pI + opEx));
-  const noi = rent - (opEx - vac);
-  const capRaw = Math.round((noi * 12 / price) * 1000) / 10;
-  const cap = Number.isFinite(capRaw) ? capRaw : null;
-  const cocRaw = paid > 0 ? Math.round((cf * 12 / paid) * 1000) / 10 : null;
-  const coc = Number.isFinite(cocRaw) ? cocRaw : null;
-  const yrs = 30, eff = rent * (1 - A.vacancyPctRent / 100);
-  const tv = price + eff * 12 * yrs;
-  let te = paid + rent * 12 * (A.mgmtPctRent / 100) * yrs + pI * 12 * yrs + tax * 12 * yrs + rent * 12 * (A.maintPctRent / 100) * yrs + ins * 12 * yrs + hoa * 12 * yrs;
-  const depr = (price + cc + rep + ins * 12) / 27.5 / 12;
-  te += Math.max(0, (eff - rent * (A.mgmtPctRent / 100) - rent * (A.maintPctRent / 100) - ins - depr - tax) * 0.44) * 12 * yrs;
-  const atroiRaw = paid > 0 ? Math.round(((tv - te) / paid / yrs) * 1000) / 10 : 0;
-  const atroi = Number.isFinite(atroiRaw) && Math.abs(atroiRaw) <= 10000 ? atroiRaw : null;
-  const atroiErr = Number.isFinite(atroiRaw) && Math.abs(atroiRaw) > 10000;
-  // ── 5-year equity ROI (appreciation + principal paydown + cash flows) ───────
-  const appRate = 0.03; // 3% annual appreciation assumption
-  const appGain = price * (Math.pow(1 + appRate, 5) - 1);
-  const pow60 = Math.pow(1 + r, 60), powN = Math.pow(1 + r, n);
-  const balance5 = r > 0 ? loan * (powN - pow60) / (powN - 1) : loan - pI * 60;
-  const principalPaid5 = loan - balance5;
-  const cashFlow5 = cf * 12 * 5;
-  const roi5Raw = paid > 0 ? Math.round(((appGain + principalPaid5 + cashFlow5) / paid / 5) * 1000) / 10 : null;
-  const roi5 = Number.isFinite(roi5Raw) && Math.abs(roi5Raw) <= 10000 ? roi5Raw : null;
-  return { cf, cap, coc, atroi, atroiErr, roi5, rent: Math.round(rent) };
-}
+import { calcM, DEFAULTS } from '@/lib/calcMetrics';
 
 function fmt$(n) {
   if (n == null) return '—';
@@ -127,6 +72,7 @@ const PAGE_SIZE = 50;
 export default function ScoutPage() {
   const router = useRouter();
   const [listings, setListings] = useState([]);
+  const [stats, setStats] = useState({ total: 0, potential: 0, skip: 0, great: 0 });
   const [config, setConfig] = useState(null);
   const [configDraft, setConfigDraft] = useState({});
   const [configOpen, setConfigOpen] = useState(false);
@@ -163,31 +109,45 @@ export default function ScoutPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  // Sort: stored as an ordered array of mls_nums so edits never re-trigger a sort
-  const [sortOrder, setSortOrder] = useState([]);   // mls_nums in current sort order
   const [sortCol, setSortCol] = useState('atroi');
   const [sortDir, setSortDir] = useState('desc');
 
+  // Debounce ref for search input
+  const searchDebounceRef = useRef(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Update debounced search 300ms after user stops typing
   useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  }, [search]);
+
+  // Fetch listings from server whenever sort/filter/search params change
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      sort: sortCol,
+      dir: sortDir,
+      search: debouncedSearch,
+      priceMin,
+      priceMax,
+    });
     Promise.all([
-      fetch('/api/scout/listings').then(r => r.json()),
+      fetch(`/api/scout/listings?${params}`).then(r => r.json()),
       fetch('/api/scout/config').then(r => r.json()),
     ])
-      .then(([listingsData, configData]) => {
-        setListings(listingsData);
+      .then(([data, configData]) => {
+        setListings(data.listings ?? []);
+        setStats(data.stats ?? { total: 0, potential: 0, skip: 0, great: 0 });
         setConfig(configData);
         setConfigDraft(configData);
-        // Initialize sort order by default sort (atroi desc)
-        const sorted = [...listingsData].sort((a, b) => {
-          const ma = calcM(a, { rent_min: a.rent_min, rent_max: a.rent_max, rent_override: a.rent_override, repair_costs: a.repair_costs, hoa_quarterly: a.hoa_quarterly }, DEFAULTS);
-          const mb = calcM(b, { rent_min: b.rent_min, rent_max: b.rent_max, rent_override: b.rent_override, repair_costs: b.repair_costs, hoa_quarterly: b.hoa_quarterly }, DEFAULTS);
-          return (mb?.atroi ?? -999) - (ma?.atroi ?? -999);
-        });
-        setSortOrder(sorted.map(l => l.mls_num));
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax]);
 
   // Merge DB data with local edits for a row
   const getMark = useCallback((listing) => {
@@ -259,52 +219,28 @@ export default function ScoutPage() {
     setLocalEdits(e => ({ ...e, [mls_num]: { ...(e[mls_num] ?? {}), [field]: value } }));
   };
 
-  // Compute metrics for all listings (memoized)
+  // Compute metrics for rendered rows — use server pre-computed values unless there are local edits
   const metricsMap = useMemo(() => {
     const m = {};
     listings.forEach(l => {
-      const mark = getMark(l);
-      m[l.mls_num] = calcM(l, mark, DEFAULTS);
+      const hasEdits = localEdits[l.mls_num];
+      if (hasEdits) {
+        const mark = getMark(l);
+        m[l.mls_num] = calcM(l, mark, DEFAULTS);
+      } else {
+        // Use pre-computed values from server
+        m[l.mls_num] = l.cf != null ? { cf: l.cf, cap: l.cap, coc: l.coc, atroi: l.atroi, atroiErr: l.atroiErr, roi5: l.roi5, rent: l.rent } : null;
+      }
     });
     return m;
   }, [listings, localEdits, getMark]);
 
-  // Handle column header click: re-sort and update sortOrder
+  // Handle column header click: update sort state → triggers re-fetch
   const handleSort = useCallback((col) => {
     const newDir = sortCol === col && sortDir === 'desc' ? 'asc' : 'desc';
     setSortCol(col);
     setSortDir(newDir);
-    // Re-sort using metricsMap (which is already computed from current listings + localEdits)
-    setSortOrder(prev => {
-      return [...listings].sort((a, b) => {
-        const ma = metricsMap[a.mls_num];
-        const mb = metricsMap[b.mls_num];
-        let diff = 0;
-        if (col === 'atroi') diff = (mb?.atroi ?? -999) - (ma?.atroi ?? -999);
-        else if (col === 'cf')    diff = (mb?.cf ?? -999999) - (ma?.cf ?? -999999);
-        else if (col === 'cap')   diff = (mb?.cap ?? -999) - (ma?.cap ?? -999);
-        else if (col === 'coc')   diff = (mb?.coc ?? -999) - (ma?.coc ?? -999);
-        else if (col === 'price')  diff = Number(b.price) - Number(a.price);
-        else if (col === 'beds')   diff = (b.beds ?? 0) - (a.beds ?? 0);
-        else if (col === 'sqft')   diff = (b.sqft ?? 0) - (a.sqft ?? 0);
-        else if (col === 'roi5')   diff = (mb?.roi5 ?? -999) - (ma?.roi5 ?? -999);
-        else if (col === 'state')  diff = (extractState(a.address) < extractState(b.address) ? -1 : 1);
-        else if (col === 'source') diff = ((a.source ?? '') < (b.source ?? '') ? -1 : 1);
-        return newDir === 'desc' ? diff : -diff;
-      }).map(l => l.mls_num);
-    });
-  }, [sortCol, sortDir, listings, metricsMap]);
-
-  // Stats
-  const stats = useMemo(() => {
-    const potential = listings.filter(l => getMark(l).status === 'potential').length;
-    const skip = listings.filter(l => getMark(l).status === 'skip').length;
-    const great = listings.filter(l => {
-      const m = metricsMap[l.mls_num];
-      return m && m.atroi >= 10;
-    }).length;
-    return { total: listings.length, potential, skip, great };
-  }, [listings, localEdits, metricsMap, getMark]);
+  }, [sortCol, sortDir]);
 
   const hasManualEntry = useCallback((listing) => {
     const local = localEdits[listing.mls_num] ?? {};
@@ -315,39 +251,23 @@ export default function ScoutPage() {
     return rentOvr != null || repairs != null || hoa != null || (notes != null && notes !== '');
   }, [localEdits]);
 
-  // Filter + sort + search
-  // Sort order is stored as sortOrder (mls_num array) — only updated on header click, never on edit
+  // Filter client-side (listings already pre-sorted from server; search/price handled server-side)
   const filtered = useMemo(() => {
-    // Build a lookup by mls_num so we can respect sortOrder
-    const byMls = Object.fromEntries(listings.map(l => [l.mls_num, l]));
-
-    // Listings that pass the filters, ordered by sortOrder
-    const result = [];
-    for (const mls of sortOrder) {
-      const l = byMls[mls];
-      if (!l) continue;
+    return listings.filter(l => {
       const mark = getMark(l);
-      if (filterStatus === 'potential' && mark.status !== 'potential') continue;
-      if (filterStatus === 'skip' && mark.status !== 'skip') continue;
-      if (filterEntry === 'entered'     && !hasManualEntry(l)) continue;
-      if (filterEntry === 'not-entered' &&  hasManualEntry(l)) continue;
-      if (priceMin !== '' && Number(l.price) < Number(priceMin)) continue;
-      if (priceMax !== '' && Number(l.price) > Number(priceMax)) continue;
-      if (search) {
-        const q = search.toLowerCase();
-        if (!l.address?.toLowerCase().includes(q) && !l.mls_num?.toLowerCase().includes(q)) continue;
-      }
-      result.push(l);
-    }
-
-    return result;
-  }, [listings, filterStatus, filterEntry, sortOrder, priceMin, priceMax, search, localEdits, getMark, hasManualEntry]);
+      if (filterStatus === 'potential' && mark.status !== 'potential') return false;
+      if (filterStatus === 'skip' && mark.status !== 'skip') return false;
+      if (filterEntry === 'entered'     && !hasManualEntry(l)) return false;
+      if (filterEntry === 'not-entered' &&  hasManualEntry(l)) return false;
+      return true;
+    });
+  }, [listings, filterStatus, filterEntry, localEdits, getMark, hasManualEntry]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Reset to page 1 when filter/sort/search changes
-  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortCol, priceMin, priceMax, search]);
+  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortCol, priceMin, priceMax, debouncedSearch]);
 
   const saveConfig = async () => {
     try {
@@ -395,8 +315,8 @@ export default function ScoutPage() {
       });
       if (!res.ok) throw new Error('Save failed');
       const newListing = await res.json();
+      // Prepend to local list (server will re-sort on next fetch)
       setListings(ls => [newListing, ...ls]);
-      setSortOrder(so => [newListing.mls_num, ...so]);
       setAddForm(EMPTY_FORM);
       setAddOpen(false);
     } catch (err) {
@@ -427,7 +347,6 @@ export default function ScoutPage() {
       const res = await fetch(`/api/scout/listings/${mls_num}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
       setListings(ls => ls.filter(l => l.mls_num !== mls_num));
-      setSortOrder(so => so.filter(m => m !== mls_num));
     } catch (err) {
       console.error(err);
     }
@@ -487,7 +406,6 @@ export default function ScoutPage() {
       setListings(ls => ls.filter(l => l.mls_num !== dropMls).map(l =>
         l.mls_num === keepMls ? { ...l, ...listing_fields, ...mark_fields } : l
       ));
-      setSortOrder(so => so.filter(m => m !== dropMls));
       setMergePair(null);
     } catch (err) {
       console.error(err);
@@ -849,6 +767,15 @@ export default function ScoutPage() {
         </div>
       ) : (
         <div className="bg-gray-800 rounded-xl overflow-x-auto">
+          <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              Showing top {listings.length} by <span className="text-gray-400 font-medium">{sortCol}</span> ({sortDir})
+              {(debouncedSearch || priceMin || priceMax) && ' · filtered'}
+            </span>
+            <span className="text-xs text-gray-600">
+              {filtered.length} shown after status filter
+            </span>
+          </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-400 border-b border-gray-700 text-xs">
