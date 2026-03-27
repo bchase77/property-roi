@@ -263,6 +263,9 @@ export async function init() {
       ADD COLUMN IF NOT EXISTS initial_investment NUMERIC NOT NULL DEFAULT 0;
   `;
 
+  await sql`ALTER TABLE property_actuals ADD COLUMN IF NOT EXISTS net_income NUMERIC;`;
+  await sql`ALTER TABLE property_actuals ADD COLUMN IF NOT EXISTS zillow_value NUMERIC;`;
+
   await sql`
     ALTER TABLE properties
       ADD COLUMN IF NOT EXISTS closing_costs NUMERIC DEFAULT 0;
