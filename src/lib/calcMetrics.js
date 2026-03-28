@@ -1,7 +1,7 @@
 export const DEFAULTS = {
   downPct: 25, rateApr: 6.4, loanYears: 30,
   closingCostsPct: 3, repairCosts: 5000,
-  taxPct: 2.1, insuranceMonthly: 150,
+  taxPct: 2.3, insuranceMonthly: 150,
   maintPctRent: 5, vacancyPctRent: 5, mgmtPctRent: 8,
   rentPerSqft: 1.00,
 };
