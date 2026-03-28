@@ -83,7 +83,7 @@ function stripTags(html) {
 // ── Search Tarrant County for a property and return its account number ─────────
 async function findAccountNumber(address) {
   const streetPart   = address.split(',')[0].trim();
-  const searchTokens = streetPart.split(/\s+/).slice(0, 2).join(' '); // e.g. "1056 Mesa"
+  const searchTokens = streetPart.split(/\s+/).slice(0, 3).join(' '); // up to 3 tokens
   const url = `${BASE}/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(searchTokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
 
   const html = await fetchPage(url, 'search');
@@ -96,38 +96,52 @@ async function findAccountNumber(address) {
   const normalTarget = normalizeStreet(address);
   if (DEBUG) console.log(`    Matching against: "${normalTarget}"`);
 
-  // Find all unique account numbers on the page
-  const acctMatches = [...html.matchAll(/taxAccountNumber=(\d+)/g)];
-  const seen        = new Set();
+  // Strategy: find where the address text appears in the HTML, then return
+  // whichever account number (taxAccountNumber=XXXXX) is closest to it.
+  // This handles any table/card layout without needing to understand structure.
+  const htmlUpper = html.toUpperCase();
 
-  for (const m of acctMatches) {
-    const acct = m[1];
-    if (seen.has(acct)) continue;
-    seen.add(acct);
+  // Try full normalized address first, then progressively shorter prefixes
+  const candidates = [
+    normalTarget,
+    normalTarget.split(' ').slice(0, 4).join(' '), // first 4 tokens
+    normalTarget.split(' ').slice(0, 3).join(' '), // first 3 tokens
+  ];
 
-    // Extract a window of HTML around this account number, strip tags → plain text
-    const start = Math.max(0, m.index - 300);
-    const end   = Math.min(html.length, m.index + 800);
-    const chunk = stripTags(html.slice(start, end)).toUpperCase();
-
-    if (DEBUG) console.log(`      acct=${acct} chunk="${chunk.slice(0, 120)}"`);
-
-    if (chunk.includes(normalTarget) ||
-        chunk.includes(normalTarget.split(' ').slice(0, 3).join(' '))) {
-      if (DEBUG) console.log(`      ✓ Matched!`);
-      return acct;
+  let addrPos = -1;
+  for (const candidate of candidates) {
+    addrPos = htmlUpper.indexOf(candidate);
+    if (addrPos !== -1) {
+      if (DEBUG) console.log(`    Found address text at pos ${addrPos}: "${candidate}"`);
+      break;
     }
   }
 
-  // Single result fallback
-  const unique = [...seen];
-  if (unique.length === 1) {
-    if (DEBUG) console.log(`    Only one result — using it: ${unique[0]}`);
-    return unique[0];
+  if (addrPos === -1) {
+    if (DEBUG) console.log(`    Address text not found in page HTML`);
+    // Single result fallback
+    const unique = [...new Set([...html.matchAll(/taxAccountNumber=(\d+)/g)].map(m => m[1]))];
+    if (unique.length === 1) {
+      if (DEBUG) console.log(`    Only one account on page — using it: ${unique[0]}`);
+      return unique[0];
+    }
+    return null;
   }
 
-  if (DEBUG) console.log(`    Not matched among ${unique.length} accounts`);
-  return null;
+  // Find all account number positions and pick the closest to the address text
+  const acctMatches = [...html.matchAll(/taxAccountNumber=(\d+)/g)];
+  let bestAcct = null, bestDist = Infinity;
+  for (const m of acctMatches) {
+    const dist = Math.abs(m.index - addrPos);
+    if (DEBUG) console.log(`      acct=${m[1]} dist=${dist}`);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestAcct = m[1];
+    }
+  }
+
+  if (DEBUG && bestAcct) console.log(`    ✓ Closest match: acct=${bestAcct} dist=${bestDist}`);
+  return bestAcct;
 }
 
 // ── Get most recent annual tax payment for an account ─────────────────────────
@@ -171,11 +185,11 @@ async function main() {
   // Load properties from DB
   let rows;
   if (mlsArg) {
-    const { rows: r } = await sql`SELECT mls_num, address FROM scout_listings WHERE mls_num = ${mlsArg}`;
+    const { rows: r } = await sql`SELECT mls_num, address, tax_account_num FROM scout_listings WHERE mls_num = ${mlsArg}`;
     rows = r;
   } else if (REFETCH_ALL) {
     const { rows: r } = await sql`
-      SELECT mls_num, address FROM scout_listings
+      SELECT mls_num, address, tax_account_num FROM scout_listings
       WHERE source = 'pam' AND address IS NOT NULL
         AND (listing_status = 'Active' OR listing_status IS NULL)
         AND price IS NOT NULL
@@ -185,7 +199,7 @@ async function main() {
     rows = r;
   } else {
     const { rows: r } = await sql`
-      SELECT mls_num, address FROM scout_listings
+      SELECT mls_num, address, tax_account_num FROM scout_listings
       WHERE source = 'pam' AND address IS NOT NULL
         AND tax_annual IS NULL
         AND (listing_status = 'Active' OR listing_status IS NULL)
@@ -205,11 +219,14 @@ async function main() {
   let found = 0, notFound = 0, errors = 0;
 
   for (let i = 0; i < rows.length; i++) {
-    const { mls_num, address } = rows[i];
+    const row = rows[i];
+    const { mls_num, address } = row;
     process.stdout.write(`  [${i + 1}/${rows.length}] ${address.slice(0, 45).padEnd(45)} `);
 
     try {
-      const accountNum = await findAccountNumber(address);
+      // Skip search if we already know the account number
+      let accountNum = row.tax_account_num || await findAccountNumber(address);
+      if (row.tax_account_num && DEBUG) console.log(`    Using stored acct: ${row.tax_account_num}`);
       if (!accountNum) {
         console.log('— not found');
         notFound++;
