@@ -101,6 +101,10 @@ export default function ScoutPage() {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addSaving, setAddSaving] = useState(false);
 
+  const [taxFetching, setTaxFetching] = useState({}); // mls_num → true while fetching
+  const [taxBulkRunning, setTaxBulkRunning] = useState(false);
+  const [taxBulkProgress, setTaxBulkProgress] = useState(null); // "12/100"
+
   // Filter / search / page
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
   const [filterEntry, setFilterEntry] = useState('all');   // 'all' | 'entered' | 'not-entered'
@@ -351,6 +355,48 @@ export default function ScoutPage() {
       console.error(err);
     }
   }, []);
+
+  const fetchTax = useCallback(async (mls_num) => {
+    setTaxFetching(f => ({ ...f, [mls_num]: true }));
+    try {
+      const res = await fetch('/api/scout/tax', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mls_num }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setListings(ls => ls.map(l => l.mls_num === mls_num
+          ? { ...l, tax_annual: data.tax_annual, tax_account_num: data.tax_account_num }
+          : l
+        ));
+      } else if (data.error === 'cloudflare') {
+        alert('Cloudflare blocked the request. Run: node scout/tax-scraper.js locally');
+      } else {
+        console.warn('Tax lookup failed:', data.error);
+      }
+    } catch (e) {
+      console.error('Tax fetch error:', e);
+    } finally {
+      setTaxFetching(f => { const n = { ...f }; delete n[mls_num]; return n; });
+    }
+  }, []);
+
+  const fetchTaxBulk = useCallback(async () => {
+    setTaxBulkRunning(true);
+    try {
+      const res = await fetch('/api/scout/tax?limit=100');
+      const queue = await res.json(); // [{ mls_num, address }, ...]
+      for (let i = 0; i < queue.length; i++) {
+        setTaxBulkProgress(`${i + 1}/${queue.length}`);
+        await fetchTax(queue[i].mls_num);
+        await new Promise(r => setTimeout(r, 1500)); // polite delay
+      }
+    } finally {
+      setTaxBulkRunning(false);
+      setTaxBulkProgress(null);
+    }
+  }, [fetchTax]);
 
   // Detect potential duplicates: manual entry vs scraped entry with same street number + name
   const duplicatePairs = useMemo(() => {
@@ -754,6 +800,14 @@ export default function ScoutPage() {
           placeholder="Search address or MLS#…"
           className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-56"
         />
+
+        <button
+          onClick={fetchTaxBulk}
+          disabled={taxBulkRunning}
+          className="text-xs px-2 py-1 rounded bg-indigo-700 hover:bg-indigo-600 text-white disabled:opacity-50"
+        >
+          {taxBulkRunning ? `Fetching tax… ${taxBulkProgress ?? ''}` : 'Fetch Tax: Top 100'}
+        </button>
       </div>
 
       {/* Table */}
@@ -796,6 +850,7 @@ export default function ScoutPage() {
                   { col: 'atroi', label: '30y ATROI' },
                   { col: null,    label: 'Notes' },
                   { col: null,    label: 'Mark' },
+                  { col: null,    label: 'Tax/mo' },
                 ].map(({ col, label }) => (
                   <th
                     key={label}
@@ -1128,6 +1183,22 @@ export default function ScoutPage() {
                           </button>
                         )}
                       </div>
+                    </td>
+
+                    {/* Tax */}
+                    <td className="px-1 text-center">
+                      {listing.tax_annual ? (
+                        <span className="text-xs text-gray-400">${Math.round(Number(listing.tax_annual)/12)}/mo</span>
+                      ) : (
+                        <button
+                          onClick={() => fetchTax(listing.mls_num)}
+                          disabled={!!taxFetching[listing.mls_num]}
+                          className="text-xs px-1 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-40"
+                          title="Fetch real property tax from Tarrant County"
+                        >
+                          {taxFetching[listing.mls_num] ? '…' : 'Tax'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

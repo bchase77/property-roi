@@ -3,8 +3,52 @@
 This file tracks all user prompts and responses during current development sessions.
 
 **Note:** Older session history has been archived:
-- 2025-10-06 through 2025-11-01: `CLAUDE_CONVERSATION_LOG_ARCHIVE.md` 
+- 2025-10-06 through 2025-11-01: `CLAUDE_CONVERSATION_LOG_ARCHIVE.md`
 - 2025-11-02 through 2025-12-27: `CLAUDE_CONVERSATION_LOG_ARCHIVE_2.md`
+
+---
+
+## Session: 2026-03-28
+
+### User Prompt
+Build a property tax lookup feature for the property-roi app at /Users/bmc/Documents/Claude/property-roi. This is a Next.js app.
+
+The goal: scrape real annual tax payment amounts from the Tarrant County TX tax website for Scout properties, store them in the DB, and use them in financial calculations instead of the 2.1% estimate.
+
+Step 1: DB schema — add three migrations after the existing `address_locked` migration in src/lib/db.js for tax_annual NUMERIC, tax_account_num TEXT, and tax_fetched_at TIMESTAMPTZ columns on scout_listings.
+
+Step 2: Update calcM in src/lib/calcMetrics.js — replace static tax estimate with listing.tax_annual when available.
+
+Step 3: New API route at src/app/api/scout/tax/route.js — POST to look up tax for ONE property, GET to return top N properties needing tax data.
+
+Step 4: Add UI to Scout page — state for tax fetching, fetchTax/fetchTaxBulk callbacks, "Fetch Tax: Top 100" button in filter bar, per-row Tax/mo column with button.
+
+### Work Completed
+- Added 3 schema migrations to `/src/lib/db.js` after the `address_locked` migration: tax_annual NUMERIC, tax_account_num TEXT, tax_fetched_at TIMESTAMPTZ on scout_listings
+- Updated `calcM` in `/src/lib/calcMetrics.js` to use `listing.tax_annual / 12` when present, falling back to the 2.1% estimate
+- Created `/src/app/api/scout/tax/route.js` with GET (returns properties needing tax data) and POST (scrapes Tarrant County tax site for a single property)
+- Added `taxFetching`, `taxBulkRunning`, `taxBulkProgress` state to Scout page
+- Added `fetchTax` and `fetchTaxBulk` callbacks to Scout page
+- Added "Fetch Tax: Top 100" button to the filter/sort bar in Scout page
+- Added "Tax/mo" column header and per-row tax cell to Scout table (shows $/mo when fetched, or "Tax" button to fetch on demand)
+
+---
+
+## Session: 2026-03-26
+
+### User Prompt
+Refactor the property-roi Scout feature to move metric calculations and sorting server-side. The app is a Next.js app at /Users/bmc/Documents/Claude/property-roi.
+
+Goal: Currently the API returns up to 600 rows and the client calculates metrics (cashflow, cap rate, CoC, 5yr ROI, 30yr ATROI) and sorts. With 5,600+ properties in the DB this doesn't scale. Instead:
+- API calculates metrics for ALL rows, sorts by requested metric, returns top 50
+- API also computes aggregate stats (total/potential/skip/great) across ALL rows
+- Client just renders the 50 returned rows; clicking a sort column re-fetches with new sort param
+
+### Work Completed
+- Created `/src/lib/calcMetrics.js` with exported `DEFAULTS` and `calcM` function
+- Rewrote GET handler in `/src/app/api/scout/listings/route.js`: accepts sort/dir/search/priceMin/priceMax/limit params, fetches ALL rows, runs calcM on every row, computes aggregate stats, applies filters, sorts, returns top 50 + stats object
+- Rewrote `/src/app/scout/page.js`: imports calcM/DEFAULTS from lib, removes local sortOrder state, adds stats state from API, useEffect watches sortCol/sortDir/debouncedSearch/priceMin/priceMax, 300ms debounce on search, metricsMap uses server pre-computed values (re-runs calcM only for rows with localEdits), handleSort just updates state (triggers re-fetch), filtered useMemo drops price/search filters (now server-side), added "Showing top N by [metric]" label above table
+- POST handler in route.js left unchanged
 
 ---
 

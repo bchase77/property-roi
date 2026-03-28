@@ -22,7 +22,7 @@ export function calcM(listing, mark, A = DEFAULTS) {
   const loan = price - down;
   const r = A.rateApr / 100 / 12, n = A.loanYears * 12;
   const pI = loan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-  const tax = (price * (A.taxPct / 100)) / 12;
+  const tax = listing.tax_annual ? Number(listing.tax_annual) / 12 : (price * (A.taxPct / 100)) / 12;
   const ins = A.insuranceMonthly;
   const mgmt = rent * (A.mgmtPctRent / 100);
   const maint = rent * (A.maintPctRent / 100);
