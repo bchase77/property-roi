@@ -104,6 +104,7 @@ export default function ScoutPage() {
   const [taxFetching, setTaxFetching] = useState({}); // mls_num → true while fetching
   const [taxBulkRunning, setTaxBulkRunning] = useState(false);
   const [taxBulkProgress, setTaxBulkProgress] = useState(null); // "12/100"
+  const [editingTax, setEditingTax] = useState(null); // mls_num being edited
 
   // Filter / search / page
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
@@ -1131,21 +1132,45 @@ export default function ScoutPage() {
                     <td className="px-1 text-center">
                       {(() => {
                         const streetPart = (listing.address || '').split(',')[0].trim();
-                        const tokens = streetPart.split(/\s+/).slice(0, 2).join(' '); // house number + first word only
+                        const tokens = streetPart.split(/\s+/).slice(0, 2).join(' ');
                         const taxSearchUrl = `https://www.tax.tarrantcountytx.gov/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(tokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
+                        if (editingTax === listing.mls_num) {
+                          return (
+                            <input
+                              autoFocus
+                              type="number"
+                              placeholder="annual $"
+                              defaultValue={listing.tax_annual ? Math.round(Number(listing.tax_annual)) : ''}
+                              onBlur={e => {
+                                const val = e.target.value.trim();
+                                setEditingTax(null);
+                                if (val) patchListing(listing.mls_num, { tax_annual: Number(val) });
+                              }}
+                              onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingTax(null); }}
+                              className="w-20 bg-gray-700 border border-blue-500 rounded px-1 py-0.5 text-white text-xs focus:outline-none"
+                            />
+                          );
+                        }
                         return listing.tax_annual ? (
                           <div className="flex flex-col items-center gap-0.5">
-                            <span className="text-xs text-gray-400">${Math.round(Number(listing.tax_annual)/12)}/mo</span>
+                            <button onClick={() => setEditingTax(listing.mls_num)}
+                                    className="text-xs text-gray-400 hover:text-white"
+                                    title="Click to edit">
+                              ${Math.round(Number(listing.tax_annual)/12)}/mo
+                            </button>
                             <span className="text-xs text-gray-600">${Math.round(Number(listing.tax_annual)).toLocaleString()}/yr</span>
                             <a href={taxSearchUrl} target="_blank" rel="noreferrer"
                                className="text-xs text-blue-400 hover:text-blue-300 underline">lookup</a>
                           </div>
                         ) : (
-                          <a href={taxSearchUrl} target="_blank" rel="noreferrer"
-                             className="text-xs px-1 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300"
-                             title="Look up on Tarrant County tax site">
-                            Tax ↗
-                          </a>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <a href={taxSearchUrl} target="_blank" rel="noreferrer"
+                               className="text-xs text-blue-400 hover:text-blue-300 underline"
+                               title="Look up on Tarrant County tax site">Tax ↗</a>
+                            <button onClick={() => setEditingTax(listing.mls_num)}
+                                    className="text-xs text-gray-500 hover:text-gray-300"
+                                    title="Enter annual tax amount manually">enter</button>
+                          </div>
                         );
                       })()}
                     </td>
