@@ -8,7 +8,9 @@
 //         node scout/tax-scraper.js --mls MLS123 (single property)
 //         node scout/tax-scraper.js --debug       (headed browser)
 
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+chromium.use(StealthPlugin());
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
