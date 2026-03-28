@@ -801,13 +801,9 @@ export default function ScoutPage() {
           className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-56"
         />
 
-        <button
-          onClick={fetchTaxBulk}
-          disabled={taxBulkRunning}
-          className="text-xs px-2 py-1 rounded bg-indigo-700 hover:bg-indigo-600 text-white disabled:opacity-50"
-        >
-          {taxBulkRunning ? `Fetching tax… ${taxBulkProgress ?? ''}` : 'Fetch Tax: Top 100'}
-        </button>
+        <span className="text-xs text-gray-500" title="Run locally: npm run scout:tax">
+          Tax data: <code className="bg-gray-800 px-1 rounded">npm run scout:tax</code>
+        </span>
       </div>
 
       {/* Table */}
@@ -1140,7 +1136,7 @@ export default function ScoutPage() {
                           onClick={() => fetchTax(listing.mls_num)}
                           disabled={!!taxFetching[listing.mls_num]}
                           className="text-xs px-1 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-40"
-                          title="Fetch real property tax from Tarrant County"
+                          title="Run locally: npm run scout:tax"
                         >
                           {taxFetching[listing.mls_num] ? '…' : 'Tax'}
                         </button>
