@@ -55,50 +55,60 @@ async function findAccountNumber(page, address) {
   const searchTokens = streetPart.split(/\s+/).slice(0, 2).join(' '); // e.g. "2717 Laurel"
   const url = `${BASE}/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(searchTokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
 
+  console.log(`    Search: "${searchTokens}" → ${url}`);
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await page.waitForTimeout(3000);
 
-  // Get all property cards
-  const cards = await page.$$eval('[class*="card"], [class*="result"], li', els =>
-    els.map(el => ({
-      text: el.innerText,
-      detailHref: el.querySelector('a[href*="AccountDetails"]')?.getAttribute('href') ?? '',
-    })).filter(c => c.detailHref)
-  );
+  // Extract all AccountDetails links and their surrounding text from the page HTML
+  const html = await page.content();
+  const allAccountLinks = [...html.matchAll(/taxAccountNumber=(\d+)/g)].map(m => m[1]);
+  console.log(`    Found ${allAccountLinks.length} account link(s) on page`);
 
-  if (!cards.length) {
-    // Fallback: extract from page HTML directly
-    const html = await page.content();
-    const accountMatch = html.match(/taxAccountNumber=(\d+)/);
-    if (accountMatch) return accountMatch[1];
-    return null;
-  }
+  // Build cards from links by finding nearby property location text
+  // Each card in the HTML has the account number and a PROPERTY LOCATION label nearby
+  const cardPattern = /taxAccountNumber=(\d+)[\s\S]{0,600}?(?:PROPERTY LOCATION|Property Location)[^>]*>([^<]{3,60})</gi;
+  const cardMatches = [...html.matchAll(cardPattern)];
+  console.log(`    Parsed ${cardMatches.length} card(s) with location text`);
 
   const normalTarget = normalizeStreet(address);
+  console.log(`    Matching against: "${normalTarget}"`);
 
-  // Find exact match by property location text
-  for (const card of cards) {
-    const cardText = card.text.toUpperCase();
-    if (cardText.includes(normalTarget)) {
-      const m = card.detailHref.match(/taxAccountNumber=(\d+)/);
-      if (m) return m[1];
+  for (const m of cardMatches) {
+    const acct = m[1];
+    const loc  = m[2].trim().toUpperCase();
+    console.log(`      Card: acct=${acct} loc="${loc}"`);
+    if (loc === normalTarget || loc.includes(normalTarget.split(' ').slice(0, 3).join(' '))) {
+      console.log(`      ✓ Matched!`);
+      return acct;
     }
   }
 
-  // Partial match: house number + first street word
-  const tokens = normalTarget.split(' ');
-  const partial = tokens.slice(0, 2).join(' '); // e.g. "2717 LAUREL"
-  for (const card of cards) {
-    if (card.text.toUpperCase().includes(partial)) {
-      const m = card.detailHref.match(/taxAccountNumber=(\d+)/);
-      if (m) return m[1];
+  // Fallback: try reversed order (location before account number)
+  const revPattern = /(?:PROPERTY LOCATION|Property Location)[^>]*>([^<]{3,60})<[\s\S]{0,600}?taxAccountNumber=(\d+)/gi;
+  const revMatches = [...html.matchAll(revPattern)];
+  for (const m of revMatches) {
+    const loc  = m[1].trim().toUpperCase();
+    const acct = m[2];
+    if (loc === normalTarget || loc.includes(normalTarget.split(' ').slice(0, 3).join(' '))) {
+      console.log(`      ✓ Matched (reversed)! acct=${acct}`);
+      return acct;
     }
   }
 
-  // Last resort: if only one result, use it
-  if (cards.length === 1) {
-    const m = cards[0].detailHref.match(/taxAccountNumber=(\d+)/);
-    if (m) return m[1];
+  // Last resort: single result on page
+  if (allAccountLinks.length === 1) {
+    console.log(`    Only one result — using it: ${allAccountLinks[0]}`);
+    return allAccountLinks[0];
+  }
+
+  // Show first few chars of HTML to help diagnose selector issues
+  if (DEBUG) {
+    const { writeFileSync } = await import('fs');
+    const { join } = await import('path');
+    writeFileSync(join(__dirname, 'debug-tax-search.html'), html);
+    console.log(`    HTML saved → scout/debug-tax-search.html`);
+  } else {
+    console.log(`    (run with --debug to save search HTML for inspection)`);
   }
 
   return null;
@@ -108,34 +118,48 @@ async function findAccountNumber(page, address) {
 async function fetchPaymentHistory(page, accountNum) {
   // Try direct payment history URL first
   const histUrl = `${BASE}/Accounts/PaymentHistory?taxAccountNumber=${accountNum}`;
+  console.log(`    Payment history: ${histUrl}`);
   await page.goto(histUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await page.waitForTimeout(2000);
 
   let html = await page.content();
+  const hasPaymentData = html.includes('PAYMENT DATE') || html.includes('Payment Date') || html.includes('TAX YEAR');
+  console.log(`    Payment page has data: ${hasPaymentData} (page length: ${html.length})`);
 
   // If that didn't work, go to account details and click the button
-  if (!html.includes('PAYMENT DATE') && !html.includes('Payment Date')) {
-    await page.goto(`${BASE}/Accounts/AccountDetails?taxAccountNumber=${accountNum}`, {
-      waitUntil: 'domcontentloaded', timeout: 30_000,
-    });
+  if (!hasPaymentData) {
+    const detailUrl = `${BASE}/Accounts/AccountDetails?taxAccountNumber=${accountNum}`;
+    console.log(`    Trying account details page + button click: ${detailUrl}`);
+    await page.goto(detailUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await page.waitForTimeout(2000);
 
     const btn = await page.$('a:has-text("Payment History"), button:has-text("Payment History"), a:has-text("PAYMENT HISTORY")');
+    console.log(`    Payment History button found: ${!!btn}`);
     if (btn) {
       await btn.click();
       await page.waitForTimeout(2000);
       html = await page.content();
+      console.log(`    After click — page length: ${html.length}, has data: ${html.includes('PAYMENT DATE') || html.includes('Payment Date')}`);
+    }
+
+    if (DEBUG) {
+      const { writeFileSync } = await import('fs');
+      const { join } = await import('path');
+      writeFileSync(join(__dirname, 'debug-tax-payment.html'), html);
+      console.log(`    HTML saved → scout/debug-tax-payment.html`);
     }
   }
 
   // Parse payment rows: find most recent year with a positive payment
   // Rows contain: date, amount ($X,XXX.XX), tax year, payer
   const rowMatches = [...html.matchAll(/(\d{1,2}\/\d{1,2}\/\d{4})[^$\d]*\$\s*([\d,]+\.\d{2})[^<]*<[^>]*>\s*(\d{4})/g)];
+  console.log(`    Payment row regex matches: ${rowMatches.length}`);
 
   let bestYear = 0, bestAmount = null;
   for (const m of rowMatches) {
     const amount = parseFloat(m[2].replace(/,/g, ''));
     const year = parseInt(m[3]);
+    console.log(`      Row: date=${m[1]} amount=$${amount} year=${year}`);
     if (amount > 0 && year > bestYear) {
       bestYear = year;
       bestAmount = amount;
