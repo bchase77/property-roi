@@ -83,52 +83,55 @@ async function findAccountNumber(page, address) {
   await waitForCloudflare(page, 'search results');
   await page.waitForTimeout(1500);
 
-  // Extract all AccountDetails links and their surrounding text from the page HTML
-  const html = await page.content();
-  const allAccountLinks = [...html.matchAll(/taxAccountNumber=(\d+)/g)].map(m => m[1]);
-  console.log(`    Found ${allAccountLinks.length} account link(s) on page`);
-
-  // Build cards from links by finding nearby property location text
-  // Each card in the HTML has the account number and a PROPERTY LOCATION label nearby
-  const cardPattern = /taxAccountNumber=(\d+)[\s\S]{0,600}?(?:PROPERTY LOCATION|Property Location)[^>]*>([^<]{3,60})</gi;
-  const cardMatches = [...html.matchAll(cardPattern)];
-  console.log(`    Parsed ${cardMatches.length} card(s) with location text`);
-
   const normalTarget = normalizeStreet(address);
   console.log(`    Matching against: "${normalTarget}"`);
 
-  for (const m of cardMatches) {
-    const acct = m[1];
-    const loc  = m[2].trim().toUpperCase();
-    console.log(`      Card: acct=${acct} loc="${loc}"`);
-    if (loc === normalTarget || loc.includes(normalTarget.split(' ').slice(0, 3).join(' '))) {
+  // DOM-based extraction: for each account link, walk up to find the card container
+  // and use innerText (which traverses nested elements) to get the full visible text.
+  const cards = await page.evaluate(() => {
+    const results = [];
+    const seen = new Set();
+    document.querySelectorAll('a[href*="taxAccountNumber"]').forEach(link => {
+      const href = link.getAttribute('href') || '';
+      const m = href.match(/taxAccountNumber=(\d+)/);
+      if (!m || seen.has(m[1])) return;
+      seen.add(m[1]);
+      // Walk up up to 8 levels to find a container with meaningful address text
+      let el = link.parentElement;
+      for (let i = 0; i < 8 && el; i++) {
+        const text = el.innerText?.trim() || '';
+        if (text.length > 10 && text.length < 600) {
+          results.push({ acct: m[1], text });
+          return;
+        }
+        el = el.parentElement;
+      }
+      results.push({ acct: m[1], text: link.innerText?.trim() || '' });
+    });
+    return results;
+  });
+
+  console.log(`    Found ${cards.length} unique account card(s)`);
+
+  for (const card of cards) {
+    const upper = card.text.toUpperCase();
+    console.log(`      Card: acct=${card.acct} text="${upper.slice(0, 100)}"`);
+    if (upper.includes(normalTarget) ||
+        upper.includes(normalTarget.split(' ').slice(0, 3).join(' '))) {
       console.log(`      ✓ Matched!`);
-      return acct;
+      return card.acct;
     }
   }
 
-  // Fallback: try reversed order (location before account number)
-  const revPattern = /(?:PROPERTY LOCATION|Property Location)[^>]*>([^<]{3,60})<[\s\S]{0,600}?taxAccountNumber=(\d+)/gi;
-  const revMatches = [...html.matchAll(revPattern)];
-  for (const m of revMatches) {
-    const loc  = m[1].trim().toUpperCase();
-    const acct = m[2];
-    if (loc === normalTarget || loc.includes(normalTarget.split(' ').slice(0, 3).join(' '))) {
-      console.log(`      ✓ Matched (reversed)! acct=${acct}`);
-      return acct;
-    }
+  // Last resort: single result
+  if (cards.length === 1) {
+    console.log(`    Only one result — using it: ${cards[0].acct}`);
+    return cards[0].acct;
   }
 
-  // Last resort: single result on page
-  if (allAccountLinks.length === 1) {
-    console.log(`    Only one result — using it: ${allAccountLinks[0]}`);
-    return allAccountLinks[0];
-  }
-
-  // Show first few chars of HTML to help diagnose selector issues
   if (DEBUG) {
+    const html = await page.content();
     const { writeFileSync } = await import('fs');
-    const { join } = await import('path');
     writeFileSync(join(__dirname, 'debug-tax-search.html'), html);
     console.log(`    HTML saved → scout/debug-tax-search.html`);
   } else {
@@ -256,14 +259,26 @@ async function main() {
   }
   console.log(`  Processing ${rows.length} properties…\n`);
 
-  const browser = await chromium.launch({
-    headless: !DEBUG,
+  // Persistent context saves CF clearance cookies to disk so the challenge
+  // only needs to be solved once (valid for ~30 min per session).
+  // We try real system Chrome first (better CF fingerprint), fall back to Playwright Chromium.
+  const PROFILE_DIR = join(__dirname, '.chrome-data');
+  const launchOpts = {
+    headless: false, // CF challenge requires a visible window for human verification
     args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
-  });
-  const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     viewport: { width: 1280, height: 900 },
-  });
+  };
+
+  let context;
+  try {
+    context = await chromium.launchPersistentContext(PROFILE_DIR, { ...launchOpts, channel: 'chrome' });
+    console.log('  Browser: system Chrome (persistent profile)');
+  } catch {
+    context = await chromium.launchPersistentContext(PROFILE_DIR, launchOpts);
+    console.log('  Browser: Playwright Chromium (persistent profile)');
+  }
+
   await context.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => false });
     Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
@@ -312,7 +327,7 @@ async function main() {
     await new Promise(r => setTimeout(r, 1200));
   }
 
-  await browser.close();
+  await context.close();
 
   console.log('\n' + '━'.repeat(50));
   console.log(`✅  Done — ${found} updated, ${notFound} not found, ${errors} errors`);
