@@ -12,6 +12,7 @@ export async function GET(req) {
   const search   = searchParams.get('search')   || '';
   const priceMin = searchParams.get('priceMin') || '';
   const priceMax = searchParams.get('priceMax') || '';
+  const tab      = searchParams.get('tab')      || 'active'; // 'active' | 'pending'
   const limit    = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
 
   // Fetch ALL rows (no LIMIT) with the same JOIN as before
@@ -50,14 +51,21 @@ export async function GET(req) {
 
   // Aggregate stats across ALL rows (before any filtering)
   const stats = {
-    total:     withMetrics.length,
+    total:     withMetrics.filter(r => !r.listing_status || r.listing_status.toLowerCase() === 'active').length,
     potential: withMetrics.filter(r => r.status === 'potential').length,
     skip:      withMetrics.filter(r => r.status === 'skip').length,
     great:     withMetrics.filter(r => r.atroi != null && r.atroi >= 10).length,
+    pending:   withMetrics.filter(r => r.listing_status?.toLowerCase() === 'pending').length,
   };
 
-  // Exclude non-Active listings (Pending, Sold, etc.) — null means status unknown (REI Nation etc.), keep those
-  let filtered = withMetrics.filter(r => !r.listing_status || r.listing_status.toLowerCase() === 'active');
+  // Filter by tab
+  let filtered;
+  if (tab === 'pending') {
+    filtered = withMetrics.filter(r => r.listing_status?.toLowerCase() === 'pending');
+  } else {
+    // Active tab: null listing_status = unknown source (REI Nation etc.), keep those
+    filtered = withMetrics.filter(r => !r.listing_status || r.listing_status.toLowerCase() === 'active');
+  }
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter(r =>

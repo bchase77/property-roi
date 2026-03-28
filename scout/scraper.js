@@ -253,7 +253,9 @@ async function scrape() {
     if (l.price < FILTERS.minPrice) return false;   // exclude rentals at monthly rates
     if (l.price > FILTERS.maxPrice) return false;
     if (l.beds < FILTERS.minBeds) return false;
-    if (l.status && l.status.toLowerCase() !== 'active') return false;
+    // Keep Active and Pending; skip Sold, Withdrawn, etc.
+    const s = (l.status || '').toLowerCase();
+    if (s && s !== 'active' && s !== 'pending') return false;
     return true;
   });
 
