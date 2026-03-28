@@ -228,7 +228,7 @@ export default function ScoutPage() {
   const metricsMap = useMemo(() => {
     const m = {};
     listings.forEach(l => {
-      const hasEdits = localEdits[l.mls_num];
+      const hasEdits = localEdits[l.mls_num] || l.tax_annual != null;
       if (hasEdits) {
         const mark = getMark(l);
         m[l.mls_num] = calcM(l, mark, DEFAULTS);
@@ -832,10 +832,8 @@ export default function ScoutPage() {
               <tr className="text-left text-gray-400 border-b border-gray-700 text-xs">
                 {[
                   { col: null,     label: 'Address' },
-                  { col: 'state',  label: 'State' },
                   { col: 'price',  label: 'Price' },
-                  { col: 'beds',   label: 'Bd/Ba' },
-                  { col: 'sqft',   label: 'Sqft' },
+                  { col: 'beds',   label: 'Bd/Ba/Sqft' },
                   { col: null,     label: 'Repairs $' },
                   { col: null,     label: 'HOA $/qtr' },
                   { col: null,    label: 'Est. Rent' },
@@ -996,11 +994,6 @@ export default function ScoutPage() {
                       )}
                     </td>
 
-                    {/* State */}
-                    <td className="px-3 py-2 text-gray-300 text-xs whitespace-nowrap">
-                      {extractState(listing.address) || '—'}
-                    </td>
-
                     {/* Price */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       <input
@@ -1028,14 +1021,10 @@ export default function ScoutPage() {
                       )}
                     </td>
 
-                    {/* Beds/Baths */}
-                    <td className="px-3 py-2 text-gray-300 text-xs whitespace-nowrap">
-                      {listing.beds ?? '—'}/{listing.baths ?? '—'}
-                    </td>
-
-                    {/* Sqft */}
-                    <td className="px-3 py-2 text-gray-300 text-xs whitespace-nowrap">
-                      {listing.sqft ? listing.sqft.toLocaleString() : '—'}
+                    {/* Beds/Baths/Sqft */}
+                    <td className="px-2 py-2 text-gray-300 text-xs whitespace-nowrap">
+                      <div>{listing.beds ?? '—'}bd/{listing.baths ?? '—'}ba</div>
+                      <div className="text-gray-500">{listing.sqft ? listing.sqft.toLocaleString() : '—'} sf</div>
                     </td>
 
                     {/* Repairs */}
