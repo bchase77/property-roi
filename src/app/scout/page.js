@@ -1131,7 +1131,7 @@ export default function ScoutPage() {
                     <td className="px-1 text-center">
                       {(() => {
                         const streetPart = (listing.address || '').split(',')[0].trim();
-                        const tokens = streetPart.split(/\s+/).slice(0, 3).join(' ');
+                        const tokens = streetPart.split(/\s+/).slice(0, 2).join(' '); // house number + first word only
                         const taxSearchUrl = `https://www.tax.tarrantcountytx.gov/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(tokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
                         return listing.tax_annual ? (
                           <div className="flex flex-col items-center gap-0.5">
