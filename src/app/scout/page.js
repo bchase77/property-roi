@@ -836,7 +836,6 @@ export default function ScoutPage() {
                 {[
                   { col: null,     label: 'Address' },
                   { col: 'state',  label: 'State' },
-                  { col: 'source', label: 'Source' },
                   { col: 'price',  label: 'Price' },
                   { col: 'beds',   label: 'Bd/Ba' },
                   { col: 'sqft',   label: 'Sqft' },
@@ -848,9 +847,9 @@ export default function ScoutPage() {
                   { col: 'coc',   label: 'CoC' },
                   { col: 'roi5',  label: '5yr ROI' },
                   { col: 'atroi', label: '30y ATROI' },
+                  { col: null,    label: 'Prop Tax' },
                   { col: null,    label: 'Notes' },
                   { col: null,    label: 'Mark' },
-                  { col: null,    label: 'Tax/mo' },
                 ].map(({ col, label }) => (
                   <th
                     key={label}
@@ -1005,11 +1004,6 @@ export default function ScoutPage() {
                       {extractState(listing.address) || '—'}
                     </td>
 
-                    {/* Source */}
-                    <td className="px-3 py-2 text-gray-300 text-xs whitespace-nowrap">
-                      {sourceLabel(listing.source)}
-                    </td>
-
                     {/* Price */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       <input
@@ -1137,6 +1131,22 @@ export default function ScoutPage() {
                       <AtroiBadge value={metrics?.atroi ?? null} err={metrics?.atroiErr} />
                     </td>
 
+                    {/* Prop Tax */}
+                    <td className="px-1 text-center">
+                      {listing.tax_annual ? (
+                        <span className="text-xs text-gray-400">${Math.round(Number(listing.tax_annual)/12)}/mo</span>
+                      ) : (
+                        <button
+                          onClick={() => fetchTax(listing.mls_num)}
+                          disabled={!!taxFetching[listing.mls_num]}
+                          className="text-xs px-1 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-40"
+                          title="Fetch real property tax from Tarrant County"
+                        >
+                          {taxFetching[listing.mls_num] ? '…' : 'Tax'}
+                        </button>
+                      )}
+                    </td>
+
                     {/* Notes */}
                     <td className="px-3 py-2">
                       <textarea
@@ -1185,21 +1195,6 @@ export default function ScoutPage() {
                       </div>
                     </td>
 
-                    {/* Tax */}
-                    <td className="px-1 text-center">
-                      {listing.tax_annual ? (
-                        <span className="text-xs text-gray-400">${Math.round(Number(listing.tax_annual)/12)}/mo</span>
-                      ) : (
-                        <button
-                          onClick={() => fetchTax(listing.mls_num)}
-                          disabled={!!taxFetching[listing.mls_num]}
-                          className="text-xs px-1 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-40"
-                          title="Fetch real property tax from Tarrant County"
-                        >
-                          {taxFetching[listing.mls_num] ? '…' : 'Tax'}
-                        </button>
-                      )}
-                    </td>
                   </tr>
                 );
               })}
