@@ -12,7 +12,9 @@
     "scout:debug": "node scout/scraper.js --debug",
     "scout:schools": "node scout/scraper.js --with-schools",
     "scout:reination": "node scout/reination-scraper.js",
-    "scout:reination:debug": "node scout/reination-scraper.js --debug"
+    "scout:reination:debug": "node scout/reination-scraper.js --debug",
+    "scout:tax": "node scout/tax-scraper.js",
+    "scout:tax:debug": "node scout/tax-scraper.js --debug"
   },
   "dependencies": {
     "@vercel/postgres": "^0.10.0",
