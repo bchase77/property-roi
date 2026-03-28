@@ -43,9 +43,10 @@ const BASE = 'https://www.tax.tarrantcountytx.gov';
 // Cloudflare Turnstile shows an iframe with challenges.cloudflare.com.
 // We poll until it's gone and actual page content has loaded.
 async function waitForCloudflare(page, label = '') {
-  const MAX_WAIT = 30_000; // 30s total
-  const POLL    = 800;
+  const MAX_WAIT = 120_000; // 2 min — enough time for user to click
+  const POLL    = 1000;
   const start   = Date.now();
+  let prompted  = false;
 
   while (Date.now() - start < MAX_WAIT) {
     const title = await page.title().catch(() => '');
@@ -53,13 +54,19 @@ async function waitForCloudflare(page, label = '') {
     const isChallengePage = title.toLowerCase().includes('just a moment') || title.toLowerCase().includes('checking your browser');
 
     if (!hasCF && !isChallengePage) {
-      if (label) console.log(`    Cloudflare clear (${Date.now() - start}ms)${label ? ' — ' + label : ''}`);
+      if (prompted) console.log(`\n    ✓ Cloudflare cleared (${Date.now() - start}ms)`);
       return;
     }
-    console.log(`    Waiting for Cloudflare challenge… (title: "${title}")`);
+
+    if (!prompted) {
+      console.log(`\n    ⚠️  CLOUDFLARE: Please click "Verify you are human" in the browser window.`);
+      console.log(`       Waiting up to 2 minutes for you to complete it…`);
+      prompted = true;
+    }
+
     await page.waitForTimeout(POLL);
   }
-  console.log(`    WARNING: Cloudflare challenge may not have cleared after ${MAX_WAIT}ms`);
+  console.log(`\n    WARNING: Cloudflare challenge not cleared after 2 minutes — continuing anyway`);
 }
 
 function normalizeStreet(address) {
