@@ -118,18 +118,8 @@ export default function ScoutPage() {
   const [sortCol, setSortCol] = useState('atroi');
   const [sortDir, setSortDir] = useState('desc');
 
-  // Debounce ref for search input
-  const searchDebounceRef = useRef(null);
   const [debouncedSearch, setDebouncedSearch] = useState('');
-
-  // Update debounced search 300ms after user stops typing
-  useEffect(() => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 300);
-    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
-  }, [search]);
+  const commitSearch = useCallback(() => setDebouncedSearch(search), [search]);
 
   // Fetch listings from server whenever sort/filter/search params change
   useEffect(() => {
@@ -795,13 +785,20 @@ export default function ScoutPage() {
           />
         </div>
 
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search address or MLS#…"
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-56"
-        />
+        <div className="flex items-center gap-1">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && commitSearch()}
+            placeholder="Search address or MLS#…"
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-56"
+          />
+          <button
+            onClick={commitSearch}
+            className="bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs px-3 py-1.5 rounded-lg border border-gray-600"
+          >Search</button>
+        </div>
 
         <span className="text-xs text-gray-500" title="Run locally: npm run scout:tax">
           Tax data: <code className="bg-gray-800 px-1 rounded">npm run scout:tax</code>

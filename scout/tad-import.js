@@ -124,7 +124,7 @@ async function main() {
 
   // Load all listings from DB
   const { rows } = await sql`
-    SELECT mls_num, address, tax_account_num FROM scout_listings
+    SELECT mls_num, address, city, tax_account_num FROM scout_listings
     WHERE address IS NOT NULL
     ORDER BY address
   `;
@@ -148,10 +148,21 @@ async function main() {
       continue;
     }
 
-    // 2. Partial key match (house# + first street word) — only use if unique
+    // 2. Partial key match (house# + first street word)
     const candidates = byPartial.get(partial) || [];
+    let chosen = null;
     if (candidates.length === 1) {
-      updates.push({ mls_num: row.mls_num, acct: candidates[0].acct, appraised: candidates[0].appraised, how: 'partial', tadAddr: candidates[0].raw, ourAddr: row.address });
+      chosen = candidates[0];
+    } else if (candidates.length > 1) {
+      // Tiebreaker: match city from listing address against TAD situs address
+      const city = (row.city || row.address.split(',')[1] || '').trim().toUpperCase();
+      if (city) {
+        const cityMatches = candidates.filter(c => c.raw.toUpperCase().includes(city));
+        if (cityMatches.length === 1) chosen = cityMatches[0];
+      }
+    }
+    if (chosen) {
+      updates.push({ mls_num: row.mls_num, acct: chosen.acct, appraised: chosen.appraised, how: candidates.length === 1 ? 'partial' : 'partial+city', tadAddr: chosen.raw, ourAddr: row.address });
       partialMatches++;
       continue;
     }
