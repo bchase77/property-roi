@@ -274,21 +274,11 @@ async function main() {
   const { existsSync } = await import('fs');
   const COOKIE_FILE = join(__dirname, '.cf-cookies.json');
 
-  let browser;
-  try {
-    browser = await chromium.launch({
-      channel: 'chrome',
-      headless: false,
-      args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
-    });
-    console.log('  Browser: system Chrome');
-  } catch {
-    browser = await chromium.launch({
-      headless: false,
-      args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
-    });
-    console.log('  Browser: Playwright Chromium');
-  }
+  const browser = await chromium.launch({
+    headless: false,
+    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+  });
+  console.log('  Browser: Playwright Chromium + stealth');
 
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
