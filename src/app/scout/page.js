@@ -1172,7 +1172,7 @@ export default function ScoutPage() {
                             <button onClick={() => setEditingTaxAcct(listing.mls_num)}
                                     className="text-xs text-gray-600 hover:text-gray-400"
                                     title={acct ? `Account: ${acct} — click to edit` : 'Enter account number from county site'}>
-                              {acct ? `#${acct.replace(/^0+/, '')}` : 'acct#'}
+                              {acct ? `#${acct}` : 'acct#'}
                             </button>
                           </div>
                         );
