@@ -107,6 +107,9 @@ export default function ScoutPage() {
   const [editingTax, setEditingTax] = useState(null);     // mls_num editing annual amount
   const [editingTaxAcct, setEditingTaxAcct] = useState(null); // mls_num editing account number
 
+  // Top-level tab
+  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'pending'
+
   // Filter / search / page
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
   const [filterEntry, setFilterEntry] = useState('all');   // 'all' | 'entered' | 'not-entered'
@@ -130,6 +133,7 @@ export default function ScoutPage() {
       search: debouncedSearch,
       priceMin,
       priceMax,
+      tab: activeTab,
     });
     Promise.all([
       fetch(`/api/scout/listings?${params}`).then(r => r.json()),
@@ -143,7 +147,7 @@ export default function ScoutPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax]);
+  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax, activeTab]);
 
   // Merge DB data with local edits for a row
   const getMark = useCallback((listing) => {
@@ -699,11 +703,28 @@ export default function ScoutPage() {
         )}
       </div>
 
+      {/* Active / Pending Tab */}
+      <div className="flex gap-1 bg-gray-800 rounded-lg p-1 mb-4 w-fit">
+        <button
+          onClick={() => { setActiveTab('active'); setPage(1); }}
+          className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${activeTab === 'active' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+        >
+          Active
+        </button>
+        <button
+          onClick={() => { setActiveTab('pending'); setPage(1); }}
+          className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${activeTab === 'pending' ? 'bg-yellow-600 text-white' : 'text-gray-400 hover:text-white'}`}
+        >
+          Pending {stats.pending > 0 && <span className="ml-1 bg-yellow-700 text-yellow-200 text-xs px-1.5 py-0.5 rounded-full">{stats.pending}</span>}
+        </button>
+      </div>
+
       {/* Stats Bar */}
       <div className="flex flex-wrap gap-3 mb-4 text-sm">
         <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
           Total: <span className="font-bold text-white">{stats.total}</span>
         </span>
+        {activeTab === 'active' && <>
         <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
           Potential: <span className="font-bold text-green-400">{stats.potential}</span>
         </span>
@@ -713,6 +734,7 @@ export default function ScoutPage() {
         <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
           Great ATROI (≥10%): <span className="font-bold text-purple-400">{stats.great}</span>
         </span>
+        </>}
         {undoStack.length > 0 && (
           <button
             onClick={undo}
@@ -724,8 +746,8 @@ export default function ScoutPage() {
         )}
       </div>
 
-      {/* Filter / Sort Bar */}
-      <div className="flex flex-wrap gap-3 items-center mb-4">
+      {/* Filter / Sort Bar — Active tab only */}
+      {activeTab === 'active' && <div className="flex flex-wrap gap-3 items-center mb-4">
         <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
           {[
             { key: 'all', label: 'All' },
@@ -803,10 +825,67 @@ export default function ScoutPage() {
         <span className="text-xs text-gray-500" title="Run locally: npm run scout:tax">
           Tax data: <code className="bg-gray-800 px-1 rounded">npm run scout:tax</code>
         </span>
-      </div>
+      </div>}
 
-      {/* Table */}
-      {listings.length === 0 ? (
+      {/* Pending Table */}
+      {activeTab === 'pending' && (
+        listings.length === 0 ? (
+          <div className="bg-gray-800 rounded-xl p-12 text-center">
+            <p className="text-gray-400 text-lg mb-2">No pending listings yet.</p>
+            <p className="text-gray-600 text-sm">Properties will appear here when they go Pending in MLS.</p>
+          </div>
+        ) : (
+          <div className="bg-gray-800 rounded-xl overflow-x-auto">
+            <div className="px-3 py-2 border-b border-gray-700">
+              <span className="text-xs text-gray-500">{listings.length} pending — not purchasable, for reference only</span>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-400 border-b border-gray-700 text-xs">
+                  <th className="px-3 py-3 font-medium">Address</th>
+                  <th className="px-3 py-3 font-medium">Price</th>
+                  <th className="px-3 py-3 font-medium">Bd/Ba/Sqft</th>
+                  <th className="px-3 py-3 font-medium">Cash Flow</th>
+                  <th className="px-3 py-3 font-medium">Cap</th>
+                  <th className="px-3 py-3 font-medium">CoC</th>
+                  <th className="px-3 py-3 font-medium">5yr ROI</th>
+                  <th className="px-3 py-3 font-medium">30y ATROI</th>
+                  <th className="px-3 py-3 font-medium">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {listings.map(listing => {
+                  const metrics = metricsMap[listing.mls_num];
+                  return (
+                    <tr key={listing.mls_num} className="hover:bg-gray-750 text-gray-400">
+                      <td className="px-3 py-2">
+                        <div className="text-gray-300 text-xs">{listing.address}</div>
+                        <div className="text-gray-600 text-xs">{listing.mls_num}</div>
+                      </td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap">
+                        <div className="text-gray-300">{fmt$(listing.price)}</div>
+                      </td>
+                      <td className="px-2 py-2 text-gray-300 text-xs whitespace-nowrap">
+                        <div>{listing.beds ?? '—'}bd/{listing.baths ?? '—'}ba</div>
+                        <div className="text-gray-500">{listing.sqft ? listing.sqft.toLocaleString() : '—'} sf</div>
+                      </td>
+                      <td className="px-3 py-2 text-xs">{metrics ? <span className={metrics.cf >= 0 ? 'text-green-400' : 'text-red-400'}>{fmt$(metrics.cf)}</span> : '—'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-300">{metrics ? fmtPct(metrics.cap) : '—'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-300">{metrics ? fmtPct(metrics.coc) : '—'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-300">{metrics ? fmtPct(metrics.roi5) : '—'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-300">{metrics ? fmtPct(metrics.atroi) : '—'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-500 max-w-xs truncate">{listing.mark_notes ?? ''}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
+      {/* Active Table */}
+      {activeTab === 'active' && listings.length === 0 ? (
         <div className="bg-gray-800 rounded-xl p-12 text-center">
           <p className="text-gray-400 text-lg mb-2">No listings yet.</p>
           <p className="text-gray-600 text-sm">
@@ -814,7 +893,7 @@ export default function ScoutPage() {
             or run <code className="bg-gray-700 px-1.5 py-0.5 rounded">npm run scout</code> locally to fetch now.
           </p>
         </div>
-      ) : (
+      ) : activeTab === 'active' && (
         <div className="bg-gray-800 rounded-xl overflow-x-auto">
           <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between">
             <span className="text-xs text-gray-500">
