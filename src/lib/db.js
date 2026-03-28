@@ -223,6 +223,9 @@ export async function init() {
   await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS hoa_yn BOOLEAN;`;
   await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS address_locked BOOLEAN NOT NULL DEFAULT FALSE;`;
   await sql/*sql*/`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS listing_status TEXT;`;
+  await sql`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS tax_annual NUMERIC;`;
+  await sql`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS tax_account_num TEXT;`;
+  await sql`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS tax_fetched_at TIMESTAMPTZ;`;
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS scout_price_history (
       id SERIAL PRIMARY KEY,
