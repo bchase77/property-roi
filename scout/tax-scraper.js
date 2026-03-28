@@ -268,41 +268,43 @@ async function main() {
   }
   console.log(`  Processing ${rows.length} properties…\n`);
 
-  // Use the real Chrome profile — CF already trusts it from normal browsing history.
-  // Chrome MUST be fully quit (Cmd+Q) before running, or it will refuse to share the profile.
-  const REAL_PROFILE = `${process.env.HOME}/Library/Application Support/Google/Chrome`;
-  const FALLBACK_PROFILE = join(__dirname, '.chrome-data');
-
+  // Launch system Chrome (better CF fingerprint than Playwright Chromium).
+  // Save cookies to scout/.cf-cookies.json after each run so the CF clearance
+  // token persists — first run you solve CF once, future runs skip the challenge.
   const { existsSync } = await import('fs');
-  const profileDir = existsSync(REAL_PROFILE) ? REAL_PROFILE : FALLBACK_PROFILE;
-  const usingRealChrome = profileDir === REAL_PROFILE;
+  const COOKIE_FILE = join(__dirname, '.cf-cookies.json');
 
-  if (usingRealChrome) {
-    console.log('  Browser: your real Chrome profile (CF-trusted)');
-    console.log('  ⚠️  Chrome must be fully quit (Cmd+Q). If it opens and crashes, quit Chrome and retry.\n');
-  } else {
-    console.log('  Browser: Playwright Chromium (fresh profile — real Chrome not found)');
+  let browser;
+  try {
+    browser = await chromium.launch({
+      channel: 'chrome',
+      headless: false,
+      args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+    });
+    console.log('  Browser: system Chrome');
+  } catch {
+    browser = await chromium.launch({
+      headless: false,
+      args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+    });
+    console.log('  Browser: Playwright Chromium');
   }
 
-  const launchOpts = {
-    headless: false,
-    channel: 'chrome',
-    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     viewport: { width: 1280, height: 900 },
-  };
+    storageState: existsSync(COOKIE_FILE) ? COOKIE_FILE : undefined,
+  });
 
-  let context;
-  try {
-    context = await chromium.launchPersistentContext(profileDir, launchOpts);
-  } catch (err) {
-    if (usingRealChrome) {
-      console.log(`  Real Chrome profile failed (${err.message.split('\n')[0]})`);
-      console.log('  → Is Chrome still running? Quit it with Cmd+Q and try again.');
-      console.log('  → Falling back to fresh Playwright Chromium profile…\n');
-      context = await chromium.launchPersistentContext(FALLBACK_PROFILE, { ...launchOpts, channel: undefined });
-    } else {
-      throw err;
-    }
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+  });
+
+  if (existsSync(COOKIE_FILE)) {
+    console.log('  Loaded saved CF cookies — challenge should be skipped');
+  } else {
+    console.log('  No saved cookies yet — if CF appears, click through it once and cookies will be saved for next time');
   }
 
   const page = await context.newPage();
@@ -349,7 +351,11 @@ async function main() {
     await new Promise(r => setTimeout(r, 1200));
   }
 
-  await context.close();
+  // Save CF clearance cookies for next run
+  await context.storageState({ path: COOKIE_FILE });
+  console.log(`  CF cookies saved → scout/.cf-cookies.json`);
+
+  await browser.close();
 
   console.log('\n' + '━'.repeat(50));
   console.log(`✅  Done — ${found} updated, ${notFound} not found, ${errors} errors`);
