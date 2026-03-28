@@ -268,30 +268,43 @@ async function main() {
   }
   console.log(`  Processing ${rows.length} properties…\n`);
 
-  // Persistent context saves CF clearance cookies to disk so the challenge
-  // only needs to be solved once (valid for ~30 min per session).
-  // We try real system Chrome first (better CF fingerprint), fall back to Playwright Chromium.
-  const PROFILE_DIR = join(__dirname, '.chrome-data');
+  // Use the real Chrome profile — CF already trusts it from normal browsing history.
+  // Chrome MUST be fully quit (Cmd+Q) before running, or it will refuse to share the profile.
+  const REAL_PROFILE = `${process.env.HOME}/Library/Application Support/Google/Chrome`;
+  const FALLBACK_PROFILE = join(__dirname, '.chrome-data');
+
+  const { existsSync } = await import('fs');
+  const profileDir = existsSync(REAL_PROFILE) ? REAL_PROFILE : FALLBACK_PROFILE;
+  const usingRealChrome = profileDir === REAL_PROFILE;
+
+  if (usingRealChrome) {
+    console.log('  Browser: your real Chrome profile (CF-trusted)');
+    console.log('  ⚠️  Chrome must be fully quit (Cmd+Q). If it opens and crashes, quit Chrome and retry.\n');
+  } else {
+    console.log('  Browser: Playwright Chromium (fresh profile — real Chrome not found)');
+  }
+
   const launchOpts = {
-    headless: false, // CF challenge requires a visible window for human verification
+    headless: false,
+    channel: 'chrome',
     args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     viewport: { width: 1280, height: 900 },
   };
 
   let context;
   try {
-    context = await chromium.launchPersistentContext(PROFILE_DIR, { ...launchOpts, channel: 'chrome' });
-    console.log('  Browser: system Chrome (persistent profile)');
-  } catch {
-    context = await chromium.launchPersistentContext(PROFILE_DIR, launchOpts);
-    console.log('  Browser: Playwright Chromium (persistent profile)');
+    context = await chromium.launchPersistentContext(profileDir, launchOpts);
+  } catch (err) {
+    if (usingRealChrome) {
+      console.log(`  Real Chrome profile failed (${err.message.split('\n')[0]})`);
+      console.log('  → Is Chrome still running? Quit it with Cmd+Q and try again.');
+      console.log('  → Falling back to fresh Playwright Chromium profile…\n');
+      context = await chromium.launchPersistentContext(FALLBACK_PROFILE, { ...launchOpts, channel: undefined });
+    } else {
+      throw err;
+    }
   }
 
-  await context.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-  });
   const page = await context.newPage();
 
   let found = 0, notFound = 0, errors = 0;
