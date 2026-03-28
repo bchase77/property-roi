@@ -49,10 +49,10 @@ if (!API_KEY) {
 // ── Fetch a page via ScrapingBee (handles Cloudflare automatically) ────────────
 async function fetchPage(url, label = '') {
   const endpoint = 'https://app.scrapingbee.com/api/v1/?' + new URLSearchParams({
-    api_key:       API_KEY,
-    url:           url,
-    render_js:     'true',   // execute JavaScript so the page fully renders
-    premium_proxy: 'true',   // residential proxy — bypasses Cloudflare Turnstile
+    api_key:   API_KEY,
+    url:       url,
+    render_js: 'true',  // execute JavaScript so the page fully renders (5 credits/request)
+    // premium_proxy: 'true',  // uncomment if CF blocks — costs 25 credits/request instead of 5
   });
 
   if (DEBUG) console.log(`    ScrapingBee fetch${label ? ' (' + label + ')' : ''}: ${url}`);
