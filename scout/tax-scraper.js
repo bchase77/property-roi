@@ -1,17 +1,15 @@
 #!/usr/bin/env node
-// Tarrant County property tax scraper
-// Looks up real annual tax payments for Scout listings from the county website.
+// Tarrant County property tax scraper — uses ScrapingBee API to bypass Cloudflare.
 //
-// Usage:  node scout/tax-scraper.js              (top 100 by price, Active PAM listings)
+// Setup: add SCRAPINGBEE_API_KEY=<key> to .env.local (sign up free at scrapingbee.com)
+//
+// Usage:  node scout/tax-scraper.js              (top 100 Active PAM listings missing tax)
 //         node scout/tax-scraper.js --limit 50   (process fewer)
 //         node scout/tax-scraper.js --all         (re-fetch even already-fetched ones)
 //         node scout/tax-scraper.js --mls MLS123 (single property)
-//         node scout/tax-scraper.js --debug       (headed browser)
+//         node scout/tax-scraper.js --debug       (save raw HTML for inspection)
 
-import { chromium } from 'playwright-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-chromium.use(StealthPlugin());
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { sql } from '@vercel/postgres';
@@ -39,36 +37,32 @@ const REFETCH_ALL = process.argv.includes('--all');
 const mlsArg      = process.argv.includes('--mls') ? process.argv[process.argv.indexOf('--mls') + 1] : null;
 const limitArg    = process.argv.includes('--limit') ? parseInt(process.argv[process.argv.indexOf('--limit') + 1]) : 100;
 
-const BASE = 'https://www.tax.tarrantcountytx.gov';
+const BASE        = 'https://www.tax.tarrantcountytx.gov';
+const API_KEY     = process.env.SCRAPINGBEE_API_KEY;
 
-// ── Wait for Cloudflare challenge to clear ─────────────────────────────────────
-// Cloudflare Turnstile shows an iframe with challenges.cloudflare.com.
-// We poll until it's gone and actual page content has loaded.
-async function waitForCloudflare(page, label = '') {
-  const MAX_WAIT = 120_000; // 2 min — enough time for user to click
-  const POLL    = 1000;
-  const start   = Date.now();
-  let prompted  = false;
+if (!API_KEY) {
+  console.error('❌  SCRAPINGBEE_API_KEY not set in .env.local');
+  console.error('    Sign up free at https://www.scrapingbee.com and add the key.');
+  process.exit(1);
+}
 
-  while (Date.now() - start < MAX_WAIT) {
-    const title = await page.title().catch(() => '');
-    const hasCF = await page.$('iframe[src*="challenges.cloudflare.com"], #cf-wrapper, #cf-challenge-running').catch(() => null);
-    const isChallengePage = title.toLowerCase().includes('just a moment') || title.toLowerCase().includes('checking your browser');
+// ── Fetch a page via ScrapingBee (handles Cloudflare automatically) ────────────
+async function fetchPage(url, label = '') {
+  const endpoint = 'https://app.scrapingbee.com/api/v1/?' + new URLSearchParams({
+    api_key:       API_KEY,
+    url:           url,
+    render_js:     'true',   // execute JavaScript so the page fully renders
+    premium_proxy: 'true',   // residential proxy — bypasses Cloudflare Turnstile
+  });
 
-    if (!hasCF && !isChallengePage) {
-      if (prompted) console.log(`\n    ✓ Cloudflare cleared (${Date.now() - start}ms)`);
-      return;
-    }
+  if (DEBUG) console.log(`    ScrapingBee fetch${label ? ' (' + label + ')' : ''}: ${url}`);
 
-    if (!prompted) {
-      console.log(`\n    ⚠️  CLOUDFLARE: Please click "Verify you are human" in the browser window.`);
-      console.log(`       Waiting up to 2 minutes for you to complete it…`);
-      prompted = true;
-    }
-
-    await page.waitForTimeout(POLL);
+  const res = await fetch(endpoint, { signal: AbortSignal.timeout(60_000) });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`ScrapingBee ${res.status}: ${body.slice(0, 300)}`);
   }
-  console.log(`\n    WARNING: Cloudflare challenge not cleared after 2 minutes — continuing anyway`);
+  return res.text();
 }
 
 function normalizeStreet(address) {
@@ -81,148 +75,88 @@ function normalizeStreet(address) {
     .replace(/\bPARKWAY\b/g, 'PKWY');
 }
 
+// Strip HTML tags and collapse whitespace to get plain text from an HTML chunk
+function stripTags(html) {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 // ── Search Tarrant County for a property and return its account number ─────────
-async function findAccountNumber(page, address) {
-  const streetPart = address.split(',')[0].trim();
-  const searchTokens = streetPart.split(/\s+/).slice(0, 2).join(' '); // e.g. "2717 Laurel"
+async function findAccountNumber(address) {
+  const streetPart   = address.split(',')[0].trim();
+  const searchTokens = streetPart.split(/\s+/).slice(0, 2).join(' '); // e.g. "1056 Mesa"
   const url = `${BASE}/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(searchTokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
 
-  console.log(`    Search: "${searchTokens}" → ${url}`);
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await waitForCloudflare(page, 'search results');
-  await page.waitForTimeout(1500);
+  const html = await fetchPage(url, 'search');
+
+  if (DEBUG) {
+    writeFileSync(join(__dirname, 'debug-tax-search.html'), html);
+    console.log(`    HTML saved → scout/debug-tax-search.html`);
+  }
 
   const normalTarget = normalizeStreet(address);
-  console.log(`    Matching against: "${normalTarget}"`);
+  if (DEBUG) console.log(`    Matching against: "${normalTarget}"`);
 
-  // DOM-based extraction: for each account link, walk up to find the card container
-  // and use innerText (which traverses nested elements) to get the full visible text.
-  const cards = await page.evaluate(() => {
-    const results = [];
-    const seen = new Set();
-    document.querySelectorAll('a[href*="taxAccountNumber"]').forEach(link => {
-      const href = link.getAttribute('href') || '';
-      const m = href.match(/taxAccountNumber=(\d+)/);
-      if (!m || seen.has(m[1])) return;
-      seen.add(m[1]);
-      // Walk up up to 8 levels to find a container with meaningful address text
-      let el = link.parentElement;
-      for (let i = 0; i < 8 && el; i++) {
-        const text = el.innerText?.trim() || '';
-        if (text.length > 10 && text.length < 600) {
-          results.push({ acct: m[1], text });
-          return;
-        }
-        el = el.parentElement;
-      }
-      results.push({ acct: m[1], text: link.innerText?.trim() || '' });
-    });
-    return results;
-  });
+  // Find all unique account numbers on the page
+  const acctMatches = [...html.matchAll(/taxAccountNumber=(\d+)/g)];
+  const seen        = new Set();
 
-  console.log(`    Found ${cards.length} unique account card(s)`);
+  for (const m of acctMatches) {
+    const acct = m[1];
+    if (seen.has(acct)) continue;
+    seen.add(acct);
 
-  for (const card of cards) {
-    const upper = card.text.toUpperCase();
-    console.log(`      Card: acct=${card.acct} text="${upper.slice(0, 100)}"`);
-    if (upper.includes(normalTarget) ||
-        upper.includes(normalTarget.split(' ').slice(0, 3).join(' '))) {
-      console.log(`      ✓ Matched!`);
-      return card.acct;
+    // Extract a window of HTML around this account number, strip tags → plain text
+    const start = Math.max(0, m.index - 300);
+    const end   = Math.min(html.length, m.index + 800);
+    const chunk = stripTags(html.slice(start, end)).toUpperCase();
+
+    if (DEBUG) console.log(`      acct=${acct} chunk="${chunk.slice(0, 120)}"`);
+
+    if (chunk.includes(normalTarget) ||
+        chunk.includes(normalTarget.split(' ').slice(0, 3).join(' '))) {
+      if (DEBUG) console.log(`      ✓ Matched!`);
+      return acct;
     }
   }
 
-  // Last resort: single result
-  if (cards.length === 1) {
-    console.log(`    Only one result — using it: ${cards[0].acct}`);
-    return cards[0].acct;
+  // Single result fallback
+  const unique = [...seen];
+  if (unique.length === 1) {
+    if (DEBUG) console.log(`    Only one result — using it: ${unique[0]}`);
+    return unique[0];
   }
 
-  if (DEBUG) {
-    const html = await page.content();
-    const { writeFileSync } = await import('fs');
-    writeFileSync(join(__dirname, 'debug-tax-search.html'), html);
-    console.log(`    HTML saved → scout/debug-tax-search.html`);
-  } else {
-    console.log(`    (run with --debug to save search HTML for inspection)`);
-  }
-
+  if (DEBUG) console.log(`    Not matched among ${unique.length} accounts`);
   return null;
 }
 
 // ── Get most recent annual tax payment for an account ─────────────────────────
-async function fetchPaymentHistory(page, accountNum) {
-  // Try direct payment history URL first
-  const histUrl = `${BASE}/Accounts/PaymentHistory?taxAccountNumber=${accountNum}`;
-  console.log(`    Payment history: ${histUrl}`);
-  await page.goto(histUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await waitForCloudflare(page, 'payment history');
-  await page.waitForTimeout(1500);
+async function fetchPaymentHistory(accountNum) {
+  const url  = `${BASE}/Accounts/PaymentHistory?taxAccountNumber=${accountNum}`;
+  const html = await fetchPage(url, 'payment history');
 
-  let html = await page.content();
-  const hasPaymentData = html.includes('PAYMENT DATE') || html.includes('Payment Date') || html.includes('TAX YEAR');
-  console.log(`    Payment page has data: ${hasPaymentData} (page length: ${html.length})`);
-
-  // If that didn't work, go to account details and click the button
-  if (!hasPaymentData) {
-    const detailUrl = `${BASE}/Accounts/AccountDetails?taxAccountNumber=${accountNum}`;
-    console.log(`    Trying account details page + button click: ${detailUrl}`);
-    await page.goto(detailUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-    await waitForCloudflare(page, 'account details');
-    await page.waitForTimeout(1500);
-
-    const btn = await page.$('a:has-text("Payment History"), button:has-text("Payment History"), a:has-text("PAYMENT HISTORY"), a:has-text("Receipts"), a:has-text("RECEIPTS")');
-    console.log(`    Payment History/Receipts button found: ${!!btn}`);
-    if (btn) {
-      await btn.click();
-      // Wait for navigation to complete + any CF challenge on the new page
-      await page.waitForTimeout(1000);
-      await waitForCloudflare(page, 'after button click');
-      await page.waitForTimeout(1500);
-      html = await page.content();
-      console.log(`    After click — page length: ${html.length}, has data: ${html.includes('PAYMENT DATE') || html.includes('Payment Date')}`);
-    }
-
-    if (DEBUG) {
-      const { writeFileSync } = await import('fs');
-      const { join } = await import('path');
-      writeFileSync(join(__dirname, 'debug-tax-payment.html'), html);
-      console.log(`    HTML saved → scout/debug-tax-payment.html`);
-    }
+  if (DEBUG) {
+    writeFileSync(join(__dirname, 'debug-tax-payment.html'), html);
+    console.log(`    HTML saved → scout/debug-tax-payment.html`);
   }
 
-  // Parse payment rows: find most recent year with a positive payment
-  // Rows contain: date, amount ($X,XXX.XX), tax year, payer
-  const rowMatches = [...html.matchAll(/(\d{1,2}\/\d{1,2}\/\d{4})[^$\d]*\$\s*([\d,]+\.\d{2})[^<]*<[^>]*>\s*(\d{4})/g)];
-  console.log(`    Payment row regex matches: ${rowMatches.length}`);
+  // Strip tags → plain text, then search for dollar amounts near years
+  const text = stripTags(html);
+
+  // Match lines containing a dollar amount and a 4-digit year
+  const rowPattern = /\$([\d,]+\.\d{2})[^$\n]{0,80}?\b(20\d{2})\b|\b(20\d{2})\b[^$\n]{0,80}?\$([\d,]+\.\d{2})/g;
+  const rowMatches = [...text.matchAll(rowPattern)];
+
+  if (DEBUG) console.log(`    Payment row matches: ${rowMatches.length}`);
 
   let bestYear = 0, bestAmount = null;
   for (const m of rowMatches) {
-    const amount = parseFloat(m[2].replace(/,/g, ''));
-    const year = parseInt(m[3]);
-    console.log(`      Row: date=${m[1]} amount=$${amount} year=${year}`);
+    const amount = parseFloat((m[1] || m[4]).replace(/,/g, ''));
+    const year   = parseInt(m[2] || m[3]);
+    if (DEBUG) console.log(`      amount=$${amount} year=${year}`);
     if (amount > 0 && year > bestYear) {
-      bestYear = year;
+      bestYear  = year;
       bestAmount = amount;
-    }
-  }
-
-  // Also try table row parsing via DOM
-  if (!bestAmount) {
-    const rows = await page.$$eval('table tr, .payment-row, [class*="row"]', rows =>
-      rows.map(r => r.innerText).filter(t => /\$[\d,]+\.\d{2}/.test(t) && /\d{4}/.test(t))
-    );
-    for (const rowText of rows) {
-      const amtMatch = rowText.match(/\$([\d,]+\.\d{2})/);
-      const yearMatch = rowText.match(/\b(20\d{2})\b/);
-      if (amtMatch && yearMatch) {
-        const amount = parseFloat(amtMatch[1].replace(/,/g, ''));
-        const year = parseInt(yearMatch[1]);
-        if (amount > 0 && year > bestYear) {
-          bestYear = year;
-          bestAmount = amount;
-        }
-      }
     }
   }
 
@@ -231,7 +165,7 @@ async function fetchPaymentHistory(page, accountNum) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log('🏛  Tarrant County Tax Scraper');
+  console.log('🏛  Tarrant County Tax Scraper (via ScrapingBee)');
   console.log('━'.repeat(50));
 
   // Load properties from DB
@@ -268,37 +202,6 @@ async function main() {
   }
   console.log(`  Processing ${rows.length} properties…\n`);
 
-  // Launch system Chrome (better CF fingerprint than Playwright Chromium).
-  // Save cookies to scout/.cf-cookies.json after each run so the CF clearance
-  // token persists — first run you solve CF once, future runs skip the challenge.
-  const { existsSync } = await import('fs');
-  const COOKIE_FILE = join(__dirname, '.cf-cookies.json');
-
-  const browser = await chromium.launch({
-    headless: false,
-    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
-  });
-  console.log('  Browser: Playwright Chromium + stealth');
-
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    viewport: { width: 1280, height: 900 },
-    storageState: existsSync(COOKIE_FILE) ? COOKIE_FILE : undefined,
-  });
-
-  await context.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-  });
-
-  if (existsSync(COOKIE_FILE)) {
-    console.log('  Loaded saved CF cookies — challenge should be skipped');
-  } else {
-    console.log('  No saved cookies yet — if CF appears, click through it once and cookies will be saved for next time');
-  }
-
-  const page = await context.newPage();
-
   let found = 0, notFound = 0, errors = 0;
 
   for (let i = 0; i < rows.length; i++) {
@@ -306,15 +209,14 @@ async function main() {
     process.stdout.write(`  [${i + 1}/${rows.length}] ${address.slice(0, 45).padEnd(45)} `);
 
     try {
-      const accountNum = await findAccountNumber(page, address);
+      const accountNum = await findAccountNumber(address);
       if (!accountNum) {
         console.log('— not found');
         notFound++;
-        await new Promise(r => setTimeout(r, 1000));
         continue;
       }
 
-      const { taxAnnual, taxYear } = await fetchPaymentHistory(page, accountNum);
+      const { taxAnnual, taxYear } = await fetchPaymentHistory(accountNum);
       const now = new Date().toISOString();
 
       await sql`
@@ -338,14 +240,8 @@ async function main() {
     }
 
     // Polite delay between properties
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 800));
   }
-
-  // Save CF clearance cookies for next run
-  await context.storageState({ path: COOKIE_FILE });
-  console.log(`  CF cookies saved → scout/.cf-cookies.json`);
-
-  await browser.close();
 
   console.log('\n' + '━'.repeat(50));
   console.log(`✅  Done — ${found} updated, ${notFound} not found, ${errors} errors`);
