@@ -174,13 +174,21 @@ async function main() {
   if (mlsArg) {
     const { rows: r } = await sql`SELECT mls_num, address FROM scout_listings WHERE mls_num = ${mlsArg}`;
     rows = r;
-  } else {
-    const condition = REFETCH_ALL
-      ? sql`source = 'pam' AND address IS NOT NULL`
-      : sql`source = 'pam' AND address IS NOT NULL AND tax_annual IS NULL`;
+  } else if (REFETCH_ALL) {
     const { rows: r } = await sql`
       SELECT mls_num, address FROM scout_listings
-      WHERE ${condition}
+      WHERE source = 'pam' AND address IS NOT NULL
+        AND (listing_status = 'Active' OR listing_status IS NULL)
+        AND price IS NOT NULL
+      ORDER BY price DESC
+      LIMIT ${limitArg}
+    `;
+    rows = r;
+  } else {
+    const { rows: r } = await sql`
+      SELECT mls_num, address FROM scout_listings
+      WHERE source = 'pam' AND address IS NOT NULL
+        AND tax_annual IS NULL
         AND (listing_status = 'Active' OR listing_status IS NULL)
         AND price IS NOT NULL
       ORDER BY price DESC
