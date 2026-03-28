@@ -56,3 +56,5 @@ scout/page*.html
 scout/run-summary.log
 scout/rei-*.html
 scout/scout-pages*
+scout/.chrome-data/
+scout/debug-*.html
