@@ -39,6 +39,29 @@ const limitArg    = process.argv.includes('--limit') ? parseInt(process.argv[pro
 
 const BASE = 'https://www.tax.tarrantcountytx.gov';
 
+// ── Wait for Cloudflare challenge to clear ─────────────────────────────────────
+// Cloudflare Turnstile shows an iframe with challenges.cloudflare.com.
+// We poll until it's gone and actual page content has loaded.
+async function waitForCloudflare(page, label = '') {
+  const MAX_WAIT = 30_000; // 30s total
+  const POLL    = 800;
+  const start   = Date.now();
+
+  while (Date.now() - start < MAX_WAIT) {
+    const title = await page.title().catch(() => '');
+    const hasCF = await page.$('iframe[src*="challenges.cloudflare.com"], #cf-wrapper, #cf-challenge-running').catch(() => null);
+    const isChallengePage = title.toLowerCase().includes('just a moment') || title.toLowerCase().includes('checking your browser');
+
+    if (!hasCF && !isChallengePage) {
+      if (label) console.log(`    Cloudflare clear (${Date.now() - start}ms)${label ? ' — ' + label : ''}`);
+      return;
+    }
+    console.log(`    Waiting for Cloudflare challenge… (title: "${title}")`);
+    await page.waitForTimeout(POLL);
+  }
+  console.log(`    WARNING: Cloudflare challenge may not have cleared after ${MAX_WAIT}ms`);
+}
+
 function normalizeStreet(address) {
   return address.split(',')[0].trim().toUpperCase()
     .replace(/\bDRIVE\b/g, 'DR').replace(/\bSTREET\b/g, 'ST')
@@ -56,8 +79,9 @@ async function findAccountNumber(page, address) {
   const url = `${BASE}/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(searchTokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
 
   console.log(`    Search: "${searchTokens}" → ${url}`);
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  await page.waitForTimeout(3000);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  await waitForCloudflare(page, 'search results');
+  await page.waitForTimeout(1500);
 
   // Extract all AccountDetails links and their surrounding text from the page HTML
   const html = await page.content();
@@ -119,8 +143,9 @@ async function fetchPaymentHistory(page, accountNum) {
   // Try direct payment history URL first
   const histUrl = `${BASE}/Accounts/PaymentHistory?taxAccountNumber=${accountNum}`;
   console.log(`    Payment history: ${histUrl}`);
-  await page.goto(histUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  await page.waitForTimeout(2000);
+  await page.goto(histUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  await waitForCloudflare(page, 'payment history');
+  await page.waitForTimeout(1500);
 
   let html = await page.content();
   const hasPaymentData = html.includes('PAYMENT DATE') || html.includes('Payment Date') || html.includes('TAX YEAR');
@@ -130,14 +155,18 @@ async function fetchPaymentHistory(page, accountNum) {
   if (!hasPaymentData) {
     const detailUrl = `${BASE}/Accounts/AccountDetails?taxAccountNumber=${accountNum}`;
     console.log(`    Trying account details page + button click: ${detailUrl}`);
-    await page.goto(detailUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForTimeout(2000);
+    await page.goto(detailUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    await waitForCloudflare(page, 'account details');
+    await page.waitForTimeout(1500);
 
-    const btn = await page.$('a:has-text("Payment History"), button:has-text("Payment History"), a:has-text("PAYMENT HISTORY")');
-    console.log(`    Payment History button found: ${!!btn}`);
+    const btn = await page.$('a:has-text("Payment History"), button:has-text("Payment History"), a:has-text("PAYMENT HISTORY"), a:has-text("Receipts"), a:has-text("RECEIPTS")');
+    console.log(`    Payment History/Receipts button found: ${!!btn}`);
     if (btn) {
       await btn.click();
-      await page.waitForTimeout(2000);
+      // Wait for navigation to complete + any CF challenge on the new page
+      await page.waitForTimeout(1000);
+      await waitForCloudflare(page, 'after button click');
+      await page.waitForTimeout(1500);
       html = await page.content();
       console.log(`    After click — page length: ${html.length}, has data: ${html.includes('PAYMENT DATE') || html.includes('Payment Date')}`);
     }
