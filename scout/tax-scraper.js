@@ -47,13 +47,16 @@ if (!API_KEY) {
 }
 
 // ── Fetch a page via ScrapingBee (handles Cloudflare automatically) ────────────
-async function fetchPage(url, label = '') {
-  const endpoint = 'https://app.scrapingbee.com/api/v1/?' + new URLSearchParams({
+// premium=true uses residential proxies (25 credits) instead of standard (5 credits)
+async function fetchPage(url, label = '', premium = false) {
+  const params = {
     api_key:   API_KEY,
     url:       url,
-    render_js: 'true',  // execute JavaScript so the page fully renders (5 credits/request)
-    // premium_proxy: 'true',  // uncomment if CF blocks — costs 25 credits/request instead of 5
-  });
+    render_js: 'true',
+  };
+  if (premium) params.premium_proxy = 'true';
+
+  const endpoint = 'https://app.scrapingbee.com/api/v1/?' + new URLSearchParams(params);
 
   if (DEBUG) console.log(`    ScrapingBee fetch${label ? ' (' + label + ')' : ''}: ${url}`);
 
@@ -152,18 +155,18 @@ async function fetchPaymentHistory(accountNum) {
 
   let html;
   try {
-    html = await fetchPage(histUrl, 'payment history');
+    html = await fetchPage(histUrl, 'payment history', true);
   } catch (err) {
     if (!err.message.includes('404')) throw err;
     if (DEBUG) console.log(`    PaymentHistory URL returned 404 — trying AccountDetails`);
-    const detailHtml = await fetchPage(detailUrl, 'account details');
+    const detailHtml = await fetchPage(detailUrl, 'account details', true);
 
     // Find the payment history link on the details page
     const linkMatch = detailHtml.match(/href="([^"]*(?:PaymentHistory|payment-history|payment_history)[^"]*)"/i);
     if (linkMatch) {
       const payUrl = linkMatch[1].startsWith('http') ? linkMatch[1] : BASE + linkMatch[1];
       if (DEBUG) console.log(`    Found payment link: ${payUrl}`);
-      html = await fetchPage(payUrl, 'payment history (via details)');
+      html = await fetchPage(payUrl, 'payment history (via details)', true);
     } else {
       if (DEBUG) console.log(`    No payment history link found on AccountDetails page`);
       html = detailHtml; // try parsing the details page itself
