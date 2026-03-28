@@ -52,7 +52,7 @@ function normalizeStreet(address) {
 // ── Search Tarrant County for a property and return its account number ─────────
 async function findAccountNumber(page, address) {
   const streetPart = address.split(',')[0].trim();
-  const searchTokens = streetPart.split(/\s+/).slice(0, 3).join(' ');
+  const searchTokens = streetPart.split(/\s+/).slice(0, 2).join(' '); // e.g. "2717 Laurel"
   const url = `${BASE}/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(searchTokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
 
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
