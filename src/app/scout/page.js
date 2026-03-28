@@ -104,7 +104,8 @@ export default function ScoutPage() {
   const [taxFetching, setTaxFetching] = useState({}); // mls_num → true while fetching
   const [taxBulkRunning, setTaxBulkRunning] = useState(false);
   const [taxBulkProgress, setTaxBulkProgress] = useState(null); // "12/100"
-  const [editingTax, setEditingTax] = useState(null); // mls_num being edited
+  const [editingTax, setEditingTax] = useState(null);     // mls_num editing annual amount
+  const [editingTaxAcct, setEditingTaxAcct] = useState(null); // mls_num editing account number
 
   // Filter / search / page
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
@@ -1122,43 +1123,57 @@ export default function ScoutPage() {
                       {(() => {
                         const streetPart = (listing.address || '').split(',')[0].trim();
                         const tokens = streetPart.split(/\s+/).slice(0, 2).join(' ');
-                        const taxSearchUrl = `https://www.tax.tarrantcountytx.gov/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(tokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
+                        const acct = listing.tax_account_num;
+                        const lookupUrl = acct
+                          ? `https://www.tax.tarrantcountytx.gov/Accounts/AccountDetails?taxAccountNumber=${acct}`
+                          : `https://www.tax.tarrantcountytx.gov/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(tokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
+
                         if (editingTax === listing.mls_num) {
                           return (
-                            <input
-                              autoFocus
-                              type="number"
-                              placeholder="annual $"
+                            <input autoFocus type="number" placeholder="annual $"
                               defaultValue={listing.tax_annual ? Math.round(Number(listing.tax_annual)) : ''}
-                              onBlur={e => {
-                                const val = e.target.value.trim();
-                                setEditingTax(null);
-                                if (val) patchListing(listing.mls_num, { tax_annual: Number(val) });
-                              }}
+                              onBlur={e => { const val = e.target.value.trim(); setEditingTax(null); if (val) patchListing(listing.mls_num, { tax_annual: Number(val) }); }}
                               onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingTax(null); }}
                               className="w-20 bg-gray-700 border border-blue-500 rounded px-1 py-0.5 text-white text-xs focus:outline-none"
                             />
                           );
                         }
-                        return listing.tax_annual ? (
+                        if (editingTaxAcct === listing.mls_num) {
+                          return (
+                            <input autoFocus type="text" placeholder="acct #"
+                              defaultValue={acct || ''}
+                              onBlur={e => { const val = e.target.value.trim(); setEditingTaxAcct(null); if (val) patchListing(listing.mls_num, { tax_account_num: val }); }}
+                              onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingTaxAcct(null); }}
+                              className="w-24 bg-gray-700 border border-amber-500 rounded px-1 py-0.5 text-white text-xs focus:outline-none"
+                            />
+                          );
+                        }
+                        return (
                           <div className="flex flex-col items-center gap-0.5">
-                            <button onClick={() => setEditingTax(listing.mls_num)}
-                                    className="text-xs text-gray-400 hover:text-white"
-                                    title="Click to edit">
-                              ${Math.round(Number(listing.tax_annual)/12)}/mo
-                            </button>
-                            <span className="text-xs text-gray-600">${Math.round(Number(listing.tax_annual)).toLocaleString()}/yr</span>
-                            <a href={taxSearchUrl} target="_blank" rel="noreferrer"
-                               className="text-xs text-blue-400 hover:text-blue-300 underline">lookup</a>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <a href={taxSearchUrl} target="_blank" rel="noreferrer"
+                            {listing.tax_annual ? (
+                              <>
+                                <button onClick={() => setEditingTax(listing.mls_num)}
+                                        className="text-xs text-gray-400 hover:text-white" title="Click to edit">
+                                  ${Math.round(Number(listing.tax_annual)/12)}/mo
+                                </button>
+                                <span className="text-xs text-gray-600">${Math.round(Number(listing.tax_annual)).toLocaleString()}/yr</span>
+                              </>
+                            ) : (
+                              <button onClick={() => setEditingTax(listing.mls_num)}
+                                      className="text-xs text-gray-500 hover:text-gray-300" title="Enter annual tax amount">
+                                enter $
+                              </button>
+                            )}
+                            <a href={lookupUrl} target="_blank" rel="noreferrer"
                                className="text-xs text-blue-400 hover:text-blue-300 underline"
-                               title="Look up on Tarrant County tax site">Tax ↗</a>
-                            <button onClick={() => setEditingTax(listing.mls_num)}
-                                    className="text-xs text-gray-500 hover:text-gray-300"
-                                    title="Enter annual tax amount manually">enter</button>
+                               title={acct ? `Account ${acct}` : 'Search Tarrant County tax site'}>
+                              {acct ? 'view acct' : 'Tax ↗'}
+                            </a>
+                            <button onClick={() => setEditingTaxAcct(listing.mls_num)}
+                                    className="text-xs text-gray-600 hover:text-gray-400"
+                                    title={acct ? `Account: ${acct} — click to edit` : 'Enter account number from county site'}>
+                              {acct ? `#${acct.replace(/^0+/, '')}` : 'acct#'}
+                            </button>
                           </div>
                         );
                       })()}
