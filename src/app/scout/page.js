@@ -1129,18 +1129,25 @@ export default function ScoutPage() {
 
                     {/* Prop Tax */}
                     <td className="px-1 text-center">
-                      {listing.tax_annual ? (
-                        <span className="text-xs text-gray-400">${Math.round(Number(listing.tax_annual)/12)}/mo</span>
-                      ) : (
-                        <button
-                          onClick={() => fetchTax(listing.mls_num)}
-                          disabled={!!taxFetching[listing.mls_num]}
-                          className="text-xs px-1 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-40"
-                          title="Run locally: npm run scout:tax"
-                        >
-                          {taxFetching[listing.mls_num] ? '…' : 'Tax'}
-                        </button>
-                      )}
+                      {(() => {
+                        const streetPart = (listing.address || '').split(',')[0].trim();
+                        const tokens = streetPart.split(/\s+/).slice(0, 3).join(' ');
+                        const taxSearchUrl = `https://www.tax.tarrantcountytx.gov/Search/Results?Query.SearchField=5&Query.SearchText=${encodeURIComponent(tokens)}&Query.SearchAction=&Query.PropertyType=&Query.IncludeInactiveAccounts=False&Query.PayStatus=Both`;
+                        return listing.tax_annual ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="text-xs text-gray-400">${Math.round(Number(listing.tax_annual)/12)}/mo</span>
+                            <span className="text-xs text-gray-600">${Math.round(Number(listing.tax_annual)).toLocaleString()}/yr</span>
+                            <a href={taxSearchUrl} target="_blank" rel="noreferrer"
+                               className="text-xs text-blue-400 hover:text-blue-300 underline">lookup</a>
+                          </div>
+                        ) : (
+                          <a href={taxSearchUrl} target="_blank" rel="noreferrer"
+                             className="text-xs px-1 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300"
+                             title="Look up on Tarrant County tax site">
+                            Tax ↗
+                          </a>
+                        );
+                      })()}
                     </td>
 
                     {/* Notes */}
