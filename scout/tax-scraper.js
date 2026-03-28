@@ -146,8 +146,29 @@ async function findAccountNumber(address) {
 
 // ── Get most recent annual tax payment for an account ─────────────────────────
 async function fetchPaymentHistory(accountNum) {
-  const url  = `${BASE}/Accounts/PaymentHistory?taxAccountNumber=${accountNum}`;
-  const html = await fetchPage(url, 'payment history');
+  // Try direct payment history URL first; if 404, go via AccountDetails page
+  const histUrl    = `${BASE}/Accounts/PaymentHistory?taxAccountNumber=${accountNum}`;
+  const detailUrl  = `${BASE}/Accounts/AccountDetails?taxAccountNumber=${accountNum}`;
+
+  let html;
+  try {
+    html = await fetchPage(histUrl, 'payment history');
+  } catch (err) {
+    if (!err.message.includes('404')) throw err;
+    if (DEBUG) console.log(`    PaymentHistory URL returned 404 — trying AccountDetails`);
+    const detailHtml = await fetchPage(detailUrl, 'account details');
+
+    // Find the payment history link on the details page
+    const linkMatch = detailHtml.match(/href="([^"]*(?:PaymentHistory|payment-history|payment_history)[^"]*)"/i);
+    if (linkMatch) {
+      const payUrl = linkMatch[1].startsWith('http') ? linkMatch[1] : BASE + linkMatch[1];
+      if (DEBUG) console.log(`    Found payment link: ${payUrl}`);
+      html = await fetchPage(payUrl, 'payment history (via details)');
+    } else {
+      if (DEBUG) console.log(`    No payment history link found on AccountDetails page`);
+      html = detailHtml; // try parsing the details page itself
+    }
+  }
 
   if (DEBUG) {
     writeFileSync(join(__dirname, 'debug-tax-payment.html'), html);
