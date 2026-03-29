@@ -72,7 +72,8 @@ const PAGE_SIZE = 50;
 export default function ScoutPage() {
   const router = useRouter();
   const [listings, setListings] = useState([]);
-  const [stats, setStats] = useState({ total: 0, potential: 0, skip: 0, great: 0 });
+  const [stats, setStats] = useState({ total: 0, potential: 0, skip: 0, great: 0, pending: 0 });
+  const [pendingListings, setPendingListings] = useState([]);
   const [config, setConfig] = useState(null);
   const [configDraft, setConfigDraft] = useState({});
   const [configOpen, setConfigOpen] = useState(false);
@@ -125,29 +126,27 @@ export default function ScoutPage() {
   const commitSearch = useCallback(() => setDebouncedSearch(search), [search]);
 
   // Fetch listings from server whenever sort/filter/search params change
+  // Both tabs are fetched in parallel so switching tabs is instant (no re-fetch)
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({
-      sort: sortCol,
-      dir: sortDir,
-      search: debouncedSearch,
-      priceMin,
-      priceMax,
-      tab: activeTab,
-    });
+    const baseParams = { sort: sortCol, dir: sortDir, search: debouncedSearch, priceMin, priceMax };
+    const activeParams = new URLSearchParams({ ...baseParams, tab: 'active' });
+    const pendingParams = new URLSearchParams({ ...baseParams, tab: 'pending', limit: '200' });
     Promise.all([
-      fetch(`/api/scout/listings?${params}`).then(r => r.json()),
+      fetch(`/api/scout/listings?${activeParams}`).then(r => r.json()),
+      fetch(`/api/scout/listings?${pendingParams}`).then(r => r.json()),
       fetch('/api/scout/config').then(r => r.json()),
     ])
-      .then(([data, configData]) => {
-        setListings(data.listings ?? []);
-        setStats(data.stats ?? { total: 0, potential: 0, skip: 0, great: 0 });
+      .then(([activeData, pendingData, configData]) => {
+        setListings(activeData.listings ?? []);
+        setPendingListings(pendingData.listings ?? []);
+        setStats({ ...(activeData.stats ?? { total: 0, potential: 0, skip: 0, great: 0 }), pending: pendingData.listings?.length ?? 0 });
         setConfig(configData);
         setConfigDraft(configData);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax, activeTab]);
+  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax]);
 
   // Merge DB data with local edits for a row
   const getMark = useCallback((listing) => {
@@ -222,7 +221,7 @@ export default function ScoutPage() {
   // Compute metrics for rendered rows — use server pre-computed values unless there are local edits
   const metricsMap = useMemo(() => {
     const m = {};
-    listings.forEach(l => {
+    [...listings, ...pendingListings].forEach(l => {
       const hasEdits = localEdits[l.mls_num] || l.tax_annual != null;
       if (hasEdits) {
         const mark = getMark(l);
@@ -233,7 +232,7 @@ export default function ScoutPage() {
       }
     });
     return m;
-  }, [listings, localEdits, getMark]);
+  }, [listings, pendingListings, localEdits, getMark]);
 
   // Handle column header click: update sort state → triggers re-fetch
   const handleSort = useCallback((col) => {
@@ -709,13 +708,13 @@ export default function ScoutPage() {
           onClick={() => { setActiveTab('active'); setPage(1); }}
           className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${activeTab === 'active' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
         >
-          Active
+          Active {stats.total > 0 && <span className="ml-1 text-xs opacity-80">({stats.total})</span>}
         </button>
         <button
           onClick={() => { setActiveTab('pending'); setPage(1); }}
           className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${activeTab === 'pending' ? 'bg-yellow-600 text-white' : 'text-gray-400 hover:text-white'}`}
         >
-          Pending {stats.pending > 0 && <span className="ml-1 bg-yellow-700 text-yellow-200 text-xs px-1.5 py-0.5 rounded-full">{stats.pending}</span>}
+          Pending {stats.pending > 0 && <span className="ml-1 text-xs opacity-80">({stats.pending})</span>}
         </button>
       </div>
 
@@ -829,15 +828,15 @@ export default function ScoutPage() {
 
       {/* Pending Table */}
       {activeTab === 'pending' && (
-        listings.length === 0 ? (
+        pendingListings.length === 0 ? (
           <div className="bg-gray-800 rounded-xl p-12 text-center">
             <p className="text-gray-400 text-lg mb-2">No pending listings yet.</p>
-            <p className="text-gray-600 text-sm">Properties will appear here when they go Pending in MLS.</p>
+            <p className="text-gray-600 text-sm">Properties will appear here when they go Pending in MLS after the next scrape.</p>
           </div>
         ) : (
           <div className="bg-gray-800 rounded-xl overflow-x-auto">
             <div className="px-3 py-2 border-b border-gray-700">
-              <span className="text-xs text-gray-500">{listings.length} pending — not purchasable, for reference only</span>
+              <span className="text-xs text-gray-500">{pendingListings.length} pending — not purchasable, for reference only</span>
             </div>
             <table className="w-full text-sm">
               <thead>
@@ -854,7 +853,7 @@ export default function ScoutPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {listings.map(listing => {
+                {pendingListings.map(listing => {
                   const metrics = metricsMap[listing.mls_num];
                   return (
                     <tr key={listing.mls_num} className="hover:bg-gray-750 text-gray-400">
