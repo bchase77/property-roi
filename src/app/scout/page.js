@@ -1235,8 +1235,9 @@ export default function ScoutPage() {
                               </>
                             ) : (
                               <button onClick={() => setEditingTax(listing.mls_num)}
-                                      className="text-xs text-gray-500 hover:text-gray-300" title="Enter annual tax amount">
-                                enter $
+                                      className="text-xs text-gray-600 hover:text-gray-300 italic"
+                                      title="Estimated at 2.3% — click to enter actual">
+                                ~${listing.price ? Math.round(Number(listing.price) * 0.023 / 12).toLocaleString() : '—'}/mo
                               </button>
                             )}
                             <a href={lookupUrl} target="_blank" rel="noreferrer"
