@@ -228,7 +228,7 @@ export default function ScoutPage() {
         m[l.mls_num] = calcM(l, mark, DEFAULTS);
       } else {
         // Use pre-computed values from server
-        m[l.mls_num] = l.cf != null ? { cf: l.cf, cap: l.cap, coc: l.coc, atroi: l.atroi, atroiErr: l.atroiErr, roi5: l.roi5, rent: l.rent } : null;
+        m[l.mls_num] = l.cf != null ? { cf: l.cf, cap: l.cap, coc: l.coc, atroi: l.atroi, atroiErr: l.atroiErr, roi5: l.roi5, rent: l.rent, rentPct: l.rentPct } : null;
       }
     });
     return m;
