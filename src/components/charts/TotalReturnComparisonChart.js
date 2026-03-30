@@ -254,7 +254,7 @@ export default function TotalReturnComparisonChart({ properties }) {
                   strokeWidth={2}
                   name={displayLabel}
                   connectNulls={false}
-                  legendType="line"
+                  legendType="plainline"
                 />
               );
             })}
@@ -273,7 +273,7 @@ export default function TotalReturnComparisonChart({ properties }) {
                   strokeDasharray="8 4"
                   name={benchmark}
                   connectNulls={false}
-                  legendType="line"
+                  legendType="plainline"
                 />
               );
             })}
