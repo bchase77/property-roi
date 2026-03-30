@@ -254,14 +254,15 @@ export default function TotalReturnComparisonChart({ properties }) {
                   strokeWidth={2}
                   name={displayLabel}
                   connectNulls={false}
+                  legendType="line"
                 />
               );
             })}
-            
+
             {/* Benchmark lines */}
             {Object.keys(benchmarkColors).map((benchmark) => {
               if (!visibleSeries[benchmark]) return null;
-              
+
               return (
                 <Line
                   key={benchmark}
@@ -272,6 +273,7 @@ export default function TotalReturnComparisonChart({ properties }) {
                   strokeDasharray="8 4"
                   name={benchmark}
                   connectNulls={false}
+                  legendType="line"
                 />
               );
             })}

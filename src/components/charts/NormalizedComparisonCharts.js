@@ -291,6 +291,7 @@ export default function NormalizedComparisonCharts({ properties = [], scenarios 
                     strokeDasharray={isPurchased ? "0" : "8 4"}
                     name={`${displayLabel} (${isMortgageFree ? 'Owned' : `${downPaymentPct}%dp`})${isPurchased ? '' : ' (prj)'}`}
                     connectNulls={false}
+                    legendType="line"
                   />
                 );
               })}
