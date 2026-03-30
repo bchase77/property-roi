@@ -46,6 +46,7 @@ export async function GET(req) {
       atroiErr: metrics?.atroiErr ?? false,
       roi5:     metrics?.roi5     ?? null,
       rent:     metrics?.rent     ?? null,
+      rentPct:  metrics?.rentPct  ?? null,
     };
   });
 
@@ -92,7 +93,7 @@ export async function GET(req) {
   };
 
   // Sort
-  const metricCols = new Set(['atroi', 'cf', 'cap', 'coc', 'roi5']);
+  const metricCols = new Set(['atroi', 'cf', 'cap', 'coc', 'roi5', 'rentPct']);
   const numericCols = new Set(['price', 'beds', 'sqft']);
 
   filtered.sort((a, b) => {

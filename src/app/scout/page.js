@@ -845,6 +845,7 @@ export default function ScoutPage() {
                   <th className="px-3 py-3 font-medium">Price</th>
                   <th className="px-3 py-3 font-medium">Bd/Ba/Sqft</th>
                   <th className="px-3 py-3 font-medium">Cash Flow</th>
+                  <th className="px-3 py-3 font-medium">Rent %</th>
                   <th className="px-3 py-3 font-medium">Cap</th>
                   <th className="px-3 py-3 font-medium">CoC</th>
                   <th className="px-3 py-3 font-medium">5yr ROI</th>
@@ -869,6 +870,7 @@ export default function ScoutPage() {
                         <div className="text-gray-500">{listing.sqft ? listing.sqft.toLocaleString() : '—'} sf</div>
                       </td>
                       <td className="px-3 py-2 text-xs">{metrics ? <span className={metrics.cf >= 0 ? 'text-green-400' : 'text-red-400'}>{fmt$(metrics.cf)}</span> : '—'}</td>
+                      <td className="px-3 py-2 text-xs">{metrics?.rentPct != null ? <span className={metrics.rentPct >= 1.1 ? 'text-green-400' : 'text-red-400'}>{metrics.rentPct.toFixed(2)}%</span> : '—'}</td>
                       <td className="px-3 py-2 text-xs text-gray-300">{metrics ? fmtPct(metrics.cap) : '—'}</td>
                       <td className="px-3 py-2 text-xs text-gray-300">{metrics ? fmtPct(metrics.coc) : '—'}</td>
                       <td className="px-3 py-2 text-xs text-gray-300">{metrics ? fmtPct(metrics.roi5) : '—'}</td>
@@ -913,11 +915,12 @@ export default function ScoutPage() {
                   { col: null,     label: 'Repairs $' },
                   { col: null,     label: 'HOA $/qtr' },
                   { col: null,    label: 'Est. Rent' },
-                  { col: 'cf',    label: 'Cash Flow' },
-                  { col: 'cap',   label: 'Cap' },
-                  { col: 'coc',   label: 'CoC' },
-                  { col: 'roi5',  label: '5yr ROI' },
-                  { col: 'atroi', label: '30y ATROI' },
+                  { col: 'cf',      label: 'Cash Flow' },
+                  { col: 'rentPct', label: 'Rent %' },
+                  { col: 'cap',     label: 'Cap' },
+                  { col: 'coc',     label: 'CoC' },
+                  { col: 'roi5',    label: '5yr ROI' },
+                  { col: 'atroi',   label: '30y ATROI' },
                   { col: null,    label: 'Prop Tax' },
                   { col: null,    label: 'Notes' },
                   { col: null,    label: 'Mark' },
@@ -1171,6 +1174,15 @@ export default function ScoutPage() {
                       ) : (
                         <span className="text-gray-500 text-xs">—</span>
                       )}
+                    </td>
+
+                    {/* Rent % */}
+                    <td className="px-3 py-2 whitespace-nowrap text-xs">
+                      {metrics?.rentPct != null ? (
+                        <span className={`font-bold ${metrics.rentPct >= 1.1 ? 'text-green-400' : 'text-red-400'}`}>
+                          {metrics.rentPct.toFixed(2)}%
+                        </span>
+                      ) : <span className="text-gray-500">—</span>}
                     </td>
 
                     {/* Cap Rate */}

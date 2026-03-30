@@ -51,5 +51,9 @@ export function calcM(listing, mark, A = DEFAULTS) {
   const cashFlow5 = cf * 12 * 5;
   const roi5Raw = paid > 0 ? Math.round(((appGain + principalPaid5 + cashFlow5) / paid / 5) * 1000) / 10 : null;
   const roi5 = Number.isFinite(roi5Raw) && Math.abs(roi5Raw) <= 10000 ? roi5Raw : null;
-  return { cf, cap, coc, atroi, atroiErr, roi5, rent: Math.round(rent) };
+  // ── Rent % of total cost (1% rule variant) ──────────────────────────────────
+  const totalCost = price + rep;
+  const rentPctRaw = totalCost > 0 ? Math.round((rent / totalCost) * 10000) / 100 : null;
+  const rentPct = Number.isFinite(rentPctRaw) ? rentPctRaw : null;
+  return { cf, cap, coc, atroi, atroiErr, roi5, rent: Math.round(rent), rentPct };
 }
