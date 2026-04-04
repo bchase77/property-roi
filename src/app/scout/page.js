@@ -1002,19 +1002,26 @@ export default function ScoutPage() {
                           className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1 text-white text-xs focus:outline-none"
                         />
                       ) : (
-                        <div
-                          className="font-medium text-white text-xs leading-tight cursor-pointer hover:text-blue-300 group"
-                          title="Click to edit address"
-                          onClick={() => setEditingAddress(listing.mls_num)}
-                        >
-                          {listing.href ? (
-                            <a href={listing.href} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors" onClick={e => e.stopPropagation()}>
-                              {listing.address}
-                            </a>
-                          ) : (
-                            listing.address
-                          )}
-                          <span className="ml-1 text-gray-600 opacity-0 group-hover:opacity-100 text-xs">✎</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => copyToClipboard(listing.address)}
+                            className="text-gray-600 hover:text-gray-300 flex-shrink-0"
+                            title="Copy address"
+                          >⎘</button>
+                          <div
+                            className="font-medium text-white text-xs leading-tight cursor-pointer hover:text-blue-300 group"
+                            title="Click to edit address"
+                            onClick={() => setEditingAddress(listing.mls_num)}
+                          >
+                            {listing.href ? (
+                              <a href={listing.href} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors" onClick={e => e.stopPropagation()}>
+                                {listing.address}
+                              </a>
+                            ) : (
+                              listing.address
+                            )}
+                            <span className="ml-1 text-gray-600 opacity-0 group-hover:opacity-100 text-xs">✎</span>
+                          </div>
                         </div>
                       )}
                       <div className="flex items-center gap-1 mt-0.5">
