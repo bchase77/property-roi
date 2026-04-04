@@ -10,9 +10,13 @@ export async function GET(req) {
   const sort     = searchParams.get('sort')     || 'atroi';
   const dir      = searchParams.get('dir')      || 'desc';
   const search   = searchParams.get('search')   || '';
-  const priceMin = searchParams.get('priceMin') || '';
-  const priceMax = searchParams.get('priceMax') || '';
-  const tab      = searchParams.get('tab')      || 'active'; // 'active' | 'pending'
+  const priceMin   = searchParams.get('priceMin')   || '';
+  const priceMax   = searchParams.get('priceMax')   || '';
+  const rentPctMin = searchParams.get('rentPctMin') || '';
+  const cfMin      = searchParams.get('cfMin')      || '';
+  const capMin     = searchParams.get('capMin')      || '';
+  const bedsMin    = searchParams.get('bedsMin')    || '';
+  const tab        = searchParams.get('tab')        || 'active'; // 'active' | 'pending'
   const limit    = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
 
   // Fetch ALL rows (no LIMIT) with the same JOIN as before
@@ -83,15 +87,13 @@ export async function GET(req) {
     }
   }
 
-  // Apply price filters
-  if (priceMin !== '') {
-    const min = Number(priceMin);
-    filtered = filtered.filter(r => Number(r.price) >= min);
-  }
-  if (priceMax !== '') {
-    const max = Number(priceMax);
-    filtered = filtered.filter(r => Number(r.price) <= max);
-  }
+  // Apply filters
+  if (priceMin   !== '') filtered = filtered.filter(r => Number(r.price)   >= Number(priceMin));
+  if (priceMax   !== '') filtered = filtered.filter(r => Number(r.price)   <= Number(priceMax));
+  if (rentPctMin !== '') filtered = filtered.filter(r => r.rentPct != null && r.rentPct >= Number(rentPctMin));
+  if (cfMin      !== '') filtered = filtered.filter(r => r.cf      != null && r.cf      >= Number(cfMin));
+  if (capMin     !== '') filtered = filtered.filter(r => r.cap     != null && r.cap     >= Number(capMin));
+  if (bedsMin    !== '') filtered = filtered.filter(r => Number(r.beds)    >= Number(bedsMin));
 
   // Helper: extract state from address
   const extractState = (address) => {

@@ -116,6 +116,10 @@ export default function ScoutPage() {
   const [filterEntry, setFilterEntry] = useState('all');   // 'all' | 'entered' | 'not-entered'
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
+  const [rentPctMin, setRentPctMin] = useState('');
+  const [cfMin, setCfMin] = useState('');
+  const [capMin, setCapMin] = useState('');
+  const [bedsMin, setBedsMin] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -129,7 +133,7 @@ export default function ScoutPage() {
   // Both tabs are fetched in parallel so switching tabs is instant (no re-fetch)
   useEffect(() => {
     setLoading(true);
-    const baseParams = { sort: sortCol, dir: sortDir, search: debouncedSearch, priceMin, priceMax };
+    const baseParams = { sort: sortCol, dir: sortDir, search: debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin };
     const activeParams = new URLSearchParams({ ...baseParams, tab: 'active' });
     const pendingParams = new URLSearchParams({ ...baseParams, tab: 'pending', limit: '200' });
     Promise.all([
@@ -146,7 +150,7 @@ export default function ScoutPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax]);
+  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin]);
 
   // Merge DB data with local edits for a row
   const getMark = useCallback((listing) => {
@@ -267,7 +271,7 @@ export default function ScoutPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Reset to page 1 when filter/sort/search changes
-  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortCol, priceMin, priceMax, debouncedSearch]);
+  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortCol, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, debouncedSearch]);
 
   const saveConfig = async () => {
     try {
@@ -807,6 +811,25 @@ export default function ScoutPage() {
           />
         </div>
 
+        {/* Metric filters */}
+        {[
+          { label: 'Rent% ≥', value: rentPctMin, set: setRentPctMin, placeholder: '1.1', width: 'w-12' },
+          { label: 'CF ≥ $', value: cfMin,      set: setCfMin,      placeholder: '0',   width: 'w-14' },
+          { label: 'Cap ≥',  value: capMin,     set: setCapMin,     placeholder: '5',   width: 'w-10' },
+          { label: 'Beds ≥', value: bedsMin,    set: setBedsMin,    placeholder: '2',   width: 'w-10' },
+        ].map(({ label, value, set, placeholder, width }) => (
+          <div key={label} className="flex items-center gap-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1">
+            <span className="text-xs text-gray-500 whitespace-nowrap">{label}</span>
+            <input
+              type="number"
+              value={value}
+              onChange={e => set(e.target.value)}
+              placeholder={placeholder}
+              className={`${width} bg-transparent text-sm text-gray-300 focus:outline-none`}
+            />
+          </div>
+        ))}
+
         <div className="flex items-center gap-1">
           <input
             type="text"
@@ -900,7 +923,7 @@ export default function ScoutPage() {
           <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between">
             <span className="text-xs text-gray-500">
               Showing top {listings.length} by <span className="text-gray-400 font-medium">{sortCol}</span> ({sortDir})
-              {(debouncedSearch || priceMin || priceMax) && ' · filtered'}
+              {(debouncedSearch || priceMin || priceMax || rentPctMin || cfMin || capMin || bedsMin) && ' · filtered'}
             </span>
             <span className="text-xs text-gray-400">
               {filtered.length} shown after status filter
