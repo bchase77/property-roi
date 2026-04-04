@@ -70,7 +70,7 @@ export const GROUP_DEFAULTS = {
   saleCostPct:   0.06,   // selling costs at exit
   holdYears:     5,
   appRate:       0.03,   // 3% annual appreciation
-  mgrEquityShare: 0.60,  // manager gets 60% of equity proceeds/CF; silent equity gets 40%
+  mgrEquityShare: 0.50,  // equal equity split; manager's extra comes from management fees only
 };
 
 export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
