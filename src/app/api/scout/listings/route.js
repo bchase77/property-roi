@@ -68,11 +68,17 @@ export async function GET(req) {
     filtered = withMetrics.filter(r => !r.listing_status || r.listing_status.toLowerCase() === 'active');
   }
   if (search) {
-    const q = search.toLowerCase();
-    filtered = filtered.filter(r =>
-      (r.address?.toLowerCase().includes(q)) ||
-      (r.mls_num?.toLowerCase().includes(q))
-    );
+    const haystack = r => [r.address, r.mls_num, r.mark_notes].filter(Boolean).join(' ').toLowerCase();
+    const phraseMatch = search.match(/^"(.+)"$/);
+    if (phraseMatch) {
+      // Quoted phrase — exact substring match
+      const phrase = phraseMatch[1].toLowerCase();
+      filtered = filtered.filter(r => haystack(r).includes(phrase));
+    } else {
+      // Unquoted words — OR logic (any word matches)
+      const words = search.toLowerCase().split(/\s+/).filter(Boolean);
+      filtered = filtered.filter(r => { const h = haystack(r); return words.some(w => h.includes(w)); });
+    }
   }
 
   // Apply price filters
