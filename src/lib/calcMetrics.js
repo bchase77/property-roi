@@ -70,7 +70,7 @@ export const GROUP_DEFAULTS = {
   saleCostPct:   0.06,   // selling costs at exit
   holdYears:     5,
   appRate:       0.03,   // 3% annual appreciation
-  mgrEquityShare: 0.50,  // equal equity split; manager's extra comes from management fees only
+  mgrEquityShare: 0.55,  // manager gets 55% of equity proceeds/CF; silent equity gets 45%
 };
 
 export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
@@ -142,10 +142,10 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
   // Equity profit (silent investor)
   const equityProfit = equityProfit_silent;
 
-  // Manager: larger equity share (mgrEquityShare) + management fees
+  // Manager: larger equity share only — management fee goes to local PM, not manager
   const mgrProceeds    = Math.round(netAfterDebt * G.mgrEquityShare);
   const mgrCF5yr       = equityCFMo * G.holdYears * 12 * G.mgrEquityShare;
-  const mgrTotalReturn = mgrProceeds + Math.round(mgrCF5yr) + mgmtFee5yr;
+  const mgrTotalReturn = mgrProceeds + Math.round(mgrCF5yr);
   const mgrProfit      = mgrTotalReturn - perEquityInvestor;
   const mgrROI5Raw      = perEquityInvestor > 0
     ? mgrProfit / perEquityInvestor / G.holdYears * 100
