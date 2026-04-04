@@ -65,11 +65,12 @@ export function calcM(listing, mark, A = DEFAULTS) {
 //   1 managing equity × (price × 1/3 ÷ 2)        → same equity + management fee income
 // Total raise = purchase price + closing costs + repairs (covered by equity investors)
 export const GROUP_DEFAULTS = {
-  debtRate:    0.08,   // 8% APR to debt investors
-  debtRatio:   2/3,    // debt investors fund 2/3 of price
-  saleCostPct: 0.06,   // selling costs at exit
-  holdYears:   5,
-  appRate:     0.03,   // 3% annual appreciation
+  debtRate:      0.08,   // 8% APR to debt investors
+  debtRatio:     2/3,    // debt investors fund 2/3 of price
+  saleCostPct:   0.06,   // selling costs at exit
+  holdYears:     5,
+  appRate:       0.03,   // 3% annual appreciation
+  mgrEquityShare: 0.60,  // manager gets 60% of equity proceeds/CF; silent equity gets 40%
 };
 
 export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
@@ -101,23 +102,32 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
   const vac   = rent * (A.vacancyPctRent / 100);
   const opEx  = tax + hoa + ins + maint + vac + mgmt;
 
-  // Monthly cash flow available to equity investors (split 50/50)
-  const equityCFMo      = rent - debtInterestMo - opEx;
-  const equityCF5yr     = equityCFMo * 12 * G.holdYears;
-  const perEquityCFMo   = Math.round(equityCFMo / 2);
+  // Monthly cash flow available to equity investors
+  const equityCFMo    = rent - debtInterestMo - opEx;
+  const equityCF5yr   = equityCFMo * 12 * G.holdYears;
 
   // 5-year exit
-  const salePrice          = price * Math.pow(1 + G.appRate, G.holdYears);
-  const saleCosts          = salePrice * G.saleCostPct;
-  const netAfterDebt       = salePrice - saleCosts - debtTotal; // to equity investors
-  const perEquityProceeds  = Math.round(netAfterDebt / 2);      // each equity investor's sale share
+  const salePrice    = price * Math.pow(1 + G.appRate, G.holdYears);
+  const saleCosts    = salePrice * G.saleCostPct;
+  const netAfterDebt = salePrice - saleCosts - debtTotal;
 
-  // Equity investor total 5yr return (cash flows + sale proceeds vs. cash invested)
-  const perEquityTotal  = perEquityProceeds + Math.round(equityCF5yr / 2);
-  const equityROI5Raw   = perEquityInvestor > 0
-    ? (perEquityTotal - perEquityInvestor) / perEquityInvestor / G.holdYears * 100
+  // Equity split: manager gets mgrEquityShare, silent equity gets remainder
+  const silentShare = 1 - G.mgrEquityShare;
+  const silentProceeds = Math.round(netAfterDebt * silentShare);
+  const silentCFMo     = Math.round(equityCFMo * silentShare);
+  const silentCF5yr    = equityCFMo * G.holdYears * 12 * silentShare;
+
+  // Silent equity investor ROI
+  const silentTotal   = silentProceeds + Math.round(silentCF5yr);
+  const equityROI5Raw = perEquityInvestor > 0
+    ? (silentTotal - perEquityInvestor) / perEquityInvestor / G.holdYears * 100
     : null;
   const equityROI5 = Number.isFinite(equityROI5Raw) ? Math.round(equityROI5Raw * 10) / 10 : null;
+  const equityProfit_silent = silentTotal - perEquityInvestor;
+
+  // Convenience aliases used below
+  const perEquityProceeds = silentProceeds;
+  const perEquityCFMo     = silentCFMo;
 
   // Debt investor total return (simple interest, 8% × 5yr)
   const debtReturn5yr = Math.round(perDebtInvestor * G.debtRate * G.holdYears);
@@ -129,12 +139,14 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
   // Manager extra: management fee income over 5yr (on top of equal equity share)
   const mgmtFee5yr = Math.round(mgmt * 12 * G.holdYears);
 
-  // Equity profit (total return minus capital invested)
-  const equityProfit = perEquityProceeds + Math.round(equityCF5yr / 2) - perEquityInvestor;
+  // Equity profit (silent investor)
+  const equityProfit = equityProfit_silent;
 
-  // Manager ROI: same equity return + management fee income on top
-  const mgrTotalReturn  = perEquityProceeds + Math.round(equityCF5yr / 2) + mgmtFee5yr;
-  const mgrProfit       = mgrTotalReturn - perEquityInvestor;
+  // Manager: larger equity share (mgrEquityShare) + management fees
+  const mgrProceeds    = Math.round(netAfterDebt * G.mgrEquityShare);
+  const mgrCF5yr       = equityCFMo * G.holdYears * 12 * G.mgrEquityShare;
+  const mgrTotalReturn = mgrProceeds + Math.round(mgrCF5yr) + mgmtFee5yr;
+  const mgrProfit      = mgrTotalReturn - perEquityInvestor;
   const mgrROI5Raw      = perEquityInvestor > 0
     ? mgrProfit / perEquityInvestor / G.holdYears * 100
     : null;
@@ -148,12 +160,13 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
     perEquityInvestor,
     debtMo: Math.round(debtInterestMo / 2),
     debtReturn5yr,
-    equityCFMo: perEquityCFMo,
+    equityCFMo: perEquityCFMo,      // silent equity investor monthly CF
     equityProceeds: perEquityProceeds,
     equityROI5,
     equityProfit: Math.round(equityProfit),
     managerROI5,
     mgrProfit: Math.round(mgrProfit),
+    mgrEquityShare: G.mgrEquityShare,
     debtROI5,
     mgmtFee5yr,
     debtMonthlyVsAtSale,
