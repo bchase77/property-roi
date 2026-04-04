@@ -57,3 +57,87 @@ export function calcM(listing, mark, A = DEFAULTS) {
   const rentPct = Number.isFinite(rentPctRaw) ? rentPctRaw : null;
   return { cf, cap, coc, atroi, atroiErr, roi5, rent: Math.round(rent), rentPct };
 }
+
+// ── Group Deal: 5-person investor structure ───────────────────────────────────
+// Structure (cash purchase — no bank mortgage):
+//   2 debt investors  × (price × 2/3 ÷ 2) each  → 8% APR, paid monthly from rents
+//   1 silent equity   × (price × 1/3 ÷ 2)        → share of sale proceeds
+//   1 managing equity × (price × 1/3 ÷ 2)        → same equity + management fee income
+// Total raise = purchase price + closing costs + repairs (covered by equity investors)
+export const GROUP_DEFAULTS = {
+  debtRate:    0.08,   // 8% APR to debt investors
+  debtRatio:   2/3,    // debt investors fund 2/3 of price
+  saleCostPct: 0.06,   // selling costs at exit
+  holdYears:   5,
+  appRate:     0.03,   // 3% annual appreciation
+};
+
+export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
+  const price = Number(listing.price);
+  const hoa  = mark?.hoa_quarterly != null ? mark.hoa_quarterly / 3 : 0;
+  const rep  = mark?.repair_costs ?? A.repairCosts;
+  const rentBase = mark?.rent_override
+    || (mark?.rent_min != null && mark?.rent_max != null ? Math.round((mark.rent_min + mark.rent_max) / 2) : null)
+    || (mark?.rent_min ?? mark?.rent_max)
+    || (listing.sqft ? Math.round(listing.sqft * A.rentPerSqft) : 0);
+  const rent = rentBase;
+  if (!price || !rent) return null;
+
+  // Capital structure
+  const debtTotal          = price * G.debtRatio;
+  const equityTotal        = price - debtTotal;               // equity covers price remainder
+  const closingAndRepairs  = price * (A.closingCostsPct / 100) + rep;
+  const perDebtInvestor    = Math.round(debtTotal / 2);       // 2 debt investors
+  const perEquityInvestor  = Math.round((equityTotal + closingAndRepairs) / 2); // 2 equity investors cover closing/repairs too
+
+  // Monthly debt interest paid from rents
+  const debtInterestMo = debtTotal * G.debtRate / 12;
+
+  // Operating expenses (no bank P&I — debt interest replaces it)
+  const tax   = listing.tax_annual ? Number(listing.tax_annual) / 12 : (price * (A.taxPct / 100)) / 12;
+  const ins   = A.insuranceMonthly;
+  const mgmt  = rent * (A.mgmtPctRent / 100);
+  const maint = rent * (A.maintPctRent / 100);
+  const vac   = rent * (A.vacancyPctRent / 100);
+  const opEx  = tax + hoa + ins + maint + vac + mgmt;
+
+  // Monthly cash flow available to equity investors (split 50/50)
+  const equityCFMo      = rent - debtInterestMo - opEx;
+  const equityCF5yr     = equityCFMo * 12 * G.holdYears;
+  const perEquityCFMo   = Math.round(equityCFMo / 2);
+
+  // 5-year exit
+  const salePrice          = price * Math.pow(1 + G.appRate, G.holdYears);
+  const saleCosts          = salePrice * G.saleCostPct;
+  const netAfterDebt       = salePrice - saleCosts - debtTotal; // to equity investors
+  const perEquityProceeds  = Math.round(netAfterDebt / 2);      // each equity investor's sale share
+
+  // Equity investor total 5yr return (cash flows + sale proceeds vs. cash invested)
+  const perEquityTotal  = perEquityProceeds + Math.round(equityCF5yr / 2);
+  const equityROI5Raw   = perEquityInvestor > 0
+    ? (perEquityTotal - perEquityInvestor) / perEquityInvestor / G.holdYears * 100
+    : null;
+  const equityROI5 = Number.isFinite(equityROI5Raw) ? Math.round(equityROI5Raw * 10) / 10 : null;
+
+  // Debt investor total return (simple interest, 8% × 5yr)
+  const debtReturn5yr = Math.round(perDebtInvestor * G.debtRate * G.holdYears);
+
+  // At-sale compound comparison (extra earned vs. monthly simple)
+  const debtAtSaleCompound = Math.round(perDebtInvestor * (Math.pow(1 + G.debtRate, G.holdYears) - 1));
+  const debtMonthlyVsAtSale = debtAtSaleCompound - debtReturn5yr; // extra if compound at-sale
+
+  // Manager extra: management fee income over 5yr (on top of equal equity share)
+  const mgmtFee5yr = Math.round(mgmt * 12 * G.holdYears);
+
+  return {
+    perDebtInvestor,                              // $ each debt investor puts in
+    perEquityInvestor,                            // $ each equity investor puts in
+    debtMo: Math.round(debtInterestMo / 2),       // $ per debt investor per month
+    debtReturn5yr,                                // total interest earned per debt investor over 5yr
+    equityCFMo: perEquityCFMo,                    // monthly cash flow per equity investor (can be negative)
+    equityProceeds: perEquityProceeds,            // each equity investor's share of sale
+    equityROI5,                                   // annualized equity ROI over 5yr
+    mgmtFee5yr,                                   // manager's extra income from mgmt fees
+    debtMonthlyVsAtSale,                          // extra $ debt investors earn if compound at-sale instead
+  };
+}

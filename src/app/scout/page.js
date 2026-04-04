@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
-import { calcM, DEFAULTS } from '@/lib/calcMetrics';
+import { calcM, calcGroup, DEFAULTS } from '@/lib/calcMetrics';
 
 function fmt$(n) {
   if (n == null) return '—';
@@ -225,10 +225,11 @@ export default function ScoutPage() {
       const hasEdits = localEdits[l.mls_num] || l.tax_annual != null;
       if (hasEdits) {
         const mark = getMark(l);
-        m[l.mls_num] = calcM(l, mark, DEFAULTS);
+        m[l.mls_num] = { ...calcM(l, mark, DEFAULTS), group: calcGroup(l, mark, DEFAULTS) };
       } else {
-        // Use pre-computed values from server
-        m[l.mls_num] = l.cf != null ? { cf: l.cf, cap: l.cap, coc: l.coc, atroi: l.atroi, atroiErr: l.atroiErr, roi5: l.roi5, rent: l.rent, rentPct: l.rentPct } : null;
+        m[l.mls_num] = l.cf != null
+          ? { cf: l.cf, cap: l.cap, coc: l.coc, atroi: l.atroi, atroiErr: l.atroiErr, roi5: l.roi5, rent: l.rent, rentPct: l.rentPct, group: l.group }
+          : null;
       }
     });
     return m;
@@ -921,6 +922,7 @@ export default function ScoutPage() {
                   { col: 'coc',     label: 'CoC' },
                   { col: 'roi5',    label: '5yr ROI' },
                   { col: 'atroi',   label: '30y ATROI' },
+                  { col: null,    label: 'Group Deal' },
                   { col: null,    label: 'Prop Tax' },
                   { col: null,    label: 'Notes' },
                   { col: null,    label: 'Mark' },
@@ -1210,6 +1212,36 @@ export default function ScoutPage() {
                     {/* ATROI */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       <AtroiBadge value={metrics?.atroi ?? null} err={metrics?.atroiErr} />
+                    </td>
+
+                    {/* Group Deal */}
+                    <td className="px-2 py-1 text-xs whitespace-nowrap">
+                      {metrics?.group ? (() => {
+                        const g = metrics.group;
+                        const cf = g.equityCFMo;
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            <div className="text-yellow-400 font-medium">
+                              Debt ${Math.round(g.perDebtInvestor/1000)}K ea
+                            </div>
+                            <div className="text-gray-400">
+                              ${g.debtMo.toLocaleString()}/mo · ${Math.round(g.debtReturn5yr/1000)}K/5yr
+                            </div>
+                            <div className="text-blue-400 font-medium mt-0.5">
+                              Equity ${Math.round(g.perEquityInvestor/1000)}K ea
+                            </div>
+                            <div className={cf >= 0 ? 'text-green-400' : 'text-red-400'}>
+                              {cf >= 0 ? '+' : ''}{cf.toLocaleString()}/mo CF
+                            </div>
+                            <div className="text-gray-400">
+                              ${Math.round(g.equityProceeds/1000)}K sale · {g.equityROI5 != null ? `${g.equityROI5.toFixed(1)}%/yr` : '—'}
+                            </div>
+                            <div className="text-purple-400 mt-0.5">
+                              Mgr +${Math.round(g.mgmtFee5yr/1000)}K fees/5yr
+                            </div>
+                          </div>
+                        );
+                      })() : <span className="text-gray-600">—</span>}
                     </td>
 
                     {/* Prop Tax */}
