@@ -1218,20 +1218,20 @@ export default function ScoutPage() {
                     <td className="px-2 py-1 text-xs whitespace-nowrap">
                       {metrics?.group ? (() => {
                         const g = metrics.group;
-                        const roi = (val, label) => {
-                          if (val == null) return <div className="text-gray-600">{label} —</div>;
-                          const good = val >= 8;
+                        const row = (label, roi, profit) => {
+                          if (roi == null) return <div className="text-gray-600">{label} —</div>;
+                          const good = roi >= 8;
+                          const profitK = profit != null ? ` ($${Math.round(profit/1000)}K)` : '';
                           return (
                             <div className={good ? 'text-green-400' : 'text-red-400'}>
-                              {label} {val.toFixed(1)}%
+                              {label} {roi.toFixed(1)}%<span className="text-gray-400">{profitK}</span>
                             </div>
                           );
                         };
                         return (
                           <div className="flex flex-col gap-0.5 font-medium">
-                            {roi(g.debtROI5,    'Debt')}
-                            {roi(g.equityROI5,  'Eq  ')}
-                            {roi(g.managerROI5, 'Mgr ')}
+                            {row('Eq ', g.equityROI5,  g.equityProfit)}
+                            {row('Mgr', g.managerROI5, g.mgrProfit)}
                           </div>
                         );
                       })() : <span className="text-gray-600">—</span>}

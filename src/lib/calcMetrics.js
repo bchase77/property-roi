@@ -129,10 +129,14 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
   // Manager extra: management fee income over 5yr (on top of equal equity share)
   const mgmtFee5yr = Math.round(mgmt * 12 * G.holdYears);
 
+  // Equity profit (total return minus capital invested)
+  const equityProfit = perEquityProceeds + Math.round(equityCF5yr / 2) - perEquityInvestor;
+
   // Manager ROI: same equity return + management fee income on top
   const mgrTotalReturn  = perEquityProceeds + Math.round(equityCF5yr / 2) + mgmtFee5yr;
+  const mgrProfit       = mgrTotalReturn - perEquityInvestor;
   const mgrROI5Raw      = perEquityInvestor > 0
-    ? (mgrTotalReturn - perEquityInvestor) / perEquityInvestor / G.holdYears * 100
+    ? mgrProfit / perEquityInvestor / G.holdYears * 100
     : null;
   const managerROI5 = Number.isFinite(mgrROI5Raw) ? Math.round(mgrROI5Raw * 10) / 10 : null;
 
@@ -147,7 +151,9 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
     equityCFMo: perEquityCFMo,
     equityProceeds: perEquityProceeds,
     equityROI5,
+    equityProfit: Math.round(equityProfit),
     managerROI5,
+    mgrProfit: Math.round(mgrProfit),
     debtROI5,
     mgmtFee5yr,
     debtMonthlyVsAtSale,
