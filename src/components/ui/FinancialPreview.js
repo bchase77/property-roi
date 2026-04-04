@@ -235,7 +235,7 @@ export default function FinancialPreview({ form }) {
           </div>
           
           <div className="flex justify-between text-gray-600">
-            <span>• Management:</span>
+            <span>• Management ({form.mgmtPctRent || 0}%):</span>
             <span>-{Money((form.monthlyRent || 0) * ((form.mgmtPctRent || 0) / 100))}</span>
           </div>
 
