@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { init } from '@/lib/db';
-import { calcM, DEFAULTS } from '@/lib/calcMetrics';
+import { calcM, calcGroup, DEFAULTS } from '@/lib/calcMetrics';
 
 export async function GET(req) {
   await init();
@@ -37,6 +37,7 @@ export async function GET(req) {
   // Compute metrics for every row (mark fields are already on the row from the JOIN)
   const withMetrics = rows.map(row => {
     const metrics = calcM(row, row, DEFAULTS);
+    const group   = calcGroup(row, row, DEFAULTS);
     return {
       ...row,
       cf:       metrics?.cf       ?? null,
@@ -47,6 +48,7 @@ export async function GET(req) {
       roi5:     metrics?.roi5     ?? null,
       rent:     metrics?.rent     ?? null,
       rentPct:  metrics?.rentPct  ?? null,
+      group:    group ?? null,
     };
   });
 
