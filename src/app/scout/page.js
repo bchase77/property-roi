@@ -1218,27 +1218,20 @@ export default function ScoutPage() {
                     <td className="px-2 py-1 text-xs whitespace-nowrap">
                       {metrics?.group ? (() => {
                         const g = metrics.group;
-                        const cf = g.equityCFMo;
+                        const roi = (val, label) => {
+                          if (val == null) return <div className="text-gray-600">{label} —</div>;
+                          const good = val >= 8;
+                          return (
+                            <div className={good ? 'text-green-400' : 'text-red-400'}>
+                              {label} {val.toFixed(1)}%
+                            </div>
+                          );
+                        };
                         return (
-                          <div className="flex flex-col gap-0.5">
-                            <div className="text-yellow-400 font-medium">
-                              Debt ${Math.round(g.perDebtInvestor/1000)}K ea
-                            </div>
-                            <div className="text-gray-400">
-                              ${g.debtMo.toLocaleString()}/mo · ${Math.round(g.debtReturn5yr/1000)}K/5yr
-                            </div>
-                            <div className="text-blue-400 font-medium mt-0.5">
-                              Equity ${Math.round(g.perEquityInvestor/1000)}K ea
-                            </div>
-                            <div className={cf >= 0 ? 'text-green-400' : 'text-red-400'}>
-                              {cf >= 0 ? '+' : ''}{cf.toLocaleString()}/mo CF
-                            </div>
-                            <div className="text-gray-400">
-                              ${Math.round(g.equityProceeds/1000)}K sale · {g.equityROI5 != null ? `${g.equityROI5.toFixed(1)}%/yr` : '—'}
-                            </div>
-                            <div className="text-purple-400 mt-0.5">
-                              Mgr +${Math.round(g.mgmtFee5yr/1000)}K fees/5yr
-                            </div>
+                          <div className="flex flex-col gap-0.5 font-medium">
+                            {roi(g.debtROI5,    'Debt')}
+                            {roi(g.equityROI5,  'Eq  ')}
+                            {roi(g.managerROI5, 'Mgr ')}
                           </div>
                         );
                       })() : <span className="text-gray-600">—</span>}

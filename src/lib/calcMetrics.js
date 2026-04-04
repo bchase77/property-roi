@@ -129,15 +129,27 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
   // Manager extra: management fee income over 5yr (on top of equal equity share)
   const mgmtFee5yr = Math.round(mgmt * 12 * G.holdYears);
 
+  // Manager ROI: same equity return + management fee income on top
+  const mgrTotalReturn  = perEquityProceeds + Math.round(equityCF5yr / 2) + mgmtFee5yr;
+  const mgrROI5Raw      = perEquityInvestor > 0
+    ? (mgrTotalReturn - perEquityInvestor) / perEquityInvestor / G.holdYears * 100
+    : null;
+  const managerROI5 = Number.isFinite(mgrROI5Raw) ? Math.round(mgrROI5Raw * 10) / 10 : null;
+
+  // Debt ROI is always the fixed rate
+  const debtROI5 = G.debtRate * 100;
+
   return {
-    perDebtInvestor,                              // $ each debt investor puts in
-    perEquityInvestor,                            // $ each equity investor puts in
-    debtMo: Math.round(debtInterestMo / 2),       // $ per debt investor per month
-    debtReturn5yr,                                // total interest earned per debt investor over 5yr
-    equityCFMo: perEquityCFMo,                    // monthly cash flow per equity investor (can be negative)
-    equityProceeds: perEquityProceeds,            // each equity investor's share of sale
-    equityROI5,                                   // annualized equity ROI over 5yr
-    mgmtFee5yr,                                   // manager's extra income from mgmt fees
-    debtMonthlyVsAtSale,                          // extra $ debt investors earn if compound at-sale instead
+    perDebtInvestor,
+    perEquityInvestor,
+    debtMo: Math.round(debtInterestMo / 2),
+    debtReturn5yr,
+    equityCFMo: perEquityCFMo,
+    equityProceeds: perEquityProceeds,
+    equityROI5,
+    managerROI5,
+    debtROI5,
+    mgmtFee5yr,
+    debtMonthlyVsAtSale,
   };
 }
