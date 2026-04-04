@@ -105,6 +105,11 @@ export default function PropertyDetailPage({ params }) {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-8">
 
+        {/* Back button — top */}
+        <div className="mb-4">
+          <a href="/" className="inline-flex items-center text-sm text-blue-600 hover:underline">&larr; Back to Portfolio</a>
+        </div>
+
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-1">
