@@ -901,7 +901,7 @@ export default function ScoutPage() {
               Showing top {listings.length} by <span className="text-gray-400 font-medium">{sortCol}</span> ({sortDir})
               {(debouncedSearch || priceMin || priceMax) && ' · filtered'}
             </span>
-            <span className="text-xs text-gray-600">
+            <span className="text-xs text-gray-400">
               {filtered.length} shown after status filter
             </span>
           </div>
@@ -1005,7 +1005,7 @@ export default function ScoutPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => copyToClipboard(listing.address)}
-                            className="text-gray-600 hover:text-gray-300 flex-shrink-0"
+                            className="text-gray-400 hover:text-white flex-shrink-0"
                             title="Copy address"
                           >⎘</button>
                           <div
@@ -1025,7 +1025,7 @@ export default function ScoutPage() {
                         </div>
                       )}
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-gray-600 text-xs">{listing.mls_num}</span>
+                        <span className="text-gray-400 text-xs">{listing.mls_num}</span>
                         <button
                           onClick={() => copyToClipboard(listing.mls_num)}
                           className="text-gray-600 hover:text-gray-400 text-xs"
@@ -1066,7 +1066,7 @@ export default function ScoutPage() {
                         </div>
                       )}
                       {firstSeenDate && (
-                        <div className="text-gray-600 text-xs mt-0.5">First seen: {firstSeenDate}</div>
+                        <div className="text-gray-400 text-xs mt-0.5">First seen: {firstSeenDate}</div>
                       )}
                       {listing.source && listing.source !== 'pam' && (
                         <div className="mt-0.5">
