@@ -120,6 +120,10 @@ export default function ScoutPage() {
   const [cfMin, setCfMin] = useState('');
   const [capMin, setCapMin] = useState('');
   const [bedsMin, setBedsMin] = useState('');
+  // Draft values — updated on every keystroke, committed to filter state on Enter/blur
+  const [filterDrafts, setFilterDrafts] = useState({ rentPctMin: '', cfMin: '', capMin: '', bedsMin: '' });
+  const setDraft = (key, val) => setFilterDrafts(d => ({ ...d, [key]: val }));
+  const commitDraft = (key, setter) => setter(filterDrafts[key]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -811,19 +815,21 @@ export default function ScoutPage() {
           />
         </div>
 
-        {/* Metric filters */}
+        {/* Metric filters — commit on Enter or blur */}
         {[
-          { label: 'Rent% ≥', value: rentPctMin, set: setRentPctMin, placeholder: '1.1', width: 'w-12' },
-          { label: 'CF ≥ $', value: cfMin,      set: setCfMin,      placeholder: '0',   width: 'w-14' },
-          { label: 'Cap ≥',  value: capMin,     set: setCapMin,     placeholder: '5',   width: 'w-10' },
-          { label: 'Beds ≥', value: bedsMin,    set: setBedsMin,    placeholder: '2',   width: 'w-10' },
-        ].map(({ label, value, set, placeholder, width }) => (
-          <div key={label} className="flex items-center gap-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1">
+          { label: 'Rent% ≥', key: 'rentPctMin', setter: setRentPctMin, placeholder: '1.1', width: 'w-12' },
+          { label: 'CF ≥ $',  key: 'cfMin',      setter: setCfMin,      placeholder: '0',   width: 'w-14' },
+          { label: 'Cap ≥',   key: 'capMin',     setter: setCapMin,     placeholder: '5',   width: 'w-10' },
+          { label: 'Beds ≥',  key: 'bedsMin',    setter: setBedsMin,    placeholder: '2',   width: 'w-10' },
+        ].map(({ label, key, setter, placeholder, width }) => (
+          <div key={key} className="flex items-center gap-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1">
             <span className="text-xs text-gray-500 whitespace-nowrap">{label}</span>
             <input
               type="number"
-              value={value}
-              onChange={e => set(e.target.value)}
+              value={filterDrafts[key]}
+              onChange={e => setDraft(key, e.target.value)}
+              onBlur={() => commitDraft(key, setter)}
+              onKeyDown={e => e.key === 'Enter' && commitDraft(key, setter)}
               placeholder={placeholder}
               className={`${width} bg-transparent text-sm text-gray-300 focus:outline-none`}
             />
