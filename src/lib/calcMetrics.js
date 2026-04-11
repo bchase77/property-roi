@@ -66,7 +66,7 @@ export function calcM(listing, mark, A = DEFAULTS) {
 // Total raise = purchase price + closing costs + repairs (covered by equity investors)
 export const GROUP_DEFAULTS = {
   debtRate:      0.08,   // 8% APR to debt investors
-  debtRatio:     2/3,    // debt investors fund 2/3 of price
+  debtRatio:     0.75,   // debt investors fund 75% of price
   saleCostPct:   0.06,   // selling costs at exit
   holdYears:     5,
   appRate:       0.03,   // 3% annual appreciation

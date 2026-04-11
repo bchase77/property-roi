@@ -1267,15 +1267,17 @@ export default function ScoutPage() {
                         const eqCF5   = g.equityCFMo * 60;
                         const eqProc  = g.equityProceeds;
                         const mgrProc = Math.round((g.mgrProfit + g.perEquityInvestor) - (g.equityProfit + g.perEquityInvestor) + (g.equityProceeds));
+                        const debtPct = Math.round((g.perDebtInvestor * 2) / (g.perDebtInvestor * 2 + g.perEquityInvestor * 2) * 100);
                         const tooltip = [
-                          `── Capital ──`,
-                          `Debt investor:   $${Math.round(g.perDebtInvestor/1000)}K each  →  8%/yr fixed ($${Math.round(g.debtReturn5yr/1000)}K over 5yr)`,
-                          `Equity investor: $${Math.round(g.perEquityInvestor/1000)}K each  (silent 45% / mgr 55%)`,
-                          `── Equity returns (3% app scenario) ──`,
-                          `Monthly CF to equity: $${g.equityCFMo}/mo  →  $${Math.round(eqCF5/1000)}K over 5yr`,
-                          `Sale proceeds to equity: $${Math.round(eqProc/1000)}K`,
-                          `Silent equity profit: $${Math.round(g.equityProfit/1000)}K  (${g.equityROI5?.toFixed(1)}%/yr)`,
-                          `Manager profit:       $${Math.round(g.mgrProfit/1000)}K  (${g.managerROI5?.toFixed(1)}%/yr)`,
+                          `── Capital (${debtPct}% debt / ${100-debtPct}% equity) ──`,
+                          `Debt investor (×2):   $${Math.round(g.perDebtInvestor/1000)}K each  →  8%/yr fixed  ($${Math.round(g.debtReturn5yr/1000)}K over 5yr)`,
+                          `Equity investor (×2): $${Math.round(g.perEquityInvestor/1000)}K each  →  silent 45% / mgr 55% of equity`,
+                          `── Equity returns at 3% appreciation ──`,
+                          `Monthly CF to equity: $${g.equityCFMo}/mo  →  $${Math.round(eqCF5/1000)}K over 5yr (silent share)`,
+                          `Sale proceeds to equity: $${Math.round(eqProc/1000)}K (silent share)`,
+                          `Silent equity:  $${Math.round(g.equityProfit/1000)}K profit  →  ${g.equityROI5?.toFixed(1)}%/yr annualized`,
+                          `Manager:        $${Math.round(g.mgrProfit/1000)}K profit  →  ${g.managerROI5?.toFixed(1)}%/yr annualized`,
+                          `Debt investor:  $${Math.round(g.debtReturn5yr/1000)}K interest  →  8.0%/yr (fixed)`,
                           `── Range = 0% / 3% / 5% annual appreciation ──`,
                         ].join('\n');
                         return (
