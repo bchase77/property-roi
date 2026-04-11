@@ -229,12 +229,16 @@ export default function ScoutPage() {
     setLocalEdits(e => ({ ...e, [mls_num]: { ...(e[mls_num] ?? {}), [field]: value } }));
   };
 
-  // Compute metrics for rendered rows — use server pre-computed values unless there are local edits
+  // Compute metrics for rendered rows.
+  // Always recompute client-side if the listing has any saved marks (rent, repairs, HOA, tax)
+  // so we never show stale server-precomputed values when DB-saved overrides exist.
   const metricsMap = useMemo(() => {
     const m = {};
     [...listings, ...pendingListings].forEach(l => {
-      const hasEdits = localEdits[l.mls_num] || l.tax_annual != null;
-      if (hasEdits) {
+      const hasSavedMarks = l.rent_override != null || l.repair_costs != null
+                         || l.hoa_quarterly != null || l.tax_annual != null;
+      const hasLocalEdits = !!localEdits[l.mls_num];
+      if (hasSavedMarks || hasLocalEdits) {
         const mark = getMark(l);
         m[l.mls_num] = { ...calcM(l, mark, DEFAULTS), group: calcGroup(l, mark, DEFAULTS) };
       } else {
