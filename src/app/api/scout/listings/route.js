@@ -122,6 +122,13 @@ export async function GET(req) {
       else if (av == null) diff = 1;
       else if (bv == null) diff = -1;
       else diff = bv - av;
+    } else if (sort === 'groupEq') {
+      const av = a.group?.equityROI5 ?? null;
+      const bv = b.group?.equityROI5 ?? null;
+      if (av == null && bv == null) diff = 0;
+      else if (av == null) diff = 1;
+      else if (bv == null) diff = -1;
+      else diff = bv - av;
     } else if (numericCols.has(sort)) {
       diff = (Number(b[sort]) || 0) - (Number(a[sort]) || 0);
     } else if (sort === 'state') {

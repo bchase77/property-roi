@@ -73,6 +73,36 @@ export const GROUP_DEFAULTS = {
   mgrEquityShare: 0.55,  // manager gets 55% of equity proceeds/CF; silent equity gets 45%
 };
 
+// Helper: compute equity and manager ROIs for a given appreciation rate
+function _exitROIs(price, appRate, G, equityCFMo, perEquityInvestor) {
+  const salePrice    = price * Math.pow(1 + appRate, G.holdYears);
+  const saleCosts    = salePrice * G.saleCostPct;
+  const netAfterDebt = salePrice - saleCosts - price * G.debtRatio;
+  const silentShare  = 1 - G.mgrEquityShare;
+
+  const silentProceeds = netAfterDebt * silentShare;
+  const silentCF5yr    = equityCFMo * G.holdYears * 12 * silentShare;
+  const silentTotal    = silentProceeds + silentCF5yr;
+  const eqRaw = perEquityInvestor > 0
+    ? (silentTotal - perEquityInvestor) / perEquityInvestor / G.holdYears * 100
+    : null;
+
+  const mgrProceeds = netAfterDebt * G.mgrEquityShare;
+  const mgrCF5yr    = equityCFMo * G.holdYears * 12 * G.mgrEquityShare;
+  const mgrTotal    = mgrProceeds + mgrCF5yr;
+  const mgrRaw = perEquityInvestor > 0
+    ? (mgrTotal - perEquityInvestor) / perEquityInvestor / G.holdYears * 100
+    : null;
+
+  return {
+    equityROI5:  Number.isFinite(eqRaw)  ? Math.round(eqRaw  * 10) / 10 : null,
+    managerROI5: Number.isFinite(mgrRaw) ? Math.round(mgrRaw * 10) / 10 : null,
+    equityProfit:  Math.round(silentTotal - perEquityInvestor),
+    mgrProfit:     Math.round(mgrTotal - perEquityInvestor),
+    equityProceeds: Math.round(silentProceeds),
+  };
+}
+
 export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
   const price = Number(listing.price);
   const hoa  = mark?.hoa_quarterly != null ? mark.hoa_quarterly / 3 : 0;
@@ -86,10 +116,10 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
 
   // Capital structure
   const debtTotal          = price * G.debtRatio;
-  const equityTotal        = price - debtTotal;               // equity covers price remainder
+  const equityTotal        = price - debtTotal;
   const closingAndRepairs  = price * (A.closingCostsPct / 100) + rep;
-  const perDebtInvestor    = Math.round(debtTotal / 2);       // 2 debt investors
-  const perEquityInvestor  = Math.round((equityTotal + closingAndRepairs) / 2); // 2 equity investors cover closing/repairs too
+  const perDebtInvestor    = Math.round(debtTotal / 2);
+  const perEquityInvestor  = Math.round((equityTotal + closingAndRepairs) / 2);
 
   // Monthly debt interest paid from rents
   const debtInterestMo = debtTotal * G.debtRate / 12;
@@ -103,72 +133,38 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
   const opEx  = tax + hoa + ins + maint + vac + mgmt;
 
   // Monthly cash flow available to equity investors
-  const equityCFMo    = rent - debtInterestMo - opEx;
-  const equityCF5yr   = equityCFMo * 12 * G.holdYears;
+  const equityCFMo = rent - debtInterestMo - opEx;
 
-  // 5-year exit
-  const salePrice    = price * Math.pow(1 + G.appRate, G.holdYears);
-  const saleCosts    = salePrice * G.saleCostPct;
-  const netAfterDebt = salePrice - saleCosts - debtTotal;
-
-  // Equity split: manager gets mgrEquityShare, silent equity gets remainder
-  const silentShare = 1 - G.mgrEquityShare;
-  const silentProceeds = Math.round(netAfterDebt * silentShare);
-  const silentCFMo     = Math.round(equityCFMo * silentShare);
-  const silentCF5yr    = equityCFMo * G.holdYears * 12 * silentShare;
-
-  // Silent equity investor ROI
-  const silentTotal   = silentProceeds + Math.round(silentCF5yr);
-  const equityROI5Raw = perEquityInvestor > 0
-    ? (silentTotal - perEquityInvestor) / perEquityInvestor / G.holdYears * 100
-    : null;
-  const equityROI5 = Number.isFinite(equityROI5Raw) ? Math.round(equityROI5Raw * 10) / 10 : null;
-  const equityProfit_silent = silentTotal - perEquityInvestor;
-
-  // Convenience aliases used below
-  const perEquityProceeds = silentProceeds;
-  const perEquityCFMo     = silentCFMo;
+  // Compute ROIs at 3 appreciation scenarios: 0%, 3%, 5%
+  const at0 = _exitROIs(price, 0,    G, equityCFMo, perEquityInvestor);
+  const at3 = _exitROIs(price, 0.03, G, equityCFMo, perEquityInvestor);
+  const at5 = _exitROIs(price, 0.05, G, equityCFMo, perEquityInvestor);
 
   // Debt investor total return (simple interest, 8% × 5yr)
   const debtReturn5yr = Math.round(perDebtInvestor * G.debtRate * G.holdYears);
+  const debtAtSaleCompound  = Math.round(perDebtInvestor * (Math.pow(1 + G.debtRate, G.holdYears) - 1));
+  const debtMonthlyVsAtSale = debtAtSaleCompound - debtReturn5yr;
 
-  // At-sale compound comparison (extra earned vs. monthly simple)
-  const debtAtSaleCompound = Math.round(perDebtInvestor * (Math.pow(1 + G.debtRate, G.holdYears) - 1));
-  const debtMonthlyVsAtSale = debtAtSaleCompound - debtReturn5yr; // extra if compound at-sale
-
-  // Manager extra: management fee income over 5yr (on top of equal equity share)
   const mgmtFee5yr = Math.round(mgmt * 12 * G.holdYears);
-
-  // Equity profit (silent investor)
-  const equityProfit = equityProfit_silent;
-
-  // Manager: larger equity share only — management fee goes to local PM, not manager
-  const mgrProceeds    = Math.round(netAfterDebt * G.mgrEquityShare);
-  const mgrCF5yr       = equityCFMo * G.holdYears * 12 * G.mgrEquityShare;
-  const mgrTotalReturn = mgrProceeds + Math.round(mgrCF5yr);
-  const mgrProfit      = mgrTotalReturn - perEquityInvestor;
-  const mgrROI5Raw      = perEquityInvestor > 0
-    ? mgrProfit / perEquityInvestor / G.holdYears * 100
-    : null;
-  const managerROI5 = Number.isFinite(mgrROI5Raw) ? Math.round(mgrROI5Raw * 10) / 10 : null;
-
-  // Debt ROI is always the fixed rate
-  const debtROI5 = G.debtRate * 100;
+  const debtROI5   = G.debtRate * 100;
 
   return {
     perDebtInvestor,
     perEquityInvestor,
     debtMo: Math.round(debtInterestMo / 2),
     debtReturn5yr,
-    equityCFMo: perEquityCFMo,      // silent equity investor monthly CF
-    equityProceeds: perEquityProceeds,
-    equityROI5,
-    equityProfit: Math.round(equityProfit),
-    managerROI5,
-    mgrProfit: Math.round(mgrProfit),
+    equityCFMo: Math.round(equityCFMo * (1 - G.mgrEquityShare)), // silent investor monthly CF
+    // Base scenario (3% app) — used for sorting and legacy callers
+    equityROI5:    at3.equityROI5,
+    equityProfit:  at3.equityProfit,
+    equityProceeds: at3.equityProceeds,
+    managerROI5:   at3.managerROI5,
+    mgrProfit:     at3.mgrProfit,
     mgrEquityShare: G.mgrEquityShare,
     debtROI5,
     mgmtFee5yr,
     debtMonthlyVsAtSale,
+    // Appreciation scenarios for range display
+    scenarios: { at0, at3, at5 },
   };
 }
