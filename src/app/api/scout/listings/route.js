@@ -17,6 +17,7 @@ export async function GET(req) {
   const capMin     = searchParams.get('capMin')      || '';
   const bedsMin    = searchParams.get('bedsMin')    || '';
   const status     = searchParams.get('status')     || 'all'; // 'all' | 'potential' | 'skip' | 'unmarked'
+  const source     = searchParams.get('source')     || 'all'; // 'all' | 'pam' | 'reination'
   const tab        = searchParams.get('tab')        || 'active';
   const limit      = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
   const offset     = Math.max(0, parseInt(searchParams.get('offset') || '0', 10));
@@ -76,6 +77,7 @@ export async function GET(req) {
   if (priceMin !== '') filtered = filtered.filter(r => Number(r.price) >= Number(priceMin));
   if (priceMax !== '') filtered = filtered.filter(r => Number(r.price) <= Number(priceMax));
   if (bedsMin  !== '') filtered = filtered.filter(r => Number(r.beds)  >= Number(bedsMin));
+  if (source !== 'all') filtered = filtered.filter(r => r.source === source);
   if (status === 'potential') filtered = filtered.filter(r => r.status === 'potential');
   if (status === 'skip')      filtered = filtered.filter(r => r.status === 'skip');
   if (status === 'not-skip')  filtered = filtered.filter(r => r.status !== 'skip');

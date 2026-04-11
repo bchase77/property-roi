@@ -112,7 +112,8 @@ export default function ScoutPage() {
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'pending'
 
   // Filter / search / page
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip'
+  const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip' | 'not-skip'
+  const [filterSource, setFilterSource] = useState('all'); // 'all' | 'pam' | 'reination'
   const [filterEntry, setFilterEntry] = useState('all');   // 'all' | 'entered' | 'not-entered'
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
@@ -139,7 +140,7 @@ export default function ScoutPage() {
   useEffect(() => {
     setLoading(true);
     const offset = (page - 1) * PAGE_SIZE;
-    const baseParams = { sort: sortCol, dir: sortDir, search: debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, status: filterStatus, offset: String(offset) };
+    const baseParams = { sort: sortCol, dir: sortDir, search: debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, status: filterStatus, source: filterSource, offset: String(offset) };
     const activeParams = new URLSearchParams({ ...baseParams, tab: 'active' });
     const pendingParams = new URLSearchParams({ ...baseParams, tab: 'pending', limit: '200', offset: '0' });
     Promise.all([
@@ -157,7 +158,7 @@ export default function ScoutPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, filterStatus, page]);
+  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, filterStatus, filterSource, page]);
 
   // Merge DB data with local edits for a row
   const getMark = useCallback((listing) => {
@@ -281,7 +282,7 @@ export default function ScoutPage() {
   const paginated = filtered; // server already sliced to current page
 
   // Reset to page 1 when filter/sort/search changes (not on page change itself)
-  useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortCol, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, debouncedSearch]);
+  useEffect(() => { setPage(1); }, [filterStatus, filterSource, filterEntry, sortCol, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, debouncedSearch]);
 
   const saveConfig = async () => {
     try {
@@ -775,6 +776,26 @@ export default function ScoutPage() {
               className={`px-3 py-1 text-xs rounded font-medium transition-colors ${
                 filterStatus === key
                   ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
+          {[
+            { key: 'all',        label: 'All Sources' },
+            { key: 'pam',        label: 'REI Nation' },
+            { key: 'reination',  label: 'Reination' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilterSource(key)}
+              className={`px-3 py-1 text-xs rounded font-medium transition-colors ${
+                filterSource === key
+                  ? 'bg-indigo-600 text-white'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
