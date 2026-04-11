@@ -78,6 +78,7 @@ export async function GET(req) {
   if (bedsMin  !== '') filtered = filtered.filter(r => Number(r.beds)  >= Number(bedsMin));
   if (status === 'potential') filtered = filtered.filter(r => r.status === 'potential');
   if (status === 'skip')      filtered = filtered.filter(r => r.status === 'skip');
+  if (status === 'not-skip')  filtered = filtered.filter(r => r.status !== 'skip');
   if (status === 'unmarked')  filtered = filtered.filter(r => !r.status);
 
   // ── Step 2: compute metrics ONLY for rows that survived cheap filters ────────

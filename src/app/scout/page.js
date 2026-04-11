@@ -760,9 +760,10 @@ export default function ScoutPage() {
       {activeTab === 'active' && <div className="flex flex-wrap gap-3 items-center mb-4">
         <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
           {[
-            { key: 'all', label: 'All' },
+            { key: 'all',      label: 'All' },
+            { key: 'not-skip', label: '✓ Not Skipped' },
             { key: 'potential', label: 'Potential' },
-            { key: 'skip', label: 'Skip' },
+            { key: 'skip',     label: 'Skip' },
           ].map(({ key, label }) => (
             <button
               key={key}
