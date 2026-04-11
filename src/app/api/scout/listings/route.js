@@ -16,8 +16,10 @@ export async function GET(req) {
   const cfMin      = searchParams.get('cfMin')      || '';
   const capMin     = searchParams.get('capMin')      || '';
   const bedsMin    = searchParams.get('bedsMin')    || '';
+  const status     = searchParams.get('status')     || 'all'; // 'all' | 'potential' | 'skip' | 'unmarked'
   const tab        = searchParams.get('tab')        || 'active';
   const limit      = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
+  const offset     = Math.max(0, parseInt(searchParams.get('offset') || '0', 10));
 
   // Fetch ALL rows (no LIMIT) — metrics computed after filtering
   const { rows } = await sql`
@@ -70,10 +72,13 @@ export async function GET(req) {
     }
   }
 
-  // Price and beds filters (raw DB fields — no metrics needed)
+  // Price, beds, and status filters (raw DB fields — no metrics needed)
   if (priceMin !== '') filtered = filtered.filter(r => Number(r.price) >= Number(priceMin));
   if (priceMax !== '') filtered = filtered.filter(r => Number(r.price) <= Number(priceMax));
   if (bedsMin  !== '') filtered = filtered.filter(r => Number(r.beds)  >= Number(bedsMin));
+  if (status === 'potential') filtered = filtered.filter(r => r.status === 'potential');
+  if (status === 'skip')      filtered = filtered.filter(r => r.status === 'skip');
+  if (status === 'unmarked')  filtered = filtered.filter(r => !r.status);
 
   // ── Step 2: compute metrics ONLY for rows that survived cheap filters ────────
   const withMetrics = filtered.map(row => {
@@ -140,7 +145,8 @@ export async function GET(req) {
     return dir === 'asc' ? -diff : diff;
   });
 
-  return NextResponse.json({ listings: result.slice(0, limit), stats });
+  const total = result.length;
+  return NextResponse.json({ listings: result.slice(offset, offset + limit), stats, total });
 }
 
 export async function POST(req) {

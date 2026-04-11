@@ -133,13 +133,15 @@ export default function ScoutPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const commitSearch = useCallback(() => setDebouncedSearch(search), [search]);
 
-  // Fetch listings from server whenever sort/filter/search params change
-  // Both tabs are fetched in parallel so switching tabs is instant (no re-fetch)
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Fetch listings from server whenever sort/filter/search/page params change
   useEffect(() => {
     setLoading(true);
-    const baseParams = { sort: sortCol, dir: sortDir, search: debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin };
+    const offset = (page - 1) * PAGE_SIZE;
+    const baseParams = { sort: sortCol, dir: sortDir, search: debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, status: filterStatus, offset: String(offset) };
     const activeParams = new URLSearchParams({ ...baseParams, tab: 'active' });
-    const pendingParams = new URLSearchParams({ ...baseParams, tab: 'pending', limit: '200' });
+    const pendingParams = new URLSearchParams({ ...baseParams, tab: 'pending', limit: '200', offset: '0' });
     Promise.all([
       fetch(`/api/scout/listings?${activeParams}`).then(r => r.json()),
       fetch(`/api/scout/listings?${pendingParams}`).then(r => r.json()),
@@ -147,6 +149,7 @@ export default function ScoutPage() {
     ])
       .then(([activeData, pendingData, configData]) => {
         setListings(activeData.listings ?? []);
+        setTotalCount(activeData.total ?? 0);
         setPendingListings(pendingData.listings ?? []);
         setStats({ ...(activeData.stats ?? { total: 0, potential: 0, skip: 0, great: 0 }), pending: pendingData.listings?.length ?? 0 });
         setConfig(configData);
@@ -154,7 +157,7 @@ export default function ScoutPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin]);
+  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, filterStatus, page]);
 
   // Merge DB data with local edits for a row
   const getMark = useCallback((listing) => {
@@ -259,22 +262,21 @@ export default function ScoutPage() {
     return rentOvr != null || repairs != null || hoa != null || (notes != null && notes !== '');
   }, [localEdits]);
 
-  // Filter client-side (listings already pre-sorted from server; search/price handled server-side)
+  // filterEntry is client-side only (checks locally whether data has been entered)
   const filtered = useMemo(() => {
+    if (filterEntry === 'all') return listings;
     return listings.filter(l => {
-      const mark = getMark(l);
-      if (filterStatus === 'potential' && mark.status !== 'potential') return false;
-      if (filterStatus === 'skip' && mark.status !== 'skip') return false;
       if (filterEntry === 'entered'     && !hasManualEntry(l)) return false;
       if (filterEntry === 'not-entered' &&  hasManualEntry(l)) return false;
       return true;
     });
-  }, [listings, filterStatus, filterEntry, localEdits, getMark, hasManualEntry]);
+  }, [listings, filterEntry, localEdits, hasManualEntry]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Server handles status filter + offset; use server total for pagination
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const paginated = filtered; // server already sliced to current page
 
-  // Reset to page 1 when filter/sort/search changes
+  // Reset to page 1 when filter/sort/search changes (not on page change itself)
   useEffect(() => { setPage(1); }, [filterStatus, filterEntry, sortCol, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, debouncedSearch]);
 
   const saveConfig = async () => {
@@ -928,11 +930,11 @@ export default function ScoutPage() {
         <div className="bg-gray-800 rounded-xl overflow-x-auto">
           <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between">
             <span className="text-xs text-gray-500">
-              Showing top {listings.length} by <span className="text-gray-400 font-medium">{sortCol}</span> ({sortDir})
-              {(debouncedSearch || priceMin || priceMax || rentPctMin || cfMin || capMin || bedsMin) && ' · filtered'}
+              Sorted by <span className="text-gray-400 font-medium">{sortCol}</span> ({sortDir})
+              {(debouncedSearch || priceMin || priceMax || rentPctMin || cfMin || capMin || bedsMin || filterStatus !== 'all') && ' · filtered'}
             </span>
             <span className="text-xs text-gray-400">
-              {filtered.length} shown after status filter
+              {totalCount.toLocaleString()} total · page {page} of {totalPages}
             </span>
           </div>
           <table className="w-full text-sm">
@@ -1389,12 +1391,19 @@ export default function ScoutPage() {
       )}
 
       {/* Pagination */}
-      {filtered.length > PAGE_SIZE && (
+      {totalCount > PAGE_SIZE && (
         <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
           <span>
-            Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+            {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()}
           </span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              className="px-2 py-1.5 bg-gray-800 rounded disabled:opacity-40 hover:bg-gray-700 transition-colors text-xs"
+            >
+              ««
+            </button>
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
@@ -1402,12 +1411,20 @@ export default function ScoutPage() {
             >
               Previous
             </button>
+            <span className="text-xs text-gray-500">pg {page} / {totalPages}</span>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
               className="px-3 py-1.5 bg-gray-800 rounded disabled:opacity-40 hover:bg-gray-700 transition-colors"
             >
               Next
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages}
+              className="px-2 py-1.5 bg-gray-800 rounded disabled:opacity-40 hover:bg-gray-700 transition-colors text-xs"
+            >
+              »»
             </button>
           </div>
         </div>
