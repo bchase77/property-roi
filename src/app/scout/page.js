@@ -1258,14 +1258,28 @@ export default function ScoutPage() {
                           const midStr = roiMid != null ? roiMid.toFixed(1) : '?';
                           const hiStr  = roiHi  != null ? roiHi.toFixed(0)  : '?';
                           return (
-                            <div className={good ? 'text-green-400' : 'text-yellow-500'}
-                                 title={`0% app: ${loStr}% | 3% app: ${midStr}% | 5% app: ${hiStr}%`}>
+                            <div className={good ? 'text-green-400' : 'text-yellow-500'}>
                               {label} <span className="text-gray-500">{loStr}–</span>{midStr}<span className="text-gray-500">–{hiStr}%</span>
                             </div>
                           );
                         };
+                        // Tooltip breakdown
+                        const eqCF5   = g.equityCFMo * 60;
+                        const eqProc  = g.equityProceeds;
+                        const mgrProc = Math.round((g.mgrProfit + g.perEquityInvestor) - (g.equityProfit + g.perEquityInvestor) + (g.equityProceeds));
+                        const tooltip = [
+                          `── Capital ──`,
+                          `Debt investor:   $${Math.round(g.perDebtInvestor/1000)}K each  →  8%/yr fixed ($${Math.round(g.debtReturn5yr/1000)}K over 5yr)`,
+                          `Equity investor: $${Math.round(g.perEquityInvestor/1000)}K each  (silent 45% / mgr 55%)`,
+                          `── Equity returns (3% app scenario) ──`,
+                          `Monthly CF to equity: $${g.equityCFMo}/mo  →  $${Math.round(eqCF5/1000)}K over 5yr`,
+                          `Sale proceeds to equity: $${Math.round(eqProc/1000)}K`,
+                          `Silent equity profit: $${Math.round(g.equityProfit/1000)}K  (${g.equityROI5?.toFixed(1)}%/yr)`,
+                          `Manager profit:       $${Math.round(g.mgrProfit/1000)}K  (${g.managerROI5?.toFixed(1)}%/yr)`,
+                          `── Range = 0% / 3% / 5% annual appreciation ──`,
+                        ].join('\n');
                         return (
-                          <div className="flex flex-col gap-0.5 font-medium">
+                          <div className="flex flex-col gap-0.5 font-medium cursor-help" title={tooltip}>
                             {rangeRow('Eq ', s?.at0?.equityROI5,  g.equityROI5,  s?.at5?.equityROI5)}
                             {rangeRow('Mgr', s?.at0?.managerROI5, g.managerROI5, s?.at5?.managerROI5)}
                           </div>
