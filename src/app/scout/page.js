@@ -951,7 +951,7 @@ export default function ScoutPage() {
                   { col: 'coc',     label: 'CoC' },
                   { col: 'roi5',    label: '5yr ROI' },
                   { col: 'atroi',   label: '30y ATROI' },
-                  { col: null,    label: 'Group Deal' },
+                  { col: 'groupEq', label: 'Group Deal' },
                   { col: null,    label: 'Prop Tax' },
                   { col: null,    label: 'Notes' },
                   { col: null,    label: 'Mark' },
@@ -1247,20 +1247,24 @@ export default function ScoutPage() {
                     <td className="px-2 py-1 text-xs whitespace-nowrap">
                       {metrics?.group ? (() => {
                         const g = metrics.group;
-                        const row = (label, roi, profit) => {
-                          if (roi == null) return <div className="text-gray-600">{label} —</div>;
-                          const good = roi >= 8;
-                          const profitK = profit != null ? ` ($${Math.round(profit/1000)}K)` : '';
+                        const s = g.scenarios;
+                        const rangeRow = (label, roiLo, roiMid, roiHi) => {
+                          if (roiMid == null) return <div className="text-gray-600">{label} —</div>;
+                          const good = roiMid >= 8;
+                          const loStr  = roiLo  != null ? roiLo.toFixed(0)  : '?';
+                          const midStr = roiMid != null ? roiMid.toFixed(1) : '?';
+                          const hiStr  = roiHi  != null ? roiHi.toFixed(0)  : '?';
                           return (
-                            <div className={good ? 'text-green-400' : 'text-red-400'}>
-                              {label} {roi.toFixed(1)}%<span className="text-gray-400">{profitK}</span>
+                            <div className={good ? 'text-green-400' : 'text-yellow-500'}
+                                 title={`0% app: ${loStr}% | 3% app: ${midStr}% | 5% app: ${hiStr}%`}>
+                              {label} <span className="text-gray-500">{loStr}–</span>{midStr}<span className="text-gray-500">–{hiStr}%</span>
                             </div>
                           );
                         };
                         return (
                           <div className="flex flex-col gap-0.5 font-medium">
-                            {row('Eq ', g.equityROI5,  g.equityProfit)}
-                            {row('Mgr', g.managerROI5, g.mgrProfit)}
+                            {rangeRow('Eq ', s?.at0?.equityROI5,  g.equityROI5,  s?.at5?.equityROI5)}
+                            {rangeRow('Mgr', s?.at0?.managerROI5, g.managerROI5, s?.at5?.managerROI5)}
                           </div>
                         );
                       })() : <span className="text-gray-600">—</span>}
