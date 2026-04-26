@@ -49,7 +49,7 @@ const MERGE_FIELDS = [
 
 function sourceLabel(source) {
   if (source === 'reination') return 'REI Nation';
-  if (source === 'pam') return 'PAMS';
+  if (source === 'pam') return 'PAMS Texas';
   if (source === 'manual') return 'Manual';
   return source ?? '—';
 }
@@ -475,7 +475,7 @@ export default function ScoutPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-6">
-        <PageHeader title="Scout" subtitle="PAM Texas MLS listings" currentPage="/scout" />
+        <PageHeader title="Scout" subtitle="PAMS Texas &amp; REI Nation listings" currentPage="/scout" />
         <p className="text-gray-400">Loading…</p>
       </main>
     );
@@ -485,7 +485,7 @@ export default function ScoutPage() {
     <main className="min-h-screen bg-gray-900 text-white p-6">
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
-          <PageHeader title="Scout" subtitle="PAM Texas MLS listings" currentPage="/scout" />
+          <PageHeader title="Scout" subtitle="PAMS Texas &amp; REI Nation listings" currentPage="/scout" />
         </div>
         <div className="flex gap-2 mt-1 ml-4">
           <button
@@ -787,7 +787,7 @@ export default function ScoutPage() {
         <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
           {[
             { key: 'all',        label: 'All Sources' },
-            { key: 'pam',        label: 'REI Nation' },
+            { key: 'pam',        label: 'PAMS Texas' },
             { key: 'reination',  label: 'Reination' },
           ].map(({ key, label }) => (
             <button

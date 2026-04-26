@@ -9,8 +9,8 @@
 #   4. Results are written directly to your Vercel Postgres database
 #   5. The VM shuts down — you're only charged for actual run time (~1-2 min)
 #
-# NOTE: PAM scraper runs locally on your Mac via LaunchAgent (7am daily).
-#       GitHub only handles Reination. Add PAM back here if PAM allows GH scraping.
+# NOTE: PAMS Texas scraper runs locally on your Mac via LaunchAgent (7am daily).
+#       GitHub only handles Reination (REI Nation). Add PAMS back here if PAMS allows GH scraping.
 
 name: Scout — Fetch Properties
 

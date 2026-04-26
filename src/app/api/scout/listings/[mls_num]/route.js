@@ -35,7 +35,7 @@ export async function DELETE(req, { params }) {
   const { rows } = await sql`SELECT source FROM scout_listings WHERE mls_num = ${mls_num}`;
   if (!rows.length) return NextResponse.json({ error: 'not found' }, { status: 404 });
   if (rows[0].source === 'pam') {
-    return NextResponse.json({ error: 'PAM listings cannot be deleted (re-scraped daily)' }, { status: 403 });
+    return NextResponse.json({ error: 'PAMS Texas listings cannot be deleted (re-scraped daily)' }, { status: 403 });
   }
 
   await sql`DELETE FROM scout_marks WHERE mls_num = ${mls_num}`;
