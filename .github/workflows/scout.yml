@@ -1,5 +1,6 @@
 # Scout — Automated Property Scraper
 # Runs daily at 7am Central (13:00 UTC) and can also be triggered manually.
+# Build machine: Elastic (cost-optimized)
 #
 # HOW IT WORKS:
 #   1. GitHub spins up a free Ubuntu VM
