@@ -172,3 +172,86 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS, { fas
     scenarios: fast ? null : { at0, at3, at5 },
   };
 }
+
+// ── Promote-deal structures (Options A & C) ───────────────────────────────────
+// Both use the same debt structure as calcGroup (75% at 7.23%).
+// Equity investors are EQUAL partners during the hold (CF split 50/50).
+// Manager advantage is purely an exit promote on profits above the hurdle rate.
+// promoteRate: fraction of excess-above-hurdle that goes solely to the manager.
+//   Option A: 0.20 (20% promote — subtler advantage)
+//   Option C: 0.30 (30% promote — stronger manager reward)
+function calcPromoteDeal(listing, mark, A, G, promoteRate, appRate = G.appRate) {
+  const price = Number(listing.price);
+  const hoa   = mark?.hoa_quarterly != null ? mark.hoa_quarterly / 3 : 0;
+  const rep   = mark?.repair_costs ?? A.repairCosts;
+  const sqftSafe = listing.sqft && listing.sqft <= 8000 ? listing.sqft : null;
+  const rent = mark?.rent_override
+    || (mark?.rent_min != null && mark?.rent_max != null ? Math.round((mark.rent_min + mark.rent_max) / 2) : null)
+    || (mark?.rent_min ?? mark?.rent_max)
+    || (sqftSafe ? Math.round(sqftSafe * A.rentPerSqft) : 0);
+  if (!price || !rent) return null;
+
+  const debtTotal         = price * G.debtRatio;
+  const equityTotal       = price - debtTotal;
+  const closingAndRepairs = price * (A.closingCostsPct / 100) + rep;
+  const totalEquity       = equityTotal + closingAndRepairs; // total equity raised
+  const perEquityInvestor = Math.round(totalEquity / 2);    // 2 equal equity investors
+
+  const debtInterestMo = debtTotal * G.debtRate / 12;
+  const tax   = listing.tax_annual ? Number(listing.tax_annual) / 12 : (price * (A.taxPct / 100)) / 12;
+  const opEx  = tax + hoa + A.insuranceMonthly
+              + rent * (A.maintPctRent + A.vacancyPctRent + A.mgmtPctRent) / 100;
+  const equityCFMo = rent - debtInterestMo - opEx;
+
+  // Exit at given appreciation rate
+  const salePrice    = price * Math.pow(1 + appRate, G.holdYears);
+  const netAfterDebt = salePrice - salePrice * G.saleCostPct - debtTotal;
+
+  const totalCF5         = equityCFMo * G.holdYears * 12;
+  const totalEquityReturn = netAfterDebt + totalCF5;
+  const totalProfit      = totalEquityReturn - totalEquity;
+
+  // Hurdle: each investor must clear debtRate/yr before promote kicks in
+  const hurdleTotal = totalEquity * G.debtRate * G.holdYears;
+
+  let silentProfit, managerProfit;
+  if (totalProfit >= hurdleTotal) {
+    const excess = totalProfit - hurdleTotal;
+    // Below hurdle: split 50/50; above hurdle: manager keeps promoteRate, rest 50/50
+    silentProfit  = hurdleTotal / 2 + excess * (1 - promoteRate) / 2;
+    managerProfit = hurdleTotal / 2 + excess * (1 - promoteRate) / 2 + excess * promoteRate;
+  } else {
+    silentProfit  = totalProfit / 2;
+    managerProfit = totalProfit / 2;
+  }
+
+  const silentROI  = perEquityInvestor > 0 ? silentProfit  / perEquityInvestor / G.holdYears * 100 : null;
+  const managerROI = perEquityInvestor > 0 ? managerProfit / perEquityInvestor / G.holdYears * 100 : null;
+  const promoteKicked = totalProfit >= hurdleTotal;
+
+  return {
+    silentROI:        silentROI  != null ? Math.round(silentROI  * 10) / 10 : null,
+    managerROI:       managerROI != null ? Math.round(managerROI * 10) / 10 : null,
+    promoteKicked,
+    perEquityInvestor,
+    equityCFMo:       Math.round(equityCFMo),
+  };
+}
+
+export function calcOptionA(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
+  // Equal equity partners + 20% exit promote above debt-rate hurdle
+  const at3 = calcPromoteDeal(listing, mark, A, G, 0.20, 0.03);
+  const at0 = calcPromoteDeal(listing, mark, A, G, 0.20, 0);
+  const at5 = calcPromoteDeal(listing, mark, A, G, 0.20, 0.05);
+  if (!at3) return null;
+  return { ...at3, at0, at5, promoteRate: 0.20 };
+}
+
+export function calcOptionC(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
+  // Equal equity partners + 30% exit promote above debt-rate hurdle
+  const at3 = calcPromoteDeal(listing, mark, A, G, 0.30, 0.03);
+  const at0 = calcPromoteDeal(listing, mark, A, G, 0.30, 0);
+  const at5 = calcPromoteDeal(listing, mark, A, G, 0.30, 0.05);
+  if (!at3) return null;
+  return { ...at3, at0, at5, promoteRate: 0.30 };
+}

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
-import { calcM, calcGroup, DEFAULTS } from '@/lib/calcMetrics';
+import { calcM, calcGroup, calcOptionA, calcOptionC, DEFAULTS } from '@/lib/calcMetrics';
 
 function fmt$(n) {
   if (n == null) return '—';
@@ -268,10 +268,11 @@ export default function ScoutPage() {
       const hasLocalEdits = !!localEdits[l.mls_num];
       if (hasSavedMarks || hasLocalEdits) {
         const mark = getMark(l);
-        m[l.mls_num] = { ...calcM(l, mark, DEFAULTS), group: calcGroup(l, mark, DEFAULTS) };
+        m[l.mls_num] = { ...calcM(l, mark, DEFAULTS), group: calcGroup(l, mark, DEFAULTS), optA: calcOptionA(l, mark), optC: calcOptionC(l, mark) };
       } else {
-        m[l.mls_num] = l.cf != null
-          ? { cf: l.cf, cap: l.cap, coc: l.coc, atroi: l.atroi, atroiErr: l.atroiErr, roi5: l.roi5, rent: l.rent, rentPct: l.rentPct, group: l.group ?? calcGroup(l, l, DEFAULTS) }
+        const src = l.cf != null ? l : null;
+        m[l.mls_num] = src
+          ? { cf: src.cf, cap: src.cap, coc: src.coc, atroi: src.atroi, atroiErr: src.atroiErr, roi5: src.roi5, rent: src.rent, rentPct: src.rentPct, group: src.group ?? calcGroup(l, l, DEFAULTS), optA: calcOptionA(l, l), optC: calcOptionC(l, l) }
           : null;
       }
     });
@@ -1008,31 +1009,33 @@ export default function ScoutPage() {
                   { col: 'price',  label: 'Price' },
                   { col: 'beds',   label: 'Bd/Ba/Sqft' },
                   { col: null,     label: 'Repairs $' },
-                  { col: null,     label: 'HOA $/qtr' },
-                  { col: null,    label: 'Est. Rent' },
-                  { col: 'cf',      label: 'Cash Flow' },
-                  { col: 'rentPct', label: 'Rent %' },
-                  { col: 'cap',     label: 'Cap' },
-                  { col: 'coc',     label: 'CoC' },
-                  { col: 'roi5',    label: '5yr ROI' },
-                  { col: 'atroi',   label: '30y ATROI' },
-                  { col: 'groupEq', label: 'Group Deal' },
-                  { col: null,    label: 'Prop Tax' },
-                  { col: null,    label: 'Notes' },
-                  { col: null,    label: 'Mark' },
-                ].map(({ col, label }) => (
+                  { col: null,     label: 'HOA',        label2: '$/qtr' },
+                  { col: null,     label: 'Rent',       label2: '$/mo' },
+                  { col: 'cf',     label: 'Cash Flow' },
+                  { col: 'rentPct',label: 'Rent %' },
+                  { col: 'cap',    label: 'Cap' },
+                  { col: 'coc',    label: 'CoC' },
+                  { col: 'roi5',   label: '5yr / 30yr', sortLabel: '5yr ROI' },
+                  { col: 'groupEq',label: 'Group Deal' },
+                  { col: null,     label: 'Opt A',      label2: '20%' },
+                  { col: null,     label: 'Opt C',      label2: '30%' },
+                  { col: null,     label: 'Prop Tax' },
+                  { col: null,     label: 'Notes' },
+                  { col: null,     label: 'Mark' },
+                ].map(({ col, label, label2, sortLabel }) => (
                   <th
                     key={label}
-                    className={`px-3 py-3 font-medium select-none ${col ? 'cursor-pointer hover:text-white' : ''}`}
+                    className={`px-2 py-3 font-medium select-none leading-tight ${col ? 'cursor-pointer hover:text-white' : ''}`}
                     onClick={col ? () => handleSort(col) : undefined}
-                    title={col ? `Sort by ${label}` : undefined}
+                    title={col ? `Sort by ${sortLabel || label}` : undefined}
                   >
-                    {label}
+                    <div>{label}</div>
+                    {label2 && <div className="text-gray-500 font-normal">{label2}</div>}
                     {col && sortCol === col && (
-                      <span className="ml-1 text-blue-400">{sortDir === 'desc' ? '↓' : '↑'}</span>
+                      <span className="text-blue-400">{sortDir === 'desc' ? '↓' : '↑'}</span>
                     )}
                     {col && sortCol !== col && (
-                      <span className="ml-1 text-gray-600">↕</span>
+                      <span className="text-gray-600">↕</span>
                     )}
                   </th>
                 ))}
@@ -1098,30 +1101,38 @@ export default function ScoutPage() {
                           className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1 text-white text-xs focus:outline-none"
                         />
                       ) : (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              const parts = (listing.address || '').split(',');
-                              copyToClipboard(parts.slice(0, 2).map(s => s.trim()).join(', '));
-                            }}
-                            className="text-gray-400 hover:text-white flex-shrink-0"
-                            title="Copy street + city"
-                          >⎘</button>
-                          <div
-                            className="font-medium text-white text-xs leading-tight cursor-pointer hover:text-blue-300 group"
-                            title="Click to edit address"
-                            onClick={() => setEditingAddress(listing.mls_num)}
-                          >
-                            {listing.href ? (
-                              <a href={listing.href} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors" onClick={e => e.stopPropagation()}>
-                                {listing.address}
-                              </a>
-                            ) : (
-                              listing.address
-                            )}
-                            <span className="ml-1 text-gray-600 opacity-0 group-hover:opacity-100 text-xs">✎</span>
-                          </div>
-                        </div>
+                        {(() => {
+                          const parts = (listing.address || '').split(',');
+                          const streetLine = parts[0]?.trim() || '';
+                          const cityLine   = [parts[1]?.trim(), parts[2]?.trim()].filter(Boolean).join(', ');
+                          return (
+                            <div className="flex items-start gap-1">
+                              <button
+                                onClick={() => copyToClipboard([streetLine, parts[1]?.trim()].filter(Boolean).join(', '))}
+                                className="text-gray-400 hover:text-white flex-shrink-0 mt-0.5"
+                                title="Copy street + city"
+                              >⎘</button>
+                              <div
+                                className="font-medium text-white text-xs leading-tight cursor-pointer hover:text-blue-300 group"
+                                title="Click to edit address"
+                                onClick={() => setEditingAddress(listing.mls_num)}
+                              >
+                                {listing.href ? (
+                                  <a href={listing.href} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors" onClick={e => e.stopPropagation()}>
+                                    <div>{streetLine}</div>
+                                    <div className="text-gray-400">{cityLine}</div>
+                                  </a>
+                                ) : (
+                                  <>
+                                    <div>{streetLine}</div>
+                                    <div className="text-gray-400">{cityLine}</div>
+                                  </>
+                                )}
+                                <span className="ml-1 text-gray-600 opacity-0 group-hover:opacity-100 text-xs">✎</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       )}
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className="text-gray-400 text-xs">{listing.mls_num}</span>
@@ -1208,7 +1219,7 @@ export default function ScoutPage() {
                           if (val !== prev) patchListing(listing.mls_num, { price: val });
                         }}
                         placeholder="—"
-                        className="w-24 bg-transparent font-mono text-white text-xs focus:outline-none focus:bg-gray-700 rounded px-1"
+                        className="w-20 bg-transparent font-mono text-white text-xs focus:outline-none focus:bg-gray-700 rounded px-1"
                       />
                       {priceDiff !== null && (
                         <div className={`text-xs font-medium ${priceDiff < 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -1272,7 +1283,7 @@ export default function ScoutPage() {
                         onBlur={() => commitField(listing.mls_num, 'rent_override', rentInput, rentVal)}
                         onKeyDown={e => e.key === 'Enter' && e.target.blur()}
                         placeholder={listing.sqft ? String(Math.round(listing.sqft * DEFAULTS.rentPerSqft)) : ''}
-                        className="w-20 bg-gray-700 border border-blue-800/60 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"
+                        className="w-16 bg-gray-700 border border-blue-800/60 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"
                         title="Type value then press Enter to save"
                       />
                       {listing.rent_min != null && listing.rent_max != null && (
@@ -1312,14 +1323,13 @@ export default function ScoutPage() {
                       {metrics ? fmtPct(metrics.coc) : '—'}
                     </td>
 
-                    {/* 5yr ROI */}
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <Roi5Badge value={metrics?.roi5 ?? null} />
-                    </td>
-
-                    {/* ATROI */}
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <AtroiBadge value={metrics?.atroi ?? null} err={metrics?.atroiErr} />
+                    {/* 5yr / 30yr combined */}
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <Roi5Badge value={metrics?.roi5 ?? null} />
+                        <span className="text-gray-600 text-xs">/</span>
+                        <AtroiBadge value={metrics?.atroi ?? null} err={metrics?.atroiErr} />
+                      </div>
                     </td>
 
                     {/* Group Deal */}
@@ -1368,6 +1378,58 @@ export default function ScoutPage() {
                         );
                       })() : <span className="text-gray-600">—</span>}
                     </td>
+
+                    {/* Option A — 20% promote */}
+                    {(() => {
+                      const o = metrics?.optA;
+                      if (!o) return <td className="px-2 py-1 text-gray-600 text-xs">—</td>;
+                      const good = o.managerROI != null && o.managerROI >= 8;
+                      const fmtR = v => v == null ? '—' : `${v.toFixed(1)}%`;
+                      const tooltip = [
+                        `Option A: Equal equity + 20% exit promote`,
+                        `Hurdle: ${(o.promoteRate * 100).toFixed(0)}% promote above debt rate`,
+                        `Promote kicked in: ${o.promoteKicked ? 'Yes' : 'No (split 50/50)'}`,
+                        ``,
+                        `At 0% app:  Eq ${fmtR(o.at0?.silentROI)} / Mgr ${fmtR(o.at0?.managerROI)}`,
+                        `At 3% app:  Eq ${fmtR(o.silentROI)} / Mgr ${fmtR(o.managerROI)}`,
+                        `At 5% app:  Eq ${fmtR(o.at5?.silentROI)} / Mgr ${fmtR(o.at5?.managerROI)}`,
+                        ``,
+                        `Each equity investor: $${Math.round(o.perEquityInvestor/1000)}K`,
+                        `(click to copy)`,
+                      ].join('\n');
+                      return (
+                        <td className="px-2 py-1 text-xs whitespace-nowrap cursor-pointer" title={tooltip} onClick={() => copyToClipboard(tooltip)}>
+                          <div className="text-gray-400">Eq {fmtR(o.silentROI)}</div>
+                          <div className={good ? 'text-green-400 font-medium' : 'text-yellow-500 font-medium'}>Mgr {fmtR(o.managerROI)}</div>
+                        </td>
+                      );
+                    })()}
+
+                    {/* Option C — 30% promote */}
+                    {(() => {
+                      const o = metrics?.optC;
+                      if (!o) return <td className="px-2 py-1 text-gray-600 text-xs">—</td>;
+                      const good = o.managerROI != null && o.managerROI >= 8;
+                      const fmtR = v => v == null ? '—' : `${v.toFixed(1)}%`;
+                      const tooltip = [
+                        `Option C: Equal equity + 30% exit promote`,
+                        `Hurdle: ${(o.promoteRate * 100).toFixed(0)}% promote above debt rate`,
+                        `Promote kicked in: ${o.promoteKicked ? 'Yes' : 'No (split 50/50)'}`,
+                        ``,
+                        `At 0% app:  Eq ${fmtR(o.at0?.silentROI)} / Mgr ${fmtR(o.at0?.managerROI)}`,
+                        `At 3% app:  Eq ${fmtR(o.silentROI)} / Mgr ${fmtR(o.managerROI)}`,
+                        `At 5% app:  Eq ${fmtR(o.at5?.silentROI)} / Mgr ${fmtR(o.at5?.managerROI)}`,
+                        ``,
+                        `Each equity investor: $${Math.round(o.perEquityInvestor/1000)}K`,
+                        `(click to copy)`,
+                      ].join('\n');
+                      return (
+                        <td className="px-2 py-1 text-xs whitespace-nowrap cursor-pointer" title={tooltip} onClick={() => copyToClipboard(tooltip)}>
+                          <div className="text-gray-400">Eq {fmtR(o.silentROI)}</div>
+                          <div className={good ? 'text-green-400 font-medium' : 'text-yellow-500 font-medium'}>Mgr {fmtR(o.managerROI)}</div>
+                        </td>
+                      );
+                    })()}
 
                     {/* Prop Tax */}
                     <td className="px-1 text-center">
