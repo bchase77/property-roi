@@ -1083,6 +1083,11 @@ export default function ScoutPage() {
                   ? new Date(listing.hoa_set_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit', hour: 'numeric', minute: '2-digit' })
                   : null;
 
+                const addrParts  = (listing.address || '').split(',');
+                const streetLine = addrParts[0]?.trim() || '';
+                const cityLine   = [addrParts[1]?.trim(), addrParts[2]?.trim()].filter(Boolean).join(', ');
+                const copyAddr   = [streetLine, addrParts[1]?.trim()].filter(Boolean).join(', ');
+
                 return (
                   <tr key={listing.mls_num} className={`hover:bg-gray-750 align-top ${touched ? 'border-l-2 border-amber-500/70' : ''}`}>
                     {/* Address */}
@@ -1100,38 +1105,33 @@ export default function ScoutPage() {
                           onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { setEditingAddress(null); } }}
                           className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1 text-white text-xs focus:outline-none"
                         />
-                      ) : (() => {
-                          const parts = (listing.address || '').split(',');
-                          const streetLine = parts[0]?.trim() || '';
-                          const cityLine   = [parts[1]?.trim(), parts[2]?.trim()].filter(Boolean).join(', ');
-                          return (
-                            <div className="flex items-start gap-1">
-                              <button
-                                onClick={() => copyToClipboard([streetLine, parts[1]?.trim()].filter(Boolean).join(', '))}
-                                className="text-gray-400 hover:text-white flex-shrink-0 mt-0.5"
-                                title="Copy street + city"
-                              >⎘</button>
-                              <div
-                                className="font-medium text-white text-xs leading-tight cursor-pointer hover:text-blue-300 group"
-                                title="Click to edit address"
-                                onClick={() => setEditingAddress(listing.mls_num)}
-                              >
-                                {listing.href ? (
-                                  <a href={listing.href} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors" onClick={e => e.stopPropagation()}>
-                                    <div>{streetLine}</div>
-                                    <div className="text-gray-400">{cityLine}</div>
-                                  </a>
-                                ) : (
-                                  <>
-                                    <div>{streetLine}</div>
-                                    <div className="text-gray-400">{cityLine}</div>
-                                  </>
-                                )}
-                                <span className="ml-1 text-gray-600 opacity-0 group-hover:opacity-100 text-xs">✎</span>
-                              </div>
-                            </div>
-                          );
-                        })()
+                      ) : (
+                        <div className="flex items-start gap-1">
+                          <button
+                            onClick={() => copyToClipboard(copyAddr)}
+                            className="text-gray-400 hover:text-white flex-shrink-0 mt-0.5"
+                            title="Copy street + city"
+                          >⎘</button>
+                          <div
+                            className="font-medium text-white text-xs leading-tight cursor-pointer hover:text-blue-300 group"
+                            title="Click to edit address"
+                            onClick={() => setEditingAddress(listing.mls_num)}
+                          >
+                            {listing.href ? (
+                              <a href={listing.href} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors" onClick={e => e.stopPropagation()}>
+                                <div>{streetLine}</div>
+                                <div className="text-gray-400">{cityLine}</div>
+                              </a>
+                            ) : (
+                              <>
+                                <div>{streetLine}</div>
+                                <div className="text-gray-400">{cityLine}</div>
+                              </>
+                            )}
+                            <span className="ml-1 text-gray-600 opacity-0 group-hover:opacity-100 text-xs">✎</span>
+                          </div>
+                        </div>
+                      )
                       )}
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className="text-gray-400 text-xs">{listing.mls_num}</span>
