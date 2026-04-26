@@ -1105,6 +1105,17 @@ export default function ScoutPage() {
                         >
                           📋
                         </button>
+                        {listing.href && (
+                          <a
+                            href={listing.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-400 hover:text-indigo-200 text-xs font-bold"
+                            title={`View on ${listing.source === 'reination' ? 'REI Nation' : listing.source === 'pam' ? 'PAMS Texas' : 'source'}`}
+                          >
+                            {listing.source === 'reination' ? 'REI↗' : listing.source === 'pam' ? 'PAM↗' : '↗'}
+                          </a>
+                        )}
                         {listing.address && (
                           <a
                             href={`https://www.zillow.com/homes/for_rent/${encodeURIComponent(listing.address)}_rb/`}
