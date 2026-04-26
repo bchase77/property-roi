@@ -271,7 +271,7 @@ export default function ScoutPage() {
         m[l.mls_num] = { ...calcM(l, mark, DEFAULTS), group: calcGroup(l, mark, DEFAULTS) };
       } else {
         m[l.mls_num] = l.cf != null
-          ? { cf: l.cf, cap: l.cap, coc: l.coc, atroi: l.atroi, atroiErr: l.atroiErr, roi5: l.roi5, rent: l.rent, rentPct: l.rentPct, group: l.group }
+          ? { cf: l.cf, cap: l.cap, coc: l.coc, atroi: l.atroi, atroiErr: l.atroiErr, roi5: l.roi5, rent: l.rent, rentPct: l.rentPct, group: l.group ?? calcGroup(l, l, DEFAULTS) }
           : null;
       }
     });
