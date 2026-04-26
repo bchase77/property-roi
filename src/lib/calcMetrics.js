@@ -105,7 +105,7 @@ function _exitROIs(price, appRate, G, equityCFMo, perEquityInvestor) {
   };
 }
 
-export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
+export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS, { fast = false } = {}) {
   const price = Number(listing.price);
   const hoa  = mark?.hoa_quarterly != null ? mark.hoa_quarterly / 3 : 0;
   const rep  = mark?.repair_costs ?? A.repairCosts;
@@ -138,10 +138,10 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
   // Monthly cash flow available to equity investors
   const equityCFMo = rent - debtInterestMo - opEx;
 
-  // Compute ROIs at 3 appreciation scenarios: 0%, 3%, 5%
-  const at0 = _exitROIs(price, 0,    G, equityCFMo, perEquityInvestor);
+  // Compute ROIs: always at 3% (base); at0/at5 only when full scenarios needed
   const at3 = _exitROIs(price, 0.03, G, equityCFMo, perEquityInvestor);
-  const at5 = _exitROIs(price, 0.05, G, equityCFMo, perEquityInvestor);
+  const at0 = fast ? null : _exitROIs(price, 0,    G, equityCFMo, perEquityInvestor);
+  const at5 = fast ? null : _exitROIs(price, 0.05, G, equityCFMo, perEquityInvestor);
 
   // Debt investor total return (simple interest, 8% × 5yr)
   const debtReturn5yr = Math.round(perDebtInvestor * G.debtRate * G.holdYears);
@@ -167,7 +167,7 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS) {
     debtROI5,
     mgmtFee5yr,
     debtMonthlyVsAtSale,
-    // Appreciation scenarios for range display
-    scenarios: { at0, at3, at5 },
+    // Appreciation scenarios for range display (null in fast/sort-only mode)
+    scenarios: fast ? null : { at0, at3, at5 },
   };
 }

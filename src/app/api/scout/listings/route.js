@@ -97,7 +97,7 @@ export async function GET(req) {
     const needsGroup = sort === 'groupEq';
     const withMetrics = rows.map(row => {
       const metrics = calcM(row, row, DEFAULTS);
-      const group   = needsGroup ? calcGroup(row, row, DEFAULTS) : null;
+      const group   = needsGroup ? calcGroup(row, row, DEFAULTS, undefined, { fast: true }) : null;
       return {
         ...row,
         cf:       metrics?.cf       ?? null,
