@@ -205,10 +205,13 @@ function ScoutPageInner() {
     // Optimistic local update
     setLocalEdits(e => ({ ...e, [mls_num]: { ...(e[mls_num] ?? {}), ...fields } }));
     try {
+      // mark_notes is the SELECT alias (m.notes AS mark_notes); API expects 'notes'
+      const { mark_notes, ...rest } = fields;
+      const apiFields = mark_notes !== undefined ? { ...rest, notes: mark_notes } : rest;
       const res = await fetch('/api/scout/marks', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mls_num, ...fields }),
+        body: JSON.stringify({ mls_num, ...apiFields }),
       });
       if (!res.ok) throw new Error('Save failed');
       // Sync back to listings
