@@ -93,9 +93,11 @@ export async function GET(req) {
     `, params);
 
     // ── Compute metrics for filtered rows only ────────────────────────────────────
+    // calcGroup is expensive (3× appreciation scenarios) — only run it when needed
+    const needsGroup = sort === 'groupEq';
     const withMetrics = rows.map(row => {
       const metrics = calcM(row, row, DEFAULTS);
-      const group   = calcGroup(row, row, DEFAULTS);
+      const group   = needsGroup ? calcGroup(row, row, DEFAULTS) : null;
       return {
         ...row,
         cf:       metrics?.cf       ?? null,

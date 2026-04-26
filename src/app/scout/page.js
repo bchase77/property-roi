@@ -1309,7 +1309,11 @@ export default function ScoutPage() {
                           `── Range = 0% / 3% / 5% annual appreciation ──`,
                         ].join('\n');
                         return (
-                          <div className="flex flex-col gap-0.5 font-medium cursor-help" title={tooltip}>
+                          <div
+                            className="flex flex-col gap-0.5 font-medium cursor-pointer select-none"
+                            title={tooltip + '\n\n(click to copy)'}
+                            onClick={() => copyToClipboard(tooltip)}
+                          >
                             {rangeRow('Eq ', s?.at0?.equityROI5,  g.equityROI5,  s?.at5?.equityROI5)}
                             {rangeRow('Mgr', s?.at0?.managerROI5, g.managerROI5, s?.at5?.managerROI5)}
                           </div>
