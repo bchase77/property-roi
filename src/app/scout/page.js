@@ -75,6 +75,9 @@ function ScoutPageInner() {
   const [listings, setListings] = useState([]);
   const [stats, setStats] = useState({ total: 0, potential: 0, skip: 0, great: 0, pending: 0 });
   const [pendingListings, setPendingListings] = useState([]);
+  const [toastMsg, setToastMsg] = useState('');
+  const listingsRef = useRef([]);
+  const pendingListingsRef = useRef([]);
   const [config, setConfig] = useState(null);
   const [configDraft, setConfigDraft] = useState({});
   const [configOpen, setConfigOpen] = useState(false);
@@ -91,6 +94,10 @@ function ScoutPageInner() {
 
   // Undo stack: [{mls_num, field, prevValue, label}]
   const [undoStack, setUndoStack] = useState([]);
+
+  // Keep refs in sync so patchMark can look up addresses without stale closures
+  useEffect(() => { listingsRef.current = listings; }, [listings]);
+  useEffect(() => { pendingListingsRef.current = pendingListings; }, [pendingListings]);
 
   // Merge modal
   const [mergePair, setMergePair] = useState(null); // { manual, scraped }
@@ -201,6 +208,11 @@ function ScoutPageInner() {
     };
   }, [localEdits]);
 
+  const FIELD_LABEL = {
+    mark_notes: 'notes', repair_costs: 'repairs',
+    hoa_quarterly: 'HOA', rent_override: 'rent', status: 'status',
+  };
+
   const patchMark = useCallback(async (mls_num, fields) => {
     // Optimistic local update
     setLocalEdits(e => ({ ...e, [mls_num]: { ...(e[mls_num] ?? {}), ...fields } }));
@@ -216,6 +228,24 @@ function ScoutPageInner() {
       if (!res.ok) throw new Error('Save failed');
       // Sync back to listings
       setListings(ls => ls.map(l => l.mls_num === mls_num ? { ...l, ...fields } : l));
+
+      // Activity log + toast
+      const listing = listingsRef.current.find(l => l.mls_num === mls_num)
+        ?? pendingListingsRef.current.find(l => l.mls_num === mls_num);
+      const street = listing?.address?.split(',')[0] ?? mls_num;
+      const key = Object.keys(fields)[0];
+      const label = FIELD_LABEL[key] ?? key.replace(/_/g, ' ');
+      const val = fields[key];
+      const msg = key === 'status'
+        ? (val ? `marked ${val}: ${street}` : `status cleared: ${street}`)
+        : (val == null || val === '' ? `${label} cleared: ${street}` : `${label} saved: ${street}`);
+      setToastMsg(msg);
+      setTimeout(() => setToastMsg(''), 3000);
+      fetch('/api/scout/activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg }),
+      }).catch(() => {});
     } catch (err) {
       console.error('Failed to save mark:', err);
     }
@@ -531,8 +561,21 @@ function ScoutPageInner() {
           >
             Compare Potentials →
           </button>
+          <a
+            href="/scout/activity"
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium rounded-lg whitespace-nowrap"
+          >
+            Activity
+          </a>
         </div>
       </div>
+
+      {/* Save toast */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-gray-800 border border-gray-600 text-gray-200 text-xs px-4 py-2 rounded-lg shadow-lg">
+          ✓ {toastMsg}
+        </div>
+      )}
 
       {/* Merge Modal */}
       {mergePair && (

@@ -251,6 +251,14 @@ export async function init() {
   `;
 
   await sql/*sql*/`
+    CREATE TABLE IF NOT EXISTS scout_activity_log (
+      id SERIAL PRIMARY KEY,
+      message TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+  `;
+
+  await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
       id SERIAL PRIMARY KEY,
       property_id INT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
