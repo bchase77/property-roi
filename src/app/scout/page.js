@@ -1063,9 +1063,12 @@ export default function ScoutPage() {
                       ) : (
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={() => copyToClipboard(listing.address)}
+                            onClick={() => {
+                              const parts = (listing.address || '').split(',');
+                              copyToClipboard(parts.slice(0, 2).map(s => s.trim()).join(', '));
+                            }}
                             className="text-gray-400 hover:text-white flex-shrink-0"
-                            title="Copy address"
+                            title="Copy street + city"
                           >⎘</button>
                           <div
                             className="font-medium text-white text-xs leading-tight cursor-pointer hover:text-blue-300 group"
