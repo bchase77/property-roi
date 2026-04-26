@@ -784,23 +784,33 @@ export default function ScoutPage() {
           ))}
         </div>
 
-        <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
           {[
-            { key: 'all',        label: 'All Sources' },
-            { key: 'pam',        label: 'PAMS Texas' },
-            { key: 'reination',  label: 'Reination' },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilterSource(key)}
-              className={`px-3 py-1 text-xs rounded font-medium transition-colors ${
-                filterSource === key
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              {label}
-            </button>
+            { key: 'all',       label: 'All Sources', href: null },
+            { key: 'pam',       label: 'PAMS Texas',  href: 'https://pamtexas.idxbroker.com' },
+            { key: 'reination', label: 'REI Nation',   href: 'https://www.reination.com' },
+          ].map(({ key, label, href }) => (
+            <div key={key} className="flex items-center">
+              <button
+                onClick={() => setFilterSource(key)}
+                className={`px-3 py-1 text-xs rounded font-medium transition-colors ${
+                  filterSource === key
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+              {href && (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-0.5 text-gray-600 hover:text-indigo-400 text-xs"
+                  title={`Open ${label} website`}
+                >↗</a>
+              )}
+            </div>
           ))}
         </div>
 
