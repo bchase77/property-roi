@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { calcM, calcGroup, DEFAULTS } from '@/lib/calcMetrics';
 
@@ -71,6 +71,7 @@ const PAGE_SIZE = 50;
 
 export default function ScoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [listings, setListings] = useState([]);
   const [stats, setStats] = useState({ total: 0, potential: 0, skip: 0, great: 0, pending: 0 });
   const [pendingListings, setPendingListings] = useState([]);
@@ -109,30 +110,56 @@ export default function ScoutPage() {
   const [editingTaxAcct, setEditingTaxAcct] = useState(null); // mls_num editing account number
 
   // Top-level tab
-  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'pending'
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'active');
 
-  // Filter / search / page
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'potential' | 'skip' | 'not-skip'
-  const [filterSource, setFilterSource] = useState('all'); // 'all' | 'pam' | 'reination'
-  const [filterEntry, setFilterEntry] = useState('all');   // 'all' | 'entered' | 'not-entered'
-  const [priceMin, setPriceMin] = useState('');
-  const [priceMax, setPriceMax] = useState('');
-  const [rentPctMin, setRentPctMin] = useState('');
-  const [cfMin, setCfMin] = useState('');
-  const [capMin, setCapMin] = useState('');
-  const [bedsMin, setBedsMin] = useState('');
+  // Filter / search / page — initialised from URL so refresh restores state
+  const [filterStatus, setFilterStatus] = useState(() => searchParams.get('status') || 'all');
+  const [filterSource, setFilterSource] = useState(() => searchParams.get('source') || 'all');
+  const [filterEntry, setFilterEntry] = useState(() => searchParams.get('entry') || 'all');
+  const [priceMin, setPriceMin] = useState(() => searchParams.get('priceMin') || '');
+  const [priceMax, setPriceMax] = useState(() => searchParams.get('priceMax') || '');
+  const [rentPctMin, setRentPctMin] = useState(() => searchParams.get('rentPctMin') || '');
+  const [cfMin, setCfMin] = useState(() => searchParams.get('cfMin') || '');
+  const [capMin, setCapMin] = useState(() => searchParams.get('capMin') || '');
+  const [bedsMin, setBedsMin] = useState(() => searchParams.get('bedsMin') || '');
   // Draft values — updated on every keystroke, committed to filter state on Enter/blur
-  const [filterDrafts, setFilterDrafts] = useState({ rentPctMin: '', cfMin: '', capMin: '', bedsMin: '' });
+  const [filterDrafts, setFilterDrafts] = useState({
+    rentPctMin: searchParams.get('rentPctMin') || '',
+    cfMin:      searchParams.get('cfMin')      || '',
+    capMin:     searchParams.get('capMin')     || '',
+    bedsMin:    searchParams.get('bedsMin')    || '',
+  });
   const setDraft = (key, val) => setFilterDrafts(d => ({ ...d, [key]: val }));
   const commitDraft = (key, setter) => setter(filterDrafts[key]);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [page, setPage] = useState(() => Math.max(1, parseInt(searchParams.get('page') || '1', 10)));
 
-  const [sortCol, setSortCol] = useState('atroi');
-  const [sortDir, setSortDir] = useState('desc');
+  const [sortCol, setSortCol] = useState(() => searchParams.get('sort') || 'atroi');
+  const [sortDir, setSortDir] = useState(() => searchParams.get('dir')  || 'desc');
 
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') || '');
   const commitSearch = useCallback(() => setDebouncedSearch(search), [search]);
+
+  // Sync filter/sort state back to URL so refresh restores it
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (activeTab     !== 'active') p.set('tab',       activeTab);
+    if (sortCol       !== 'atroi')  p.set('sort',      sortCol);
+    if (sortDir       !== 'desc')   p.set('dir',       sortDir);
+    if (filterStatus  !== 'all')    p.set('status',    filterStatus);
+    if (filterSource  !== 'all')    p.set('source',    filterSource);
+    if (filterEntry   !== 'all')    p.set('entry',     filterEntry);
+    if (debouncedSearch)            p.set('search',    debouncedSearch);
+    if (priceMin)                   p.set('priceMin',  priceMin);
+    if (priceMax)                   p.set('priceMax',  priceMax);
+    if (rentPctMin)                 p.set('rentPctMin',rentPctMin);
+    if (cfMin)                      p.set('cfMin',     cfMin);
+    if (capMin)                     p.set('capMin',    capMin);
+    if (bedsMin)                    p.set('bedsMin',   bedsMin);
+    if (page > 1)                   p.set('page',      String(page));
+    const qs = p.toString();
+    window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname);
+  }, [activeTab, sortCol, sortDir, filterStatus, filterSource, filterEntry, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, page]);
 
   const [totalCount, setTotalCount] = useState(0);
 
