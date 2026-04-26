@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Total Development Time:** ~10 hours across 9 sessions
+**Total Development Time:** ~14 hours across 12+ sessions
 **Development Period:** Multiple sessions with Claude Code
 **Project Type:** Real estate investment analysis dashboard with interactive charts
 
@@ -14,6 +14,26 @@ This application demonstrates building a sophisticated financial analysis tool w
 - Property abbreviation system for clean chart displays
 
 **Time Investment Reference:** For similar financial dashboard projects, expect ~4-5 hours for core chart functionality, database integration, and metric calculations with an experienced AI coding assistant.
+
+---
+
+## Session: 2026-04-19
+
+### Features Implemented
+- **Group Deal return ranges**: calcGroup now computes equity/manager ROIs at 0%, 3%, 5% appreciation; Scout column shows "Eq 4–12.1–18%" format
+- **Group Deal tooltip**: hover shows full capital structure — debt vs equity investment, CF vs proceeds split, all three investor returns side by side
+- **Debt ratio increased**: 67% → 75%, reducing equity investor required capital by ~$10-15K per person
+- **Server-side pagination**: Scout pages through all 4,600+ listings 50 at a time with «« Prev / Next »» controls
+- **Status filter server-side**: "Not Skipped" filter now applies across all rows, not just the current page
+- **Source filter**: All Sources / REI Nation / Reination filter buttons added (DB has 6,413 PAM + 47 Reination)
+- **metricsMap bug fix**: metrics now always recompute client-side when saved marks exist — was showing stale server values after page reload
+- **sqft cap fix**: calcM/calcGroup cap sqft-based rent estimate at 8,000 sqft to prevent corrupt data causing 'err' badge
+- **DB health check**: queried all 5,885 listings — no widespread data corruption found
+
+### Security Response (Vercel incident)
+- DB credentials rotated via Vercel dashboard
+- GitHub access revoked to stop unauthorized deployments
+- App remains running; reconnect GitHub when ready to deploy again
 
 ---
 

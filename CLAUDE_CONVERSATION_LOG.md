@@ -3,6 +3,118 @@
 This file tracks all user prompts and responses during current development sessions.
 
 **Note:** Older session history has been archived:
+
+---
+
+## Session: 2026-04-19
+
+### User Prompt
+what does it cost to rehab a home which has extensive fire damage? 4 BR 3 BA, Arlington TX. 2 stories. lot is 7753 sq ft, built in 1976. Tax assessment value was $331K in 2025. Listing for $200K cash only. Interior area 2637 sqft. With garage. How much would I need to invest to make this a rental?
+
+### User Prompt
+If I buy a mobile home as a rental and there is $0 HOA, are there other costs, because it's a mobile home?
+
+### User Prompt
+How can I know if land is included from Zillow. The property says it's on lake Arlington inside of El Largo II.
+
+### User Prompt
+If a place on zillow says needs updates and repairs, what's a good minimum $ amount to use? For places in good shape I'm using $5K.
+
+### User Prompt
+What does this mean: HUD Owned Home FHA Case# 513-260946. Sold AS-IS.
+
+### User Prompt
+I updated several properties in the SCOUT page. Ignore them if I clicked SKIP. Can you find 1 to 4 properties which can meet the group investment idea we've been discussing? Manager role should get 2% higher than equity roles. Does it make sense to show mgr and equity holders return as a range? For example if there is no appreciation vs. 3 or 5%?
+
+### Work Done
+- Modified calcGroup in calcMetrics.js to compute ROIs at 0%, 3%, 5% appreciation scenarios
+- Updated Scout Group Deal column to show range format (e.g. "Eq 4–12.1–18%")
+- Made Group Deal column sortable by equity ROI
+- Added hover tooltip showing full capital structure breakdown
+
+### User Prompt
+Add controls to page through them 50 at a time
+
+### Work Done
+- Added server-side pagination with offset parameter to API
+- Status filter moved server-side (applies across all rows, not just current 50)
+- Pagination footer: «« Prev / pg N of M / Next »» controls
+- Header shows total count and current page
+
+### User Prompt
+Let me filter by "NOT SKIPPED" which is BUY and non-marked.
+
+### Work Done
+- Added "✓ Not Skipped" button to status filter row
+- API handles not-skip filter server-side
+
+### User Prompt
+Why are there delete buttons for some properties on scout page?
+
+### User Prompt
+it says "50 shown after status filter" Are these the top 50 from all 4600?
+
+### User Prompt
+What does this mean: HUD Owned Home FHA Case# 513-260946. Sold AS-IS.
+
+### User Prompt
+Is the property at 6012 Cowden in the Scout DB high return for the group deal because of the high cash flow? Or some other reason?
+
+### Work Done
+- Added detailed hover tooltip to Group Deal cell showing capital structure, CF vs proceeds breakdown, and all three investor returns side by side
+
+### User Prompt
+Price is $275K + $20K repairs. $0 HOA. Rent is $3132. Cash Flow is $720. Yes, add a tooltip which appears on mouse-over. When it says "Eq 4–12.1–18% Mgr 9–19.3–27%" does it mean the Equity Holder full range is 4% to 18%, and Mgr range is 9 to 27%? How can they be so high if the 5yr ROI is 0.0%. The CoC and other metrics don't look so good, but why is the Group Deal so high?
+
+### User Prompt
+I want all metrics to use the rent I type in, not the $1/sqft. Do I need to reenter them all? How is the Rent % calculated? That should use override amount also. Are the ROI values for EQ and MGR comparable to the debt investor? If yes, reduce the amount the equity investors need to put in, more from the Debt Investor.
+
+### Work Done
+- Increased debt ratio from 67% to 75% in GROUP_DEFAULTS
+- Improved tooltip to show all three investor types side-by-side for comparison
+
+### User Prompt
+for 9213 Old Clydesdale, I see 'err' in the 30y ATROI column. For 6012 Cowden Street, I see 0.0% when I put in rent=3132 and also when rent=313, which does not seem right. Check these for errors.
+
+### Work Done
+- Fixed metricsMap: now always recomputes client-side when listing has saved marks (rent_override, repair_costs, hoa_quarterly, tax_annual) — was using stale server values after page reload
+- Fixed calcM/calcGroup: cap sqft-based rent estimate at 8,000 sqft to prevent corrupt data causing 'err'
+
+### User Prompt
+check all the other entries in the DB for both of those issues.
+
+### Work Done
+- Queried DB: only 1 listing with sqft > 8000 (6572 McCart Ave, has rent override so unaffected)
+- 88 rent overrides all look reasonable
+- 28 no-price listings are all listing_status=null (not active), show — correctly
+- No other data corruption found
+
+### User Prompt
+How can I search by REI ones?
+
+### Work Done
+- Added source filter buttons: All Sources / REI Nation / Reination (indigo color)
+- API handles source filter server-side
+- DB has 6,413 PAM and 47 Reination listings
+
+### User Prompt
+vercel got hacked. How can I protect myself in this project?
+
+### User Prompt
+What to do with the POSTGRES_URL / POSTGRES_PRISMA_URL connection string? You said it's critical, what am I supposed to do with it?
+
+### User Prompt
+I had revoked github access, so now Vercel is saying there is no github account connected, is that expected? Am I done for now?
+
+### User Prompt
+Is this now secured? I need to eat dinner...
+
+### User Prompt
+Do you have any local cleanup in Claude.md to do? Do it now.
+
+---
+
+**Note:** Older session history has been archived:
 - 2025-10-06 through 2025-11-01: `CLAUDE_CONVERSATION_LOG_ARCHIVE.md`
 - 2025-11-02 through 2025-12-27: `CLAUDE_CONVERSATION_LOG_ARCHIVE_2.md`
 

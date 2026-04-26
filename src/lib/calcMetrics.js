@@ -13,8 +13,8 @@ export function calcM(listing, mark, A = DEFAULTS) {
   // Cap sqft-based fallback at 8,000 sqft to guard against corrupt data
   const sqftSafe = listing.sqft && listing.sqft <= 8000 ? listing.sqft : null;
   const rentBase = mark?.rent_override
-    || (mark?.rent_min != null && mark?.rent_max != null ? Math.round((mark.rent_min + mark.rent_max) / 2) : null)
-    || (mark?.rent_min ?? mark?.rent_max)
+    || (mark?.rent_min != null && mark?.rent_max != null ? Math.round((Number(mark.rent_min) + Number(mark.rent_max)) / 2) : null)
+    || (mark?.rent_min != null ? Number(mark.rent_min) : mark?.rent_max != null ? Number(mark.rent_max) : null)
     || (sqftSafe ? Math.round(sqftSafe * A.rentPerSqft) : 0);
   const rent = rentBase;
   if (!price || !rent) return null;
@@ -109,11 +109,11 @@ function _exitROIs(price, appRate, G, equityCFMo, perEquityInvestor) {
 export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS, { fast = false } = {}) {
   const price = Number(listing.price);
   const hoa  = mark?.hoa_quarterly != null ? mark.hoa_quarterly / 3 : 0;
-  const rep  = mark?.repair_costs ?? A.repairCosts;
+  const rep  = Number(mark?.repair_costs ?? A.repairCosts);
   const sqftSafe = listing.sqft && listing.sqft <= 8000 ? listing.sqft : null;
   const rentBase = mark?.rent_override
-    || (mark?.rent_min != null && mark?.rent_max != null ? Math.round((mark.rent_min + mark.rent_max) / 2) : null)
-    || (mark?.rent_min ?? mark?.rent_max)
+    || (mark?.rent_min != null && mark?.rent_max != null ? Math.round((Number(mark.rent_min) + Number(mark.rent_max)) / 2) : null)
+    || (mark?.rent_min != null ? Number(mark.rent_min) : mark?.rent_max != null ? Number(mark.rent_max) : null)
     || (sqftSafe ? Math.round(sqftSafe * A.rentPerSqft) : 0);
   const rent = rentBase;
   if (!price || !rent) return null;
@@ -183,11 +183,11 @@ export function calcGroup(listing, mark, A = DEFAULTS, G = GROUP_DEFAULTS, { fas
 function calcPromoteDeal(listing, mark, A, G, promoteRate, appRate = G.appRate) {
   const price = Number(listing.price);
   const hoa   = mark?.hoa_quarterly != null ? mark.hoa_quarterly / 3 : 0;
-  const rep   = mark?.repair_costs ?? A.repairCosts;
+  const rep   = Number(mark?.repair_costs ?? A.repairCosts);
   const sqftSafe = listing.sqft && listing.sqft <= 8000 ? listing.sqft : null;
   const rent = mark?.rent_override
-    || (mark?.rent_min != null && mark?.rent_max != null ? Math.round((mark.rent_min + mark.rent_max) / 2) : null)
-    || (mark?.rent_min ?? mark?.rent_max)
+    || (mark?.rent_min != null && mark?.rent_max != null ? Math.round((Number(mark.rent_min) + Number(mark.rent_max)) / 2) : null)
+    || (mark?.rent_min != null ? Number(mark.rent_min) : mark?.rent_max != null ? Number(mark.rent_max) : null)
     || (sqftSafe ? Math.round(sqftSafe * A.rentPerSqft) : 0);
   if (!price || !rent) return null;
 
