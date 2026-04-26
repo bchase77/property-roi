@@ -93,11 +93,14 @@ export async function GET(req) {
     `, params);
 
     // ── Compute metrics for filtered rows only ────────────────────────────────────
-    // calcGroup is expensive (3× appreciation scenarios) — only run it when needed
+    // calcGroup is expensive (3× appreciation scenarios) — only run it when needed.
+    // When sorting by groupEq, only compute group for rows with actual rent data;
+    // rows using the $1/sqft estimate sort to the bottom (treated as null).
     const needsGroup = sort === 'groupEq';
+    const hasRentData = row => row.rent_override != null || row.rent_min != null || row.rent_max != null;
     const withMetrics = rows.map(row => {
       const metrics = calcM(row, row, DEFAULTS);
-      const group   = needsGroup ? calcGroup(row, row, DEFAULTS, undefined, { fast: true }) : null;
+      const group   = (needsGroup && hasRentData(row)) ? calcGroup(row, row, DEFAULTS, undefined, { fast: true }) : null;
       return {
         ...row,
         cf:       metrics?.cf       ?? null,
