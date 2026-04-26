@@ -1100,8 +1100,7 @@ export default function ScoutPage() {
                           onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { setEditingAddress(null); } }}
                           className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1 text-white text-xs focus:outline-none"
                         />
-                      ) : (
-                        {(() => {
+                      ) : (() => {
                           const parts = (listing.address || '').split(',');
                           const streetLine = parts[0]?.trim() || '';
                           const cityLine   = [parts[1]?.trim(), parts[2]?.trim()].filter(Boolean).join(', ');
@@ -1132,7 +1131,7 @@ export default function ScoutPage() {
                               </div>
                             </div>
                           );
-                        })()}
+                        })()
                       )}
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className="text-gray-400 text-xs">{listing.mls_num}</span>
