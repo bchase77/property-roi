@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { calcM, calcGroup, calcOptionA, calcOptionC, DEFAULTS } from '@/lib/calcMetrics';
@@ -69,7 +69,7 @@ function AtroiBadge({ value, err }) {
 
 const PAGE_SIZE = 50;
 
-export default function ScoutPage() {
+function ScoutPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [listings, setListings] = useState([]);
@@ -1587,5 +1587,13 @@ export default function ScoutPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function ScoutPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-gray-900 text-white p-6"><p className="text-gray-400">Loading…</p></main>}>
+      <ScoutPageInner />
+    </Suspense>
   );
 }
