@@ -9,7 +9,7 @@ export const DEFAULTS = {
 export function calcM(listing, mark, A = DEFAULTS) {
   const price = Number(listing.price);
   const hoa = mark?.hoa_quarterly != null ? mark.hoa_quarterly / 3 : 0;
-  const rep = mark?.repair_costs ?? A.repairCosts;
+  const rep = Number(mark?.repair_costs ?? A.repairCosts);
   // Cap sqft-based fallback at 8,000 sqft to guard against corrupt data
   const sqftSafe = listing.sqft && listing.sqft <= 8000 ? listing.sqft : null;
   const rentBase = mark?.rent_override
