@@ -62,12 +62,13 @@ export function calcM(listing, mark, A = DEFAULTS) {
 
 // ── Group Deal: 5-person investor structure ───────────────────────────────────
 // Structure (cash purchase — no bank mortgage):
-//   2 debt investors  × (price × 2/3 ÷ 2) each  → 8% APR, paid monthly from rents
+//   2 debt investors  × (price × 2/3 ÷ 2) each  → 7.23% APR, paid monthly from rents
 //   1 silent equity   × (price × 1/3 ÷ 2)        → share of sale proceeds
 //   1 managing equity × (price × 1/3 ÷ 2)        → same equity + management fee income
 // Total raise = purchase price + closing costs + repairs (covered by equity investors)
+// debtRate = 30yr fixed (6.23% as of 2026-04-23, Freddie Mac) + 1% lender premium
 export const GROUP_DEFAULTS = {
-  debtRate:      0.08,   // 8% APR to debt investors
+  debtRate:      0.0723, // 7.23% APR to debt investors (30yr fixed 6.23% + 1%)
   debtRatio:     0.75,   // debt investors fund 75% of price
   saleCostPct:   0.06,   // selling costs at exit
   holdYears:     5,
