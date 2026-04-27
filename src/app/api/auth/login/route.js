@@ -6,7 +6,7 @@ export async function POST(req) {
   const from = body.get('from') || '/dashboard';
 
   if (password === process.env.SITE_PASSWORD) {
-    const response = NextResponse.redirect(new URL(from, req.url));
+    const response = NextResponse.redirect(new URL(from, req.url), { status: 303 });
     response.cookies.set('roi_auth', process.env.SITE_PASSWORD, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -20,5 +20,5 @@ export async function POST(req) {
   const loginUrl = new URL('/login', req.url);
   loginUrl.searchParams.set('from', from);
   loginUrl.searchParams.set('error', '1');
-  return NextResponse.redirect(loginUrl);
+  return NextResponse.redirect(loginUrl, { status: 303 });
 }
