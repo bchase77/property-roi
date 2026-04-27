@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Private Real Estate Investment Group — Confidential Draft</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      background: #f4f1ec;
+      color: #1a1a1a;
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #1c2b3a;
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    nav a {
+      color: #a0b8c8;
+      text-decoration: none;
+      padding: 12px 20px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      border-bottom: 3px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    nav a:hover { color: #fff; border-bottom-color: #4a9fd4; }
+
+    /* ── Cover ── */
+    .cover {
+      background: linear-gradient(135deg, #1c2b3a 0%, #2d4a63 60%, #1c3a2b 100%);
+      color: white;
+      text-align: center;
+      padding: 80px 40px 70px;
+    }
+    .cover .confidential {
+      display: inline-block;
+      border: 1px solid rgba(255,255,255,0.35);
+      color: rgba(255,255,255,0.65);
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 3px;
+      margin-bottom: 32px;
+    }
+    .cover h1 {
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: normal;
+      letter-spacing: -0.5px;
+      margin-bottom: 14px;
+    }
+    .cover h2 {
+      font-size: clamp(14px, 2.5vw, 20px);
+      font-weight: normal;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 10px;
+    }
+    .cover .tagline {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 1px;
+      margin-top: 6px;
+    }
+    .cover .pills {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 36px;
+    }
+    .cover .pill {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 20px;
+      padding: 7px 18px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px;
+      color: rgba(255,255,255,0.85);
+    }
+
+    /* ── Slides ── */
+    .slide {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 40px;
+      border-bottom: 1px solid #ddd;
+    }
+    .slide:last-of-type { border-bottom: none; }
+
+    .slide-label {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #4a9fd4;
+      margin-bottom: 10px;
+    }
+
+    h2.slide-title {
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: normal;
+      color: #1c2b3a;
+      margin-bottom: 32px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #1c2b3a;
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: normal;
+      color: #1c2b3a;
+      margin: 32px 0 12px;
+    }
+    h3.role-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #1c2b3a;
+      border-left: 4px solid #4a9fd4;
+      padding-left: 14px;
+      margin: 40px 0 16px;
+    }
+    h3.role-title.equity  { border-color: #2d8a5e; }
+    h3.role-title.manager { border-color: #c07a20; }
+
+    h4 {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #555;
+      margin: 24px 0 8px;
+    }
+
+    p { margin-bottom: 14px; }
+
+    ul, ol { padding-left: 22px; margin-bottom: 14px; }
+    li { margin-bottom: 6px; }
+
+    strong { font-weight: bold; }
+    em { font-style: italic; color: #555; }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; margin: 16px 0 24px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 14px;
+    }
+    thead th {
+      background: #1c2b3a;
+      color: white;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    tbody tr:nth-child(even) { background: #f0ede8; }
+    tbody tr:hover { background: #e8e3d8; }
+    tbody td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #ddd;
+      vertical-align: top;
+    }
+    tbody td:first-child { font-weight: 600; color: #333; }
+    .highlight-row td { background: #e8f0e8 !important; font-weight: 600; }
+    .total-row td { background: #1c2b3a !important; color: white !important; font-weight: 700; }
+
+    /* ── Property cards ── */
+    .prop-card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 28px 32px;
+      margin: 32px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .prop-card h3 {
+      margin-top: 0;
+      font-size: 20px;
+      font-weight: bold;
+      color: #1c2b3a;
+    }
+    .prop-meta {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 20px;
+    }
+    .prop-grids {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 600px) { .prop-grids { grid-template-columns: 1fr; } }
+    .prop-grid-label {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    /* ── Callout boxes ── */
+    .callout {
+      background: #fff8e8;
+      border-left: 4px solid #c07a20;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 14px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      border-radius: 0 4px 4px 0;
+    }
+    .callout.info  { background: #e8f4fb; border-color: #4a9fd4; }
+    .callout.green { background: #e8f5ee; border-color: #2d8a5e; }
+    .callout strong { display: block; margin-bottom: 4px; }
+
+    /* ── Promote diagram ── */
+    .promote-diagram {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    @media (max-width: 540px) { .promote-diagram { grid-template-columns: 1fr; } }
+    .promote-box {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 20px;
+      text-align: center;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+    .promote-box .big { font-size: 36px; font-weight: 700; color: #1c2b3a; }
+    .promote-box .label { font-size: 12px; color: #666; margin-top: 4px; }
+    .promote-box.highlighted { background: #1c2b3a; border-color: #1c2b3a; }
+    .promote-box.highlighted .big { color: #4a9fd4; }
+    .promote-box.highlighted .label { color: rgba(255,255,255,0.65); }
+
+    /* ── Entity diagram ── */
+    .entity-diagram {
+      background: #1c2b3a;
+      color: white;
+      border-radius: 8px;
+      padding: 28px 32px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.9;
+      overflow-x: auto;
+    }
+    .entity-diagram .node  { color: #4a9fd4; font-weight: bold; }
+    .entity-diagram .arrow { color: rgba(255,255,255,0.4); }
+    .entity-diagram .label { color: rgba(255,255,255,0.65); }
+
+    /* ── Appendix ── */
+    .appendix { background: #f0ede8; }
+    .appendix .slide { padding-top: 48px; }
+
+    /* ── Disclaimer ── */
+    .disclaimer {
+      background: #1c2b3a;
+      color: rgba(255,255,255,0.55);
+      text-align: center;
+      padding: 40px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.8;
+    }
+    .disclaimer p { margin-bottom: 8px; }
+    .disclaimer strong { color: rgba(255,255,255,0.8); }
+
+    /* ── ROI color coding ── */
+    .roi-pos  { color: #2d8a5e; font-weight: 700; }
+    .roi-neg  { color: #c0392b; font-weight: 700; }
+    .roi-base { color: #1c2b3a; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <a href="#opportunity">1 · Opportunity</a>
+  <a href="#structure">2 · Deal Structure</a>
+  <a href="#promote">3 · The Promote</a>
+  <a href="#properties">4 · Example Properties</a>
+  <a href="#legal">Appendix · Legal</a>
+</nav>
+
+<!-- Cover -->
+<div class="cover">
+  <div class="confidential">Confidential Draft</div>
+  <h1>Private Real Estate Investment Group</h1>
+  <h2>All-Cash Residential Real Estate</h2>
+  <p class="tagline">5-Year Hold &nbsp;·&nbsp; No Bank Debt &nbsp;·&nbsp; Professional Property Management</p>
+  <div class="pills">
+    <span class="pill">All-Cash Purchase</span>
+    <span class="pill">7.23% Fixed (Debt)</span>
+    <span class="pill">Equity Upside</span>
+    <span class="pill">One LLC Per Property</span>
+    <span class="pill">April 2026</span>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────── -->
+<!-- SLIDE 1 -->
+<!-- ─────────────────────────────────────────────── -->
+<div class="slide" id="opportunity">
+  <div class="slide-label">Slide 1</div>
+  <h2 class="slide-title">The Opportunity</h2>
+
+  <h3>What We Do</h3>
+  <p>We acquire single-family residential properties in select U.S. markets using all-cash purchases — no mortgage, no bank involvement, no foreclosure risk. Properties are held approximately 5 years and then sold at market price.</p>
+  <p>Properties are identified through systematic market research and screened for rent yield, condition, and long-term appreciation potential. The Deal Organizer makes the final acquisition decision.</p>
+  <p>All day-to-day property operations — tenant screening, leasing, rent collection, maintenance, and evictions — are handled entirely by a licensed local property management company. Their fee is 8–9% of gross monthly rent and is an operating expense of the LLC.</p>
+
+  <h3>Why This Structure</h3>
+  <ul>
+    <li><strong>All-cash</strong> means faster closes, stronger offers, and no financing risk</li>
+    <li><strong>No mortgage</strong> means all rental income flows to investors, not a bank</li>
+    <li><strong>Fixed-return investors</strong> (debt role) earn 7.23%/yr regardless of appreciation</li>
+    <li><strong>Equity investors</strong> participate fully in appreciation and rental upside</li>
+    <li><strong>The Organizer earns a bonus only if the deal is profitable</strong> — if investors don't do well, neither does the Organizer</li>
+    <li><strong>One LLC per property</strong> — clean liability isolation, pass-through taxation, no corporate tax layer</li>
+  </ul>
+
+  <h3>Legal &amp; Entity Structure</h3>
+  <p>Because most investors and the Deal Organizer are based in California, California securities law applies to this offering regardless of where the property is located. Two layers of legal compliance are required for every deal: the property state's real estate law and California securities law. The recommended structure uses two entities per deal:</p>
+
+  <div class="callout info">
+    <strong>Entity 1 — Property-State LLC (property-holding entity)</strong>
+    Holds title to the property. One formed per property in the state where the property is located. Must be registered as a foreign LLC in California because it is managed from California — this triggers California's $800/year franchise tax.
+  </div>
+  <div class="callout info">
+    <strong>Entity 2 — California LLC (Organizer's management entity)</strong>
+    A separate California management entity owned solely by the Organizer. Provides liability separation between personal assets and management activities, and carries forward cleanly to future deals without re-documenting each time.
+  </div>
+
+  <h3>Attorneys Required</h3>
+  <ul>
+    <li><strong>Local real estate attorney</strong> (in the property's state) — drafts the LLC operating agreement, handles the property closing, ensures the entity structure is sound under local law</li>
+    <li><strong>California securities attorney</strong> — ensures the investment offer complies with California's Corporate Securities Law of 1968, handles federal Regulation D compliance, and prepares required state and federal filings. <strong>Must be engaged before any offer is made to any investor.</strong></li>
+  </ul>
+
+  <h3>Estimated Legal &amp; Setup Costs</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Item</th><th>Estimated Cost</th></tr></thead>
+      <tbody>
+        <tr><td>Property-state LLC formation + filing fee</td><td>~$200–500</td></tr>
+        <tr><td>Foreign LLC registration in California</td><td>~$70 filing + $800/yr franchise tax</td></tr>
+        <tr><td>Local real estate attorney — Operating Agreement + closing support</td><td>$4,000–6,000</td></tr>
+        <tr><td>California securities attorney — offering compliance + filings</td><td>$4,000–7,000</td></tr>
+        <tr><td>SEC Form D preparation and filing (federal)</td><td>$500–1,500</td></tr>
+        <tr><td>California DFPI notice filing + fee</td><td>$500–1,000</td></tr>
+        <tr><td>Organizer's California management LLC (one-time)</td><td>$500–1,500</td></tr>
+        <tr class="total-row"><td>Total first deal</td><td>$10,000–17,000</td></tr>
+        <tr><td>Each subsequent deal (templates reused)</td><td>$3,000–5,000</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────── -->
+<!-- SLIDE 2 -->
+<!-- ─────────────────────────────────────────────── -->
+<div class="slide" id="structure">
+  <div class="slide-label">Slide 2</div>
+  <h2 class="slide-title">Deal Structure: Three Roles, Full Transparency</h2>
+
+  <p><em>Every investor sees every number before committing. You choose the role that fits your goals. All roles are defined in the binding Operating Agreement.</em></p>
+
+  <!-- Role 1 -->
+  <h3 class="role-title">Role 1 — Debt Investor &nbsp;<small style="font-size:14px;font-weight:normal;color:#666;">· two positions per property</small></h3>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><td>Capital contributed</td><td>~37.5% of purchase price each (75% of price total across both)</td></tr>
+        <tr><td>Return</td><td>7.23% APR — paid monthly from rental income</td></tr>
+        <tr><td>At sale</td><td>Full principal returned before equity investors receive anything</td></tr>
+        <tr><td>Priority</td><td>First lien equivalent — equity absorbs losses before debt investors are at risk</td></tr>
+        <tr><td>Risk</td><td><strong>Lowest</strong></td></tr>
+        <tr><td>Work required</td><td>None — sign once, receive monthly ACH</td></tr>
+        <tr><td>Upside</td><td>Capped — no participation in appreciation beyond the 7.23% rate</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout info"><strong>Best for:</strong> investors seeking predictable fixed income and capital preservation with no involvement in property operations. Think of it as a private mortgage earning 7.23%/yr backed by real property.</div>
+
+  <!-- Role 2 -->
+  <h3 class="role-title equity">Role 2 — Silent Equity Investor &nbsp;<small style="font-size:14px;font-weight:normal;color:#666;">· one position per property</small></h3>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><td>Capital contributed</td><td>~12.5% of purchase price + 50% of closing costs + 50% of repairs</td></tr>
+        <tr><td>Monthly income</td><td>50% of net equity cash flow (after debt interest, property management fee, taxes, insurance, maintenance, vacancy)</td></tr>
+        <tr><td>At sale</td><td>50% of net proceeds — after repaying debt investors and selling costs</td></tr>
+        <tr><td>Risk</td><td><strong>Medium</strong> — equity absorbs losses after debt investors are made whole</td></tr>
+        <tr><td>Work required</td><td>Vote on major decisions: sale price, capital improvements, distress sale</td></tr>
+        <tr><td>Upside</td><td>Full participation in appreciation and rental outperformance</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Role 3 -->
+  <h3 class="role-title manager">Role 3 — Deal Organizer &nbsp;<small style="font-size:14px;font-weight:normal;color:#666;">· one position per property</small></h3>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><td>Capital contributed</td><td><strong>Same as silent equity investor — equal capital, equal stake</strong></td></tr>
+        <tr><td>Monthly income</td><td><strong>Identical to silent equity investor</strong> — 50% of net equity cash flow</td></tr>
+        <tr><td>At sale — base case</td><td>50% of net proceeds (same as silent equity) if deal does not clear the hurdle</td></tr>
+        <tr><td>At sale — bonus</td><td>30% promote on profits above the hurdle, only if the deal is sufficiently profitable</td></tr>
+        <tr><td>Risk</td><td><strong>Same equity downside as silent equity investor</strong></td></tr>
+        <tr><td>Work required</td><td>Active throughout the hold period</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Deal Organizer responsibilities</h4>
+  <ul>
+    <li>Property identification, underwriting, and acquisition decision (final authority)</li>
+    <li>LLC formation and legal coordination</li>
+    <li>Capital raise and investor onboarding</li>
+    <li>Oversight of the local property management company</li>
+    <li>Quarterly financial reporting to all investors</li>
+    <li>Capital improvement decisions and distress vote coordination</li>
+    <li>Making the sale decision (timing, listing price)</li>
+  </ul>
+
+  <h4>What the Deal Organizer does NOT do</h4>
+  <ul>
+    <li>Tenant or leasing management — handled by the local property manager</li>
+    <li>Rent collection or maintenance coordination — handled by the local property manager</li>
+    <li>Any day-to-day property operations — handled by the local property manager</li>
+  </ul>
+
+  <h3>Agreed Operating Terms</h3>
+
+  <h4>Capital calls (unbudgeted repairs)</h4>
+  <p>Any unbudgeted capital expenditure exceeding $2,500 requires a majority vote of equity investors. All costs are shared equally — 50% each — by both equity investors. The Deal Organizer may authorize repairs up to $2,500 without a vote.</p>
+
+  <h4>Quarterly reporting</h4>
+  <p>Within 30 days of each quarter end, all investors receive: profit &amp; loss statement, cash flow summary, distribution detail, and any material property updates.</p>
+
+  <h4>Early exit</h4>
+  <p>An investor wishing to exit before year 5 has the right to sell their position and the obligation to find a qualified, approved replacement. The exiting investor bears all transfer legal costs (~$1,500–2,500). If no replacement is found within 90 days, the group votes on an early sale.</p>
+
+  <h4>Distressed property exit</h4>
+  <p>If cumulative unbudgeted capital calls exceed <strong>10% of the original purchase price</strong> in any rolling 24-month period, either equity investor may call a Distress Vote. A vote of one equity investor is sufficient to force a market-price sale within 180 days. No investor can block this sale once the threshold is triggered. Debt investors cannot block a distress sale but are repaid in full from proceeds before equity investors receive anything.</p>
+  <div class="callout"><strong>Example:</strong> On a $289,000 property, $28,900 in unexpected capital calls over 24 months triggers the right to force a sale.</div>
+
+  <h4>Dispute resolution</h4>
+  <p>Mediation first; binding arbitration if unresolved. Court litigation is a last resort.</p>
+</div>
+
+<!-- ─────────────────────────────────────────────── -->
+<!-- SLIDE 3 -->
+<!-- ─────────────────────────────────────────────── -->
+<div class="slide" id="promote">
+  <div class="slide-label">Slide 3</div>
+  <h2 class="slide-title">The Organizer's Promote (30%)</h2>
+
+  <p><em>This is the only mechanism by which the Organizer earns more than the silent equity investor.</em></p>
+
+  <div class="callout green">
+    <strong>During the hold: the Organizer and silent equity investor are identical</strong>
+    Both receive 50% of monthly net cash flow. The Organizer earns no premium during the hold period. Additional compensation is deferred entirely to the exit — and only materializes if the deal performs.
+  </div>
+
+  <h3>At Sale: The 30% Promote</h3>
+
+  <div class="promote-diagram">
+    <div class="promote-box">
+      <div class="big">7.23%</div>
+      <div class="label">Hurdle rate per year<br><small>= debt investor rate × 5 years × total equity</small></div>
+    </div>
+    <div class="promote-box highlighted">
+      <div class="big">30%</div>
+      <div class="label">Organizer's promote<br><small>on profits above the hurdle only</small></div>
+    </div>
+  </div>
+
+  <p><strong>The hurdle:</strong> Total equity invested × 7.23% × 5 years. This equals what debt investors earn on their capital — a high bar. Both equity investors must first generate the equivalent of the debt rate before the promote activates.</p>
+
+  <ul>
+    <li><strong>Below the hurdle:</strong> 50/50 split, no bonus. Organizer and silent equity investor receive identical returns.</li>
+    <li><strong>Above the hurdle:</strong> Organizer receives 30% of the excess; remaining 70% split 50/50 as normal.</li>
+    <li><strong>If the deal loses money:</strong> both equity investors lose equally, 50/50. No promote.</li>
+  </ul>
+
+  <h3>Worked Example</h3>
+  <p style="color:#666;font-style:italic;margin-bottom:12px;">$300K property · $103K total equity · Deal generates $50K total equity profit</p>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><td>Hurdle (7.23% × $103K × 5yr)</td><td>$37,300</td></tr>
+        <tr><td>Profit above hurdle (excess)</td><td>$12,700</td></tr>
+        <tr><td>Silent investor receives</td><td>$37,300÷2 + $12,700×70%÷2 = <strong>$23,095</strong></td></tr>
+        <tr><td>Organizer receives</td><td>$37,300÷2 + $12,700×70%÷2 + $12,700×30% = <strong>$26,905</strong></td></tr>
+        <tr class="highlight-row"><td>Organizer's bonus above a straight 50/50 split</td><td>$3,810</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────── -->
+<!-- SLIDE 4 -->
+<!-- ─────────────────────────────────────────────── -->
+<div class="slide" id="properties">
+  <div class="slide-label">Slide 4</div>
+  <h2 class="slide-title">Example Properties: Projected Returns</h2>
+
+  <p><em>The following are illustrative examples of properties currently under consideration. All figures use: 8.5% blended property management fee, 3% closing costs, $150/mo insurance, 5% maintenance, 5% vacancy, 2.3% estimated property tax where actual unavailable. 30% promote applied. Returns shown at 0%, 3%, and 5% annual appreciation.</em></p>
+
+  <!-- Property A -->
+  <div class="prop-card">
+    <h3>2517 Glencrest Dr, Fort Worth TX</h3>
+    <p class="prop-meta">5 bed &nbsp;·&nbsp; 5 bath &nbsp;·&nbsp; 2,053 sqft &nbsp;·&nbsp; $189,900 list price &nbsp;·&nbsp; $2,539/mo rent &nbsp;·&nbsp; $25,000 repairs budgeted</p>
+
+    <div class="prop-grids">
+      <div>
+        <div class="prop-grid-label">Capital Structure</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Role</th><th>Per Investor</th><th>×</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr><td>Debt Investor</td><td>$71,213</td><td>2</td><td>$142,425</td></tr>
+              <tr><td>Equity Investor</td><td>$39,086</td><td>2</td><td>$78,172</td></tr>
+              <tr class="total-row"><td>Total Raise</td><td></td><td></td><td>$220,597</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="prop-grid-label">Monthly Cash Flow (stabilized)</div>
+        <div class="table-wrap">
+          <table>
+            <tbody>
+              <tr><td>Gross rent</td><td>$2,539</td></tr>
+              <tr><td>Debt interest (total)</td><td>−$858</td></tr>
+              <tr><td>Property management fee</td><td>−$216</td></tr>
+              <tr><td>Property tax (est.)</td><td>−$364</td></tr>
+              <tr><td>Insurance</td><td>−$150</td></tr>
+              <tr><td>Maintenance + Vacancy</td><td>−$254</td></tr>
+              <tr class="highlight-row"><td>Net equity cash flow</td><td>$697</td></tr>
+              <tr><td>Per equity investor (50%)</td><td><strong>$349/mo</strong></td></tr>
+              <tr><td>Per debt investor</td><td><strong>$429/mo</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop-grid-label">5-Year Returns by Appreciation Scenario</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Scenario</th><th>Debt ROI</th><th>Silent Equity ROI</th><th>Organizer ROI</th><th>Organizer Bonus</th></tr></thead>
+        <tbody>
+          <tr><td>0% appreciation</td><td class="roi-base">7.23%/yr</td><td class="roi-neg">−0.1%/yr</td><td class="roi-neg">−0.1%/yr</td><td>$0</td></tr>
+          <tr class="highlight-row"><td><strong>3% appreciation</strong></td><td class="roi-base">7.23%/yr</td><td class="roi-pos">7.2%/yr</td><td class="roi-pos">7.2%/yr</td><td>$0</td></tr>
+          <tr><td>5% appreciation</td><td class="roi-base">7.23%/yr</td><td class="roi-pos">11.5%/yr</td><td class="roi-pos">14.4%/yr</td><td>$5,576</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout"><strong>Note:</strong> The $25,000 repair budget raises both the equity investment and the hurdle. At 3% appreciation, total profit falls just below the hurdle — the Organizer's promote does not activate, and both equity investors earn the same 7.2%/yr. The Organizer's bonus requires appreciation above ~3%, which aligns incentives toward cost management and tenant retention.</div>
+  </div>
+
+  <!-- Property B -->
+  <div class="prop-card">
+    <h3>5518 Heathercrest Dr, Arlington TX</h3>
+    <p class="prop-meta">7 bed &nbsp;·&nbsp; 3.1 bath &nbsp;·&nbsp; 3,914 sqft &nbsp;·&nbsp; $349,999 list price &nbsp;·&nbsp; $3,670/mo rent</p>
+
+    <div class="prop-grids">
+      <div>
+        <div class="prop-grid-label">Capital Structure</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Role</th><th>Per Investor</th><th>×</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr><td>Debt Investor</td><td>$131,250</td><td>2</td><td>$262,499</td></tr>
+              <tr><td>Equity Investor</td><td>$51,500</td><td>2</td><td>$103,000</td></tr>
+              <tr class="total-row"><td>Total Raise</td><td></td><td></td><td>$365,499</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="prop-grid-label">Monthly Cash Flow (stabilized)</div>
+        <div class="table-wrap">
+          <table>
+            <tbody>
+              <tr><td>Gross rent</td><td>$3,670</td></tr>
+              <tr><td>Debt interest (total)</td><td>−$1,582</td></tr>
+              <tr><td>Property management fee</td><td>−$312</td></tr>
+              <tr><td>Property tax (est.)</td><td>−$671</td></tr>
+              <tr><td>Insurance</td><td>−$150</td></tr>
+              <tr><td>Maintenance + Vacancy</td><td>−$368</td></tr>
+              <tr class="highlight-row"><td>Net equity cash flow</td><td>$587</td></tr>
+              <tr><td>Per equity investor (50%)</td><td><strong>$294/mo</strong></td></tr>
+              <tr><td>Per debt investor</td><td><strong>$791/mo</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop-grid-label">5-Year Returns by Appreciation Scenario</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Scenario</th><th>Debt ROI</th><th>Silent Equity ROI</th><th>Organizer ROI</th><th>Organizer Bonus</th></tr></thead>
+        <tbody>
+          <tr><td>0% appreciation</td><td class="roi-base">7.23%/yr</td><td class="roi-neg">−0.2%/yr</td><td class="roi-neg">−0.2%/yr</td><td>$0</td></tr>
+          <tr class="highlight-row"><td><strong>3% appreciation</strong></td><td class="roi-base">7.23%/yr</td><td class="roi-pos">9.1%/yr</td><td class="roi-pos">10.8%/yr</td><td>$4,196</td></tr>
+          <tr><td>5% appreciation</td><td class="roi-base">7.23%/yr</td><td class="roi-pos">15.4%/yr</td><td class="roi-pos">21.5%/yr</td><td>$13,994</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Property C -->
+  <div class="prop-card">
+    <h3>10400 Wagon Rut Court, Fort Worth TX</h3>
+    <p class="prop-meta">7 bed &nbsp;·&nbsp; 2.1 bath &nbsp;·&nbsp; 3,220 sqft &nbsp;·&nbsp; $289,000 list price &nbsp;·&nbsp; $3,047/mo rent</p>
+
+    <div class="prop-grids">
+      <div>
+        <div class="prop-grid-label">Capital Structure</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Role</th><th>Per Investor</th><th>×</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr><td>Debt Investor</td><td>$108,375</td><td>2</td><td>$216,750</td></tr>
+              <tr><td>Equity Investor</td><td>$42,960</td><td>2</td><td>$85,920</td></tr>
+              <tr class="total-row"><td>Total Raise</td><td></td><td></td><td>$302,670</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="prop-grid-label">Monthly Cash Flow (stabilized)</div>
+        <div class="table-wrap">
+          <table>
+            <tbody>
+              <tr><td>Gross rent</td><td>$3,047</td></tr>
+              <tr><td>Debt interest (total)</td><td>−$1,306</td></tr>
+              <tr><td>Property management fee</td><td>−$259</td></tr>
+              <tr><td>Property tax (est.)</td><td>−$554</td></tr>
+              <tr><td>Insurance</td><td>−$150</td></tr>
+              <tr><td>HOA</td><td>−$19</td></tr>
+              <tr><td>Maintenance + Vacancy</td><td>−$305</td></tr>
+              <tr class="highlight-row"><td>Net equity cash flow</td><td>$454</td></tr>
+              <tr><td>Per equity investor (50%)</td><td><strong>$227/mo</strong></td></tr>
+              <tr><td>Per debt investor</td><td><strong>$653/mo</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop-grid-label">5-Year Returns by Appreciation Scenario</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Scenario</th><th>Debt ROI</th><th>Silent Equity ROI</th><th>Organizer ROI</th><th>Organizer Bonus</th></tr></thead>
+        <tbody>
+          <tr><td>0% appreciation</td><td class="roi-base">7.23%/yr</td><td class="roi-neg">−0.9%/yr</td><td class="roi-neg">−0.9%/yr</td><td>$0</td></tr>
+          <tr class="highlight-row"><td><strong>3% appreciation</strong></td><td class="roi-base">7.23%/yr</td><td class="roi-pos">8.6%/yr</td><td class="roi-pos">9.8%/yr</td><td>$2,546</td></tr>
+          <tr><td>5% appreciation</td><td class="roi-base">7.23%/yr</td><td class="roi-pos">14.7%/yr</td><td class="roi-pos">20.3%/yr</td><td>$10,740</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <h3>Role Comparison Summary</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Role</th><th>Risk</th><th>Monthly Income</th><th>5yr Upside (3% app)</th><th>If Deal Loses</th></tr></thead>
+      <tbody>
+        <tr><td>Debt Investor</td><td>Lowest</td><td>Fixed 7.23%/yr</td><td>Capped at 7.23%/yr</td><td>Protected — equity absorbs first</td></tr>
+        <tr><td>Silent Equity</td><td>Medium</td><td>50% of net CF</td><td>Full appreciation upside</td><td>50/50 with Organizer</td></tr>
+        <tr><td>Deal Organizer</td><td>Medium + work</td><td>Same as silent equity</td><td>Same equity + 30% promote on excess</td><td>Same as silent equity</td></tr>
+        <tr><td>Property Manager</td><td>None</td><td>8–9% of gross rent</td><td>None</td><td>Unaffected</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Key Protections for All Investors</h3>
+  <ul>
+    <li><strong>No bank debt</strong> — no foreclosure risk from lender default</li>
+    <li><strong>Debt investors paid first</strong> at every distribution and at sale</li>
+    <li><strong>Organizer's bonus is zero</strong> unless the deal genuinely outperforms the hurdle</li>
+    <li><strong>Distress exit right</strong> — if unbudgeted repairs exceed 10% of purchase price in 24 months, either equity investor can force a market sale within 180 days</li>
+    <li><strong>Unanimous consent required</strong> to change the Operating Agreement</li>
+    <li><strong>Quarterly financial statements</strong> within 30 days of each quarter end</li>
+    <li><strong>Binding arbitration</strong> for any disputes — no litigation holdups</li>
+  </ul>
+</div>
+
+<!-- ─────────────────────────────────────────────── -->
+<!-- APPENDIX -->
+<!-- ─────────────────────────────────────────────── -->
+<div class="appendix">
+<div class="slide" id="legal">
+  <div class="slide-label">Appendix</div>
+  <h2 class="slide-title">Legal Compliance Notes — California &amp; Federal</h2>
+  <p><em>This section is for reference and attorney review. It does not constitute legal advice.</em></p>
+
+  <h3>Why California Law Applies</h3>
+  <p>Even though the properties may be located outside California, California securities law governs this offering because the Deal Organizer and most investors are California residents. California's Corporate Securities Law of 1968 is one of the most investor-protective securities frameworks in the U.S. — more stringent in several respects than federal law. Compliance with both is required for every deal, regardless of which state the property is in.</p>
+
+  <h3>Federal — Regulation D, Rule 506(b)</h3>
+  <p>Selling LLC membership interests to investors is a securities offering under federal law regardless of how it is structured. The recommended exemption is <strong>Reg D Rule 506(b)</strong>:</p>
+  <ul>
+    <li>Allows up to 35 non-accredited investors plus unlimited accredited investors</li>
+    <li><strong>No general solicitation or advertising permitted</strong> — investors must have a pre-existing, substantive relationship with the Organizer before being approached</li>
+    <li>Requires a Form D filing with the SEC within 15 days of the first investment</li>
+    <li>No SEC registration or approval needed — it is a notice filing only</li>
+  </ul>
+  <div class="callout info">
+    <strong>Accredited investor definition (either of the following):</strong>
+    Net worth exceeding $1,000,000 excluding primary residence — OR — annual income exceeding $200,000 (individual) or $300,000 (joint) in each of the last two years with reasonable expectation of the same this year. Strongly recommended to limit this offering to accredited investors only.
+  </div>
+
+  <h3>California — Corporate Securities Law of 1968</h3>
+  <p><strong>Recommended exemption: Section 25102(f) — Limited Offering Exemption</strong></p>
+  <p>Available when the offering is made to 35 or fewer California residents who either have a pre-existing personal or business relationship with the Organizer, or by reason of their business or financial experience can evaluate the merits and risks of the investment.</p>
+  <ul>
+    <li>No advertising or general solicitation of any kind</li>
+    <li>Notice filing with the California DFPI within 15 days of first sale (~$300–600 fee)</li>
+    <li>Must be made concurrently with Reg D 506(b) compliance</li>
+  </ul>
+  <p><strong>Alternative: Section 25102(n) — Accredited Investor Exemption.</strong> If every California investor is accredited, this is simpler and has fewer procedural requirements. Also requires a DFPI notice filing. Recommended if the investor pool is exclusively accredited.</p>
+
+  <h3>California Franchise Tax — Foreign LLC Registration</h3>
+  <p>A property-state LLC managed from California is considered to be "doing business in California." This requires registration as a <strong>foreign LLC</strong> with the California Secretary of State and payment of California's <strong>$800/year minimum franchise tax</strong> — regardless of where the property is located or whether the LLC earns any California-source income. This applies to each property LLC individually.</p>
+  <p>California investors will receive a K-1 and owe California income tax on their share of rental income and capital gains even if the income is generated in a state with no income tax. The property state's own tax rules will also apply and vary by location.</p>
+
+  <h3>California Community Property</h3>
+  <p>California is a community property state. If any investor is married and a California resident, their investment may be considered community property. The subscription documents should include a spousal consent and acknowledgment clause for married California investors.</p>
+
+  <h3>Entity Structure</h3>
+  <div class="entity-diagram">
+    <span class="node">Organizer</span> <span class="label">(California resident)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;│<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;└── <span class="node">Organizer Management LLC</span> <span class="label">(California LLC — one-time setup)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="arrow">manages ──▶</span> <span class="node">Property LLC #1</span> <span class="label">(property-state LLC, foreign-registered in CA)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="label">holds title to Property A</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="arrow">manages ──▶</span> <span class="node">Property LLC #2</span> <span class="label">(property-state LLC, foreign-registered in CA)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="label">holds title to Property B</span>
+  </div>
+  <p style="margin-top:12px;">Each property LLC has its own investors, its own Operating Agreement, and its own bank account. The California management LLC is the Organizer's professional entity and is not an investment vehicle.</p>
+
+  <h3>Required Filings Per Deal</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Filing</th><th>Who Files</th><th>Deadline</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td>Property-state LLC formation</td><td>State SOS (varies)</td><td>Before closing</td><td>$200–500</td></tr>
+        <tr><td>CA foreign LLC registration</td><td>CA SOS</td><td>Before doing business in CA</td><td>~$70 + $800/yr</td></tr>
+        <tr><td>SEC Form D (federal)</td><td>Organizer / attorney</td><td>Within 15 days of first sale</td><td>Free + ~$500–1,000 attorney</td></tr>
+        <tr><td>CA DFPI notice (state)</td><td>Organizer / attorney</td><td>Within 15 days of first sale</td><td>~$300–600 fee + attorney</td></tr>
+        <tr><td>CA Form 568 (annual)</td><td>CPA / accountant</td><td>Annually</td><td>CPA fees</td></tr>
+        <tr><td>Federal K-1s to investors</td><td>CPA / accountant</td><td>Annually by March 15</td><td>CPA fees</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- Disclaimer -->
+<div class="disclaimer">
+  <p><strong>Important Disclosure</strong></p>
+  <p>This document is a confidential draft for discussion purposes only and does not constitute a securities offering or legal advice.</p>
+  <p>All projections are estimates based on current market data and reasonable assumptions. Actual results will vary. Past performance of any market is not indicative of future results.</p>
+  <p>Prospective investors should consult their own financial, tax, and legal advisors before committing capital.</p>
+  <p>No offer to sell securities is made by this document. Engage a licensed California securities attorney before approaching any investor.</p>
+  <p style="margin-top:16px;color:rgba(255,255,255,0.3);">Private Real Estate Investment Group &nbsp;·&nbsp; Confidential Draft &nbsp;·&nbsp; April 2026</p>
+</div>
+
+</body>
+</html>
