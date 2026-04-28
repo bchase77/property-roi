@@ -104,6 +104,23 @@ function ScoutPageInner() {
   const [mergeChoices, setMergeChoices] = useState({}); // { keep:'scraped'|'manual', [field]:'manual'|'scraped' }
   const [mergeSaving, setMergeSaving] = useState(false);
 
+  // Relisting history popover
+  const [relistingHistory, setRelistingHistory] = useState(null); // { mls_num, address, rows } | null
+  const [relistingLoading, setRelistingLoading] = useState(false);
+  const openRelistingHistory = useCallback(async (listing) => {
+    setRelistingLoading(true);
+    setRelistingHistory({ mls_num: listing.mls_num, address: listing.address, rows: null });
+    try {
+      const res = await fetch(`/api/scout/relisting-log?mls_num=${encodeURIComponent(listing.mls_num)}`);
+      const rows = await res.json();
+      setRelistingHistory({ mls_num: listing.mls_num, address: listing.address, rows });
+    } catch {
+      setRelistingHistory({ mls_num: listing.mls_num, address: listing.address, rows: [] });
+    } finally {
+      setRelistingLoading(false);
+    }
+  }, []);
+
   // Manual-add modal
   const [addOpen, setAddOpen] = useState(false);
   const EMPTY_FORM = { address: '', price: '', beds: '', baths: '', sqft: '', year_built: '', hoa_yn: '', href: '', rent_override: '', repair_costs: '', hoa_quarterly: '', notes: '' };
@@ -680,6 +697,51 @@ function ScoutPageInner() {
         </div>
       )}
 
+      {/* Relisting History Modal */}
+      {relistingHistory && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setRelistingHistory(null)}>
+          <div className="bg-gray-800 rounded-xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+              <div>
+                <h2 className="text-white font-semibold text-sm">Relisting History</h2>
+                <p className="text-gray-400 text-xs mt-0.5 truncate max-w-[300px]">{relistingHistory.address}</p>
+              </div>
+              <button onClick={() => setRelistingHistory(null)} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
+              {relistingLoading || relistingHistory.rows === null ? (
+                <p className="text-gray-400 text-sm">Loading…</p>
+              ) : relistingHistory.rows.length === 0 ? (
+                <p className="text-gray-400 text-sm">No history logged yet. Events will be recorded on the next scraper run.</p>
+              ) : (
+                <ol className="relative border-l border-gray-600 ml-2 space-y-4">
+                  {relistingHistory.rows.map((row, i) => {
+                    const date = new Date(row.event_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+                    const isReappear = row.event === 'reappeared';
+                    return (
+                      <li key={i} className="ml-4">
+                        <span className={`absolute -left-1.5 mt-1 w-3 h-3 rounded-full border-2 ${isReappear ? 'bg-green-500 border-green-400' : 'bg-red-500 border-red-400'}`} />
+                        <div className="flex items-baseline gap-2">
+                          <span className={`text-xs font-bold ${isReappear ? 'text-green-400' : 'text-red-400'}`}>
+                            {isReappear ? '↩ Reappeared' : '✕ Disappeared'}
+                          </span>
+                          <span className="text-gray-400 text-xs">{date}</span>
+                        </div>
+                        {isReappear && row.absence_days != null && (
+                          <p className="text-gray-500 text-xs mt-0.5">
+                            Gone for {row.absence_days} day{row.absence_days !== 1 ? 's' : ''}
+                          </p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Property Modal */}
       {addOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -1242,9 +1304,13 @@ function ScoutPageInner() {
                       })()}
                       {isRelisted && (
                         <div className="mt-1">
-                          <span className="inline-flex items-center gap-1 bg-orange-500/20 border border-orange-500/50 text-orange-300 text-xs font-bold px-1.5 py-0.5 rounded">
-                            ↩ RELISTED{absenceLabel ? ` (gone ${absenceLabel})` : ''}
-                          </span>
+                          <button
+                            onClick={() => openRelistingHistory(listing)}
+                            className="inline-flex items-center gap-1 bg-orange-500/20 border border-orange-500/50 text-orange-300 text-xs font-bold px-1.5 py-0.5 rounded hover:bg-orange-500/30 cursor-pointer"
+                            title="View relisting history"
+                          >
+                            ↩ RELISTED ×{listing.reappeared_count}{absenceLabel ? ` (gone ${absenceLabel})` : ''}
+                          </button>
                         </div>
                       )}
                       {firstSeenDate && (

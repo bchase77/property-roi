@@ -259,6 +259,17 @@ export async function init() {
   `;
 
   await sql/*sql*/`
+    CREATE TABLE IF NOT EXISTS scout_relisting_log (
+      id SERIAL PRIMARY KEY,
+      mls_num TEXT NOT NULL,
+      event TEXT NOT NULL,
+      event_at TIMESTAMPTZ DEFAULT now(),
+      absence_days INT
+    );
+  `;
+  await sql/*sql*/`CREATE INDEX IF NOT EXISTS idx_relisting_log_mls ON scout_relisting_log (mls_num);`;
+
+  await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS property_actuals (
       id SERIAL PRIMARY KEY,
       property_id INT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
