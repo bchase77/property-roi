@@ -470,16 +470,32 @@ function ScoutPageInner() {
     }
   }, [fetchTax]);
 
-  // Detect potential duplicates: manual entry vs scraped entry with same street number + name
+  // Detect potential duplicates: manual vs scraped, OR two scraped entries with same address
   const duplicatePairs = useMemo(() => {
     const manuals = listings.filter(l => l.source === 'manual');
     const scraped = listings.filter(l => l.source !== 'manual');
     const pairs = [];
+    // manual vs scraped
     for (const m of manuals) {
       const mk = addrKey(m.address);
       if (!mk) continue;
       for (const s of scraped) {
-        if (addrKey(s.address) === mk) pairs.push({ manual: m, scraped: s });
+        if (addrKey(s.address) === mk) pairs.push({ manual: m, scraped: s, type: 'manual-scraped' });
+      }
+    }
+    // scraped vs scraped (re-listed under a new MLS number)
+    const seenKeys = new Map(); // addrKey -> first entry found
+    for (const s of scraped) {
+      const sk = addrKey(s.address);
+      if (!sk) continue;
+      if (seenKeys.has(sk)) {
+        const existing = seenKeys.get(sk);
+        // put older (earlier first_seen or lower id) in the 'manual' slot so modal logic is reused
+        const older = (existing.first_seen ?? '') <= (s.first_seen ?? '') ? existing : s;
+        const newer = older === existing ? s : existing;
+        pairs.push({ manual: older, scraped: newer, type: 'scraped-scraped' });
+      } else {
+        seenKeys.set(sk, s);
       }
     }
     return pairs;
@@ -489,13 +505,14 @@ function ScoutPageInner() {
   const duplicateSet = useMemo(() => new Set(duplicatePairs.flatMap(p => [p.manual.mls_num, p.scraped.mls_num])), [duplicatePairs]);
 
   const openMerge = useCallback((pair) => {
-    const { manual, scraped } = pair;
-    const choices = { keep: 'scraped' };
+    const { manual, scraped, type } = pair;
+    // For scraped-scraped: keep older (manual slot); for manual-scraped: keep scraped (more authoritative)
+    const choices = { keep: type === 'scraped-scraped' ? 'manual' : 'scraped' };
     MERGE_FIELDS.forEach(({ key, src }) => {
       const mv = manual[key]; const sv = scraped[key];
       if (mv == null && sv != null) choices[key] = 'scraped';
       else if (sv == null && mv != null) choices[key] = 'manual';
-      else choices[key] = src === 'listing' ? 'scraped' : 'manual';
+      else choices[key] = src === 'listing' ? (type === 'scraped-scraped' ? 'manual' : 'scraped') : 'manual';
     });
     setMergeChoices(choices);
     setMergePair(pair);
@@ -583,8 +600,8 @@ function ScoutPageInner() {
           <div className="bg-gray-800 rounded-xl w-full max-w-2xl shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
               <div>
-                <h2 className="text-white font-semibold">Potential Duplicate Detected</h2>
-                <p className="text-gray-400 text-xs mt-0.5">Choose which values to keep, then merge into one record.</p>
+                <h2 className="text-white font-semibold">{mergePair.type === 'scraped-scraped' ? 'Re-Listed Property (Duplicate MLS)' : 'Potential Duplicate Detected'}</h2>
+                <p className="text-gray-400 text-xs mt-0.5">{mergePair.type === 'scraped-scraped' ? 'Same address appeared under two MLS numbers. Keep one record and merge any notes/data.' : 'Choose which values to keep, then merge into one record.'}</p>
               </div>
               <button onClick={() => setMergePair(null)} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
             </div>
@@ -593,8 +610,8 @@ function ScoutPageInner() {
               <div className="flex items-center gap-6 mb-4 p-3 bg-gray-700/50 rounded-lg">
                 <span className="text-xs text-gray-400 font-medium">Keep record:</span>
                 {[
-                  { val: 'scraped', label: `${sourceLabel(mergePair.scraped.source)} (${mergePair.scraped.mls_num})` },
-                  { val: 'manual',  label: `Manual (${mergePair.manual.mls_num})` },
+                  { val: 'scraped', label: mergePair.type === 'scraped-scraped' ? `Newer listing (${mergePair.scraped.mls_num})` : `${sourceLabel(mergePair.scraped.source)} (${mergePair.scraped.mls_num})` },
+                  { val: 'manual',  label: mergePair.type === 'scraped-scraped' ? `Older listing (${mergePair.manual.mls_num})` : `Manual (${mergePair.manual.mls_num})` },
                 ].map(({ val, label }) => (
                   <label key={val} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-200">
                     <input type="radio" name="keep" value={val} checked={mergeChoices.keep === val}
@@ -608,8 +625,8 @@ function ScoutPageInner() {
                 <thead>
                   <tr className="text-gray-500 border-b border-gray-700">
                     <th className="text-left py-1.5 w-24">Field</th>
-                    <th className="text-left py-1.5">Manual entry</th>
-                    <th className="text-left py-1.5">{sourceLabel(mergePair.scraped.source)}</th>
+                    <th className="text-left py-1.5">{mergePair.type === 'scraped-scraped' ? `Older (${mergePair.manual.mls_num})` : 'Manual entry'}</th>
+                    <th className="text-left py-1.5">{mergePair.type === 'scraped-scraped' ? `Newer (${mergePair.scraped.mls_num})` : sourceLabel(mergePair.scraped.source)}</th>
                   </tr>
                 </thead>
                 <tbody>
