@@ -1065,6 +1065,14 @@ function ScoutPageInner() {
             onClick={commitSearch}
             className="bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs px-3 py-1.5 rounded-lg border border-gray-600"
           >Search</button>
+          <button
+            onClick={() => {
+              setPriceMin(''); setPriceMax(''); setRentPctMin(''); setCfMin(''); setCapMin('');
+              setBedsMin(''); setBedsMax(''); setSearch(''); setDebouncedSearch('');
+              setFilterDrafts({ rentPctMin: '', cfMin: '', capMin: '', bedsMin: '', bedsMax: '' });
+            }}
+            className="bg-red-900 hover:bg-red-800 text-red-300 text-xs px-3 py-1.5 rounded-lg border border-red-700"
+          >Clear filters</button>
         </div>
 
         <span className="text-xs text-gray-500" title="Run locally: npm run scout:tax">

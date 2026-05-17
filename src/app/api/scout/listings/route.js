@@ -78,9 +78,10 @@ export async function GET(req) {
     else if (status === 'sold') conditions.push(`m.status = 'sold'`);
     else if (status === 'not-skip') conditions.push(`(m.status IS NULL OR m.status NOT IN ('skip', 'sold'))`);
     else if (status === 'unmarked') conditions.push(`m.status IS NULL`);
-    // 'all': exclude sold unless scraper found it again >1 month after sold date
+    // 'all': show everything except sold listings that haven't reappeared >1 month after sold date.
+    // Use explicit NULL handling — NOT(NULL AND ...) = NULL which excludes rows, so rewrite to avoid it.
     else if (status === 'all' || !status) conditions.push(
-      `NOT (m.status = 'sold' AND (m.sold_date IS NULL OR l.last_seen <= TO_DATE(m.sold_date || '-01', 'YYYY-MM-DD') + interval '1 month'))`
+      `(m.status IS NULL OR m.status != 'sold' OR (m.sold_date IS NOT NULL AND l.last_seen > TO_DATE(m.sold_date || '-01', 'YYYY-MM-DD') + interval '1 month'))`
     );
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
