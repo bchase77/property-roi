@@ -5,7 +5,7 @@ import PageHeader from '@/components/ui/PageHeader';
 
 const DEFAULTS = {
   downPct: 25, rateApr: 6.4, loanYears: 30,
-  closingCostsPct: 3, repairCosts: 5000,
+  closingCostsPct: 1.75, repairCosts: 10000,
   taxPct: 2.1, insuranceMonthly: 150,
   maintPctRent: 5, vacancyPctRent: 5, mgmtPctRent: 8,
   rentPerSqft: 1.00,
@@ -95,7 +95,7 @@ export default function ScoutComparePage() {
   }, []);
 
   const potentials = useMemo(() => {
-    return allListings.filter(l => l.status === 'potential' && !removedMls.has(l.mls_num));
+    return allListings.filter(l => ['a', 'b', 'c', 'potential'].includes(l.status) && !removedMls.has(l.mls_num));
   }, [allListings, removedMls]);
 
   const metricsMap = useMemo(() => {
@@ -154,7 +154,7 @@ export default function ScoutComparePage() {
 
       {potentials.length === 0 ? (
         <div className="bg-gray-800 rounded-xl p-12 text-center">
-          <p className="text-gray-400 text-lg mb-2">No potential properties marked yet.</p>
+          <p className="text-gray-400 text-lg mb-2">No properties marked A, B, or C yet.</p>
           <p className="text-gray-600 text-sm mb-4">Go back to Scout to mark some.</p>
           <button
             onClick={() => router.push('/scout')}

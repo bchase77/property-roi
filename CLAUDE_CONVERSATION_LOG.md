@@ -249,6 +249,14 @@ Fine-grained PATs are designed to give minimal necessary access. Unless you need
 
 ---
 
+## Session Start: 2026-04-26
+
+**Tracking all prompts and work efforts for this session.**
+
+*(Session continued from prior context — prior session covered: NUMERIC-as-string bug fixes in calcMetrics.js, git filter-repo to remove large data files, notes field not saving bug fix, activity log + toast notifications, investor pitch deck HTML, password gate middleware, and confirming investor-pitch.html is publicly accessible at property-roi.vercel.app/investor-pitch.html.)*
+
+---
+
 ## Session Start: 2026-02-14
 
 **Tracking prompts and work efforts for this session.**
@@ -274,3 +282,50 @@ Files changed: 2 (1 new, 1 modified)
 2. `src/app/deal-analyzer/page.js` — a Next.js 'use client' page with URL param pre-fill (price, repairs, rent, address), six sections: Property Details inputs, Capital Structure with stack validation, Monthly P&L waterfall, Investor Returns (debt card + equity card), 5-Year Projection table, and auto-generated Pitch Summary with Copy/Print buttons. All calculations client-side, no API calls.
 
 **Response:** Created both files. `src/lib/dealAnalysis.js` implements all three exported functions with full capital stack math, interest-only debt service, NOI (excluding vacancy), break-even rent, DSCR, 5-year projections with 3% appreciation/2.5% rent growth, and 4-paragraph pitch summary generation. `src/app/deal-analyzer/page.js` implements all six sections with the specified UI, URL param hydration, useMemo recalculation on every input change, color-coded metrics, print CSS, and all defaults as specified. Files: `/Users/bmc/Documents/Claude/property-roi/src/lib/dealAnalysis.js`, `/Users/bmc/Documents/Claude/property-roi/src/app/deal-analyzer/page.js`.
+---
+
+## Session: 2026-05-04
+
+### User Prompt
+Add 3 more ways I can mark properties, all in parallel with BUY and SKIP. I might mark many properties to consider, but then want to look at 3-5 of them side by side with the filtering. Change the filtering to let me see properties marked. Also the local contact people will tell me a property has been sold and is no longer available. Add a way I can mark that, and note the date (month & year is enough), and then I don't need to see it again until the scraper later finds it available again in the future (>1 month from the latest sale date, since it might still be noted on the scraped webistes as available. For Marking, keep 'skip' but change BUY to simple letters A, B, C. Also add an expense for closing cost and make the default value 1.75% of Price, but don't show this on the page. Keep repairs and make the default 10000. Swap the column order of Bd/Ba/Sqft and Price. Make Price column more narrow. Make the color of numbers in the Prop Tax column brighter, it is a very light gray now I can barely read.
+
+### Claude Response
+Implemented all changes across 6 files:
+- `src/lib/calcMetrics.js`: closingCostsPct 3%→1.75%, repairCosts 5000→10000
+- `src/lib/db.js`: Added `sold_date TEXT` column migration for scout_marks
+- `src/app/api/scout/marks/route.js`: Rewrote PATCH to support explicit null clearing (fixed pre-existing bug where status toggle-off didn't persist to DB). Added sold_date support.
+- `src/app/api/scout/listings/route.js`: Updated stats to count A/B/C/sold separately; added A/B/C/sold filters (A includes legacy 'potential'); default "all" view hides sold listings unless scraper finds them >1 month after sold_date; added sold_date to SELECT
+- `src/app/scout/page.js`: BUY→A/B/C buttons; added Sold button with inline month picker; filter bar now has All/A/B/C/Active/Skip/Sold/Unmarked; stats bar shows A/B/C/Skip/Sold counts; swapped Price↔Bd/Ba/Sqft column order; Price column narrower (w-16); Prop Tax text brightened (gray-400/gray-200); backward compat with 'potential'→'a'
+- `src/app/scout/compare/page.js`: Updated to show A/B/C/potential marks; updated defaults
+
+
+---
+
+## Session: 2026-05-10
+
+### User Prompt
+On the main page, show the build time and date in Pacific TZ of the latest version, including the 7-digit github number. Let me filter the Scout page by both > Beds and < Beds (you have > now).
+
+### Claude Response
+- `next.config.ts`: Changed `BUILD_TIMESTAMP` from git commit time to actual build time (`new Date().toISOString()`); ensured `GIT_HASH` uses `--short=7` for exactly 7 digits.
+- `src/app/dashboard/page.js`: Added `BuildInfo` component at bottom of dashboard that displays "Built [date] [time] PT · [7-digit hash]" formatted in America/Los_Angeles timezone using `Intl.DateTimeFormat`.
+- `src/app/scout/page.js`: Added `bedsMax` state + draft, included it in URL sync, fetch params, page-reset effect, filter UI (new "Beds ≤" input after "Beds ≥"), and filtered indicator.
+- `src/app/api/scout/listings/route.js`: Added `bedsMax` param; added `l.beds <= $N` condition to WHERE clause.
+
+---
+
+## Session: 2026-05-17
+
+### User Prompt
+Update the investor-pitch html page: Remove 10400 Wagon Rut and 5518 Heathercrest. Add 4309 Mayberry Lane. See the Scout DB for numbers. Review the text on the investor-pitch page. Could it be simplified if all people were OK to go in on a bank loan together? Change the text for the Debt Investor to say "current bank rate +1% (e.g. 7.2% April 2026)"
+
+### Claude Response
+- `public/investor-pitch.html`:
+  - Removed 5518 Heathercrest Dr and 10400 Wagon Rut Court property cards
+  - Added 4309 Mayberry Lane placeholder card with [TBD] fields (DB credentials rotated, could not pull live data)
+  - Debt Investor return row changed to "Current bank rate +1% (e.g. 7.2% April 2026)"
+  - All hardcoded 7.23% references updated to ~7.2% or "bank rate +1%" language
+  - Slide 1: Trimmed "What We Do" and "Why This Structure" to be more concise; condensed Legal & Entity Structure; added bank loan alternative callout explaining that a bank loan simplifies to 2 roles (no Debt Investor) but adds joint liability and foreclosure risk
+  - Cover: Updated pill from "7.23% Fixed (Debt)" to "Bank Rate +1% (Debt)"; updated date to May 2026
+  - Promote diagram: ~7.2% hurdle instead of hardcoded 7.23%
+  - DB credentials issue: user needs to pull fresh connection string from Neon dashboard to fill in Mayberry Lane numbers

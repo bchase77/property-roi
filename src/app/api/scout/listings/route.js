@@ -16,6 +16,7 @@ export async function GET(req) {
   const cfMin      = searchParams.get('cfMin')      || '';
   const capMin     = searchParams.get('capMin')     || '';
   const bedsMin    = searchParams.get('bedsMin')    || '';
+  const bedsMax    = searchParams.get('bedsMax')    || '';
   const status     = searchParams.get('status')     || 'all';
   const source     = searchParams.get('source')     || 'all';
   const tab        = searchParams.get('tab')        || 'active';
@@ -28,13 +29,16 @@ export async function GET(req) {
     const { rows: [s] } = await client.query(`
       SELECT
         COUNT(CASE WHEN l.listing_status IS NULL OR lower(l.listing_status) = 'active' THEN 1 END)::int  AS total,
-        COUNT(CASE WHEN m.status = 'potential' THEN 1 END)::int                                           AS potential,
-        COUNT(CASE WHEN m.status = 'skip'      THEN 1 END)::int                                           AS skip,
+        COUNT(CASE WHEN m.status IN ('a','potential') THEN 1 END)::int                                    AS count_a,
+        COUNT(CASE WHEN m.status = 'b'     THEN 1 END)::int                                               AS count_b,
+        COUNT(CASE WHEN m.status = 'c'     THEN 1 END)::int                                               AS count_c,
+        COUNT(CASE WHEN m.status = 'skip'  THEN 1 END)::int                                               AS skip,
+        COUNT(CASE WHEN m.status = 'sold'  THEN 1 END)::int                                               AS sold,
         COUNT(CASE WHEN lower(l.listing_status) = 'pending' THEN 1 END)::int                              AS pending
       FROM scout_listings l
       LEFT JOIN scout_marks m ON l.mls_num = m.mls_num
     `);
-    const stats = { total: s.total, potential: s.potential, skip: s.skip, great: 0, pending: s.pending };
+    const stats = { total: s.total, countA: s.count_a, countB: s.count_b, countC: s.count_c, skip: s.skip, sold: s.sold, great: 0, pending: s.pending };
 
     // ── Build dynamic WHERE clause — all cheap filters pushed into SQL ────────────
     const conditions = [];
@@ -61,15 +65,23 @@ export async function GET(req) {
 
     // Beds
     if (bedsMin !== '') { conditions.push(`l.beds >= $${p}`); params.push(Number(bedsMin)); p++; }
+    if (bedsMax !== '') { conditions.push(`l.beds <= $${p}`); params.push(Number(bedsMax)); p++; }
 
     // Source
     if (source !== 'all') { conditions.push(`l.source = $${p}`); params.push(source); p++; }
 
     // Status
-    if (status === 'potential') conditions.push(`m.status = 'potential'`);
-    else if (status === 'skip')     conditions.push(`m.status = 'skip'`);
-    else if (status === 'not-skip') conditions.push(`(m.status IS NULL OR m.status != 'skip')`);
+    if (status === 'a')         conditions.push(`m.status IN ('a', 'potential')`);
+    else if (status === 'b')    conditions.push(`m.status = 'b'`);
+    else if (status === 'c')    conditions.push(`m.status = 'c'`);
+    else if (status === 'skip') conditions.push(`m.status = 'skip'`);
+    else if (status === 'sold') conditions.push(`m.status = 'sold'`);
+    else if (status === 'not-skip') conditions.push(`(m.status IS NULL OR m.status NOT IN ('skip', 'sold'))`);
     else if (status === 'unmarked') conditions.push(`m.status IS NULL`);
+    // 'all': exclude sold unless scraper found it again >1 month after sold date
+    else if (status === 'all' || !status) conditions.push(
+      `NOT (m.status = 'sold' AND (m.sold_date IS NULL OR l.last_seen <= TO_DATE(m.sold_date || '-01', 'YYYY-MM-DD') + interval '1 month'))`
+    );
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -85,6 +97,7 @@ export async function GET(req) {
         m.rent_max,
         m.rent_note,
         m.notes AS mark_notes,
+        m.sold_date,
         (SELECT price FROM scout_price_history WHERE mls_num = l.mls_num ORDER BY recorded_at ASC LIMIT 1) AS first_price,
         (SELECT COUNT(*)::int FROM scout_price_history WHERE mls_num = l.mls_num) AS price_count
       FROM scout_listings l

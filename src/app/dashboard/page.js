@@ -156,6 +156,8 @@ export default function Analysis() {
           )}
         </section>
       )}
+      {/* Build info */}
+      <BuildInfo />
     </main>
   );
 }
@@ -208,7 +210,7 @@ function PropertySummaryCard({ property }) {
 
   return (
     <div className="bg-white rounded-lg border p-4">
-      <h4 className="font-medium text-gray-900 mb-1">{property.address}</h4>
+      <h4 className="font-medium text-gray-900 mb-1 truncate">{property.address}</h4>
       <p className="text-xs text-gray-500 mb-3">
         {property.city}, {property.state} {property.zip}
       </p>
@@ -230,6 +232,23 @@ function PropertySummaryCard({ property }) {
           <span>${metrics.cashflowMonthly.toLocaleString()}/mo</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BuildInfo() {
+  const ts = process.env.BUILD_TIMESTAMP;
+  const hash = process.env.GIT_HASH;
+  if (!ts) return null;
+  const d = new Date(ts);
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  });
+  return (
+    <div className="text-xs text-gray-400 text-right">
+      Built {fmt.format(d)}{hash && hash !== 'unknown' ? ` · ${hash}` : ''}
     </div>
   );
 }

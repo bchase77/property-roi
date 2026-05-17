@@ -73,7 +73,7 @@ function ScoutPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [listings, setListings] = useState([]);
-  const [stats, setStats] = useState({ total: 0, potential: 0, skip: 0, great: 0, pending: 0 });
+  const [stats, setStats] = useState({ total: 0, countA: 0, countB: 0, countC: 0, skip: 0, sold: 0, great: 0, pending: 0 });
   const [pendingListings, setPendingListings] = useState([]);
   const [toastMsg, setToastMsg] = useState('');
   const listingsRef = useRef([]);
@@ -133,11 +133,18 @@ function ScoutPageInner() {
   const [editingTax, setEditingTax] = useState(null);     // mls_num editing annual amount
   const [editingTaxAcct, setEditingTaxAcct] = useState(null); // mls_num editing account number
 
+  // Sold date picker state: mls_num of listing showing the month picker
+  const [soldPickerMls, setSoldPickerMls] = useState(null);
+
   // Top-level tab
   const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'active');
 
   // Filter / search / page — initialised from URL so refresh restores state
-  const [filterStatus, setFilterStatus] = useState(() => searchParams.get('status') || 'all');
+  // Map legacy 'potential' status to 'a'
+  const [filterStatus, setFilterStatus] = useState(() => {
+    const s = searchParams.get('status') || 'all';
+    return s === 'potential' ? 'a' : s;
+  });
   const [filterSource, setFilterSource] = useState(() => searchParams.get('source') || 'all');
   const [filterEntry, setFilterEntry] = useState(() => searchParams.get('entry') || 'all');
   const [priceMin, setPriceMin] = useState(() => searchParams.get('priceMin') || '');
@@ -146,12 +153,14 @@ function ScoutPageInner() {
   const [cfMin, setCfMin] = useState(() => searchParams.get('cfMin') || '');
   const [capMin, setCapMin] = useState(() => searchParams.get('capMin') || '');
   const [bedsMin, setBedsMin] = useState(() => searchParams.get('bedsMin') || '');
+  const [bedsMax, setBedsMax] = useState(() => searchParams.get('bedsMax') || '');
   // Draft values — updated on every keystroke, committed to filter state on Enter/blur
   const [filterDrafts, setFilterDrafts] = useState({
     rentPctMin: searchParams.get('rentPctMin') || '',
     cfMin:      searchParams.get('cfMin')      || '',
     capMin:     searchParams.get('capMin')     || '',
     bedsMin:    searchParams.get('bedsMin')    || '',
+    bedsMax:    searchParams.get('bedsMax')    || '',
   });
   const setDraft = (key, val) => setFilterDrafts(d => ({ ...d, [key]: val }));
   const commitDraft = (key, setter) => setter(filterDrafts[key]);
@@ -180,10 +189,11 @@ function ScoutPageInner() {
     if (cfMin)                      p.set('cfMin',     cfMin);
     if (capMin)                     p.set('capMin',    capMin);
     if (bedsMin)                    p.set('bedsMin',   bedsMin);
+    if (bedsMax)                    p.set('bedsMax',   bedsMax);
     if (page > 1)                   p.set('page',      String(page));
     const qs = p.toString();
     window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname);
-  }, [activeTab, sortCol, sortDir, filterStatus, filterSource, filterEntry, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, page]);
+  }, [activeTab, sortCol, sortDir, filterStatus, filterSource, filterEntry, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, bedsMax, page]);
 
   const [totalCount, setTotalCount] = useState(0);
 
@@ -191,7 +201,7 @@ function ScoutPageInner() {
   useEffect(() => {
     setLoading(true);
     const offset = (page - 1) * PAGE_SIZE;
-    const baseParams = { sort: sortCol, dir: sortDir, search: debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, status: filterStatus, source: filterSource, offset: String(offset) };
+    const baseParams = { sort: sortCol, dir: sortDir, search: debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, bedsMax, status: filterStatus, source: filterSource, offset: String(offset) };
     const activeParams = new URLSearchParams({ ...baseParams, tab: 'active' });
     const pendingParams = new URLSearchParams({ ...baseParams, tab: 'pending', limit: '200', offset: '0' });
     Promise.all([
@@ -203,19 +213,22 @@ function ScoutPageInner() {
         setListings(activeData.listings ?? []);
         setTotalCount(activeData.total ?? 0);
         setPendingListings(pendingData.listings ?? []);
-        setStats({ ...(activeData.stats ?? { total: 0, potential: 0, skip: 0, great: 0 }), pending: pendingData.listings?.length ?? 0 });
+        setStats({ ...(activeData.stats ?? { total: 0, countA: 0, countB: 0, countC: 0, skip: 0, sold: 0, great: 0 }), pending: pendingData.listings?.length ?? 0 });
         setConfig(configData);
         setConfigDraft(configData);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, filterStatus, filterSource, page]);
+  }, [sortCol, sortDir, debouncedSearch, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, bedsMax, filterStatus, filterSource, page]);
 
   // Merge DB data with local edits for a row
   const getMark = useCallback((listing) => {
     const local = localEdits[listing.mls_num];
+    const rawStatus = local?.status !== undefined ? local.status : listing.status;
     return {
-      status: local?.status !== undefined ? local.status : listing.status,
+      // Normalize legacy 'potential' to 'a'
+      status: rawStatus === 'potential' ? 'a' : rawStatus,
+      sold_date: local?.sold_date !== undefined ? local.sold_date : (listing.sold_date ?? null),
       repair_costs: local?.repair_costs !== undefined ? local.repair_costs : listing.repair_costs,
       hoa_quarterly: local?.hoa_quarterly !== undefined ? local.hoa_quarterly : listing.hoa_quarterly,
       rent_override: local?.rent_override !== undefined ? local.rent_override : listing.rent_override,
@@ -360,7 +373,7 @@ function ScoutPageInner() {
   const paginated = filtered; // server already sliced to current page
 
   // Reset to page 1 when filter/sort/search changes (not on page change itself)
-  useEffect(() => { setPage(1); }, [filterStatus, filterSource, filterEntry, sortCol, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, debouncedSearch]);
+  useEffect(() => { setPage(1); }, [filterStatus, filterSource, filterEntry, sortCol, priceMin, priceMax, rentPctMin, cfMin, capMin, bedsMin, bedsMax, debouncedSearch]);
 
   const saveConfig = async () => {
     try {
@@ -894,10 +907,19 @@ function ScoutPageInner() {
         </span>
         {activeTab === 'active' && <>
         <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
-          Potential: <span className="font-bold text-green-400">{stats.potential}</span>
+          A: <span className="font-bold text-blue-400">{stats.countA}</span>
+        </span>
+        <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
+          B: <span className="font-bold text-cyan-400">{stats.countB}</span>
+        </span>
+        <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
+          C: <span className="font-bold text-teal-400">{stats.countC}</span>
         </span>
         <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
           Skip: <span className="font-bold text-red-400">{stats.skip}</span>
+        </span>
+        <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
+          Sold: <span className="font-bold text-orange-400">{stats.sold}</span>
         </span>
         <span className="bg-gray-800 px-3 py-1.5 rounded-lg text-gray-300">
           Great ATROI (≥10%): <span className="font-bold text-purple-400">{stats.great}</span>
@@ -918,18 +940,20 @@ function ScoutPageInner() {
       {activeTab === 'active' && <div className="flex flex-wrap gap-3 items-center mb-4">
         <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
           {[
-            { key: 'all',      label: 'All' },
-            { key: 'not-skip', label: '✓ Not Skipped' },
-            { key: 'potential', label: 'Potential' },
-            { key: 'skip',     label: 'Skip' },
-          ].map(({ key, label }) => (
+            { key: 'all',      label: 'All',       activeClass: 'bg-blue-600 text-white' },
+            { key: 'a',        label: 'A',          activeClass: 'bg-blue-700 text-white' },
+            { key: 'b',        label: 'B',          activeClass: 'bg-cyan-700 text-white' },
+            { key: 'c',        label: 'C',          activeClass: 'bg-teal-700 text-white' },
+            { key: 'not-skip', label: 'Active',     activeClass: 'bg-blue-600 text-white' },
+            { key: 'skip',     label: 'Skip',       activeClass: 'bg-red-700 text-white' },
+            { key: 'sold',     label: 'Sold',       activeClass: 'bg-orange-700 text-white' },
+            { key: 'unmarked', label: 'Unmarked',   activeClass: 'bg-gray-600 text-white' },
+          ].map(({ key, label, activeClass }) => (
             <button
               key={key}
               onClick={() => setFilterStatus(key)}
               className={`px-3 py-1 text-xs rounded font-medium transition-colors ${
-                filterStatus === key
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+                filterStatus === key ? activeClass : 'text-gray-400 hover:text-white'
               }`}
             >
               {label}
@@ -1012,6 +1036,7 @@ function ScoutPageInner() {
           { label: 'CF ≥ $',  key: 'cfMin',      setter: setCfMin,      placeholder: '0',   width: 'w-14' },
           { label: 'Cap ≥',   key: 'capMin',     setter: setCapMin,     placeholder: '5',   width: 'w-10' },
           { label: 'Beds ≥',  key: 'bedsMin',    setter: setBedsMin,    placeholder: '2',   width: 'w-10' },
+          { label: 'Beds ≤',  key: 'bedsMax',    setter: setBedsMax,    placeholder: '4',   width: 'w-10' },
         ].map(({ label, key, setter, placeholder, width }) => (
           <div key={key} className="flex items-center gap-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1">
             <span className="text-xs text-gray-500 whitespace-nowrap">{label}</span>
@@ -1120,7 +1145,7 @@ function ScoutPageInner() {
           <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between">
             <span className="text-xs text-gray-500">
               Sorted by <span className="text-gray-400 font-medium">{sortCol}</span> ({sortDir})
-              {(debouncedSearch || priceMin || priceMax || rentPctMin || cfMin || capMin || bedsMin || filterStatus !== 'all') && ' · filtered'}
+              {(debouncedSearch || priceMin || priceMax || rentPctMin || cfMin || capMin || bedsMin || bedsMax || filterStatus !== 'all') && ' · filtered'}
             </span>
             <span className="text-xs text-gray-400">
               {totalCount.toLocaleString()} total · page {page} of {totalPages}
@@ -1131,8 +1156,8 @@ function ScoutPageInner() {
               <tr className="text-left text-gray-400 border-b border-gray-700 text-xs">
                 {[
                   { col: null,     label: 'Address' },
-                  { col: 'price',  label: 'Price' },
                   { col: 'beds',   label: 'Bd/Ba/Sqft' },
+                  { col: 'price',  label: 'Price' },
                   { col: null,     label: 'Repairs $' },
                   { col: null,     label: 'HOA',        label2: '$/qtr' },
                   { col: null,     label: 'Rent',       label2: '$/mo' },
@@ -1328,8 +1353,14 @@ function ScoutPageInner() {
                       )}
                     </td>
 
+                    {/* Beds/Baths/Sqft */}
+                    <td className="px-2 py-2 text-gray-300 text-xs whitespace-nowrap">
+                      <div>{listing.beds ?? '—'}bd/{listing.baths ?? '—'}ba</div>
+                      <div className="text-gray-500">{listing.sqft ? listing.sqft.toLocaleString() : '—'} sf</div>
+                    </td>
+
                     {/* Price */}
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="px-2 py-2 whitespace-nowrap">
                       <input
                         type="number"
                         value={inputValues[listing.mls_num]?.price ?? (listing.price != null ? String(listing.price) : '')}
@@ -1346,19 +1377,13 @@ function ScoutPageInner() {
                           if (val !== prev) patchListing(listing.mls_num, { price: val });
                         }}
                         placeholder="—"
-                        className="w-20 bg-transparent font-mono text-white text-xs focus:outline-none focus:bg-gray-700 rounded px-1"
+                        className="w-16 bg-transparent font-mono text-white text-xs focus:outline-none focus:bg-gray-700 rounded px-1"
                       />
                       {priceDiff !== null && (
                         <div className={`text-xs font-medium ${priceDiff < 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {priceDiff < 0 ? '↓' : '↑'}{fmt$(Math.abs(priceDiff))}
                         </div>
                       )}
-                    </td>
-
-                    {/* Beds/Baths/Sqft */}
-                    <td className="px-2 py-2 text-gray-300 text-xs whitespace-nowrap">
-                      <div>{listing.beds ?? '—'}bd/{listing.baths ?? '—'}ba</div>
-                      <div className="text-gray-500">{listing.sqft ? listing.sqft.toLocaleString() : '—'} sf</div>
                     </td>
 
                     {/* Repairs */}
@@ -1593,14 +1618,14 @@ function ScoutPageInner() {
                             {listing.tax_annual ? (
                               <>
                                 <button onClick={() => setEditingTax(listing.mls_num)}
-                                        className="text-xs text-gray-400 hover:text-white" title="Click to edit">
+                                        className="text-xs text-gray-200 hover:text-white" title="Click to edit">
                                   ${Math.round(Number(listing.tax_annual)/12)}/mo
                                 </button>
-                                <span className="text-xs text-gray-600">${Math.round(Number(listing.tax_annual)).toLocaleString()}/yr</span>
+                                <span className="text-xs text-gray-400">${Math.round(Number(listing.tax_annual)).toLocaleString()}/yr</span>
                               </>
                             ) : (
                               <button onClick={() => setEditingTax(listing.mls_num)}
-                                      className="text-xs text-gray-600 hover:text-gray-300 italic"
+                                      className="text-xs text-gray-400 hover:text-white italic"
                                       title="Estimated at 2.3% — click to enter actual">
                                 ~${listing.price ? Math.round(Number(listing.price) * 0.023 / 12).toLocaleString() : '—'}/mo
                               </button>
@@ -1636,16 +1661,25 @@ function ScoutPageInner() {
                     {/* Mark */}
                     <td className="px-1 py-2">
                       <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => patchMark(listing.mls_num, { status: mark.status === 'potential' ? null : 'potential' })}
-                          className={`px-1.5 py-0.5 text-xs rounded font-medium transition-colors ${
-                            mark.status === 'potential'
-                              ? 'bg-green-700 text-green-100'
-                              : 'bg-gray-700 text-gray-400 hover:bg-green-900/50 hover:text-green-300'
-                          }`}
-                        >
-                          ✓ Buy
-                        </button>
+                        {/* Grade buttons A / B / C */}
+                        {[
+                          { grade: 'a', activeClass: 'bg-blue-700 text-blue-100', hoverClass: 'hover:bg-blue-900/50 hover:text-blue-300' },
+                          { grade: 'b', activeClass: 'bg-cyan-700 text-cyan-100',  hoverClass: 'hover:bg-cyan-900/50 hover:text-cyan-300' },
+                          { grade: 'c', activeClass: 'bg-teal-700 text-teal-100',  hoverClass: 'hover:bg-teal-900/50 hover:text-teal-300' },
+                        ].map(({ grade, activeClass, hoverClass }) => (
+                          <button
+                            key={grade}
+                            onClick={() => patchMark(listing.mls_num, { status: mark.status === grade ? null : grade })}
+                            className={`px-1.5 py-0.5 text-xs rounded font-bold transition-colors ${
+                              mark.status === grade
+                                ? activeClass
+                                : `bg-gray-700 text-gray-400 ${hoverClass}`
+                            }`}
+                          >
+                            {grade.toUpperCase()}
+                          </button>
+                        ))}
+                        {/* Skip */}
                         <button
                           onClick={() => patchMark(listing.mls_num, { status: mark.status === 'skip' ? null : 'skip' })}
                           className={`px-1.5 py-0.5 text-xs rounded font-medium transition-colors ${
@@ -1656,6 +1690,41 @@ function ScoutPageInner() {
                         >
                           ✗ Skip
                         </button>
+                        {/* Sold — date picker inline */}
+                        {mark.status === 'sold' ? (
+                          <button
+                            onClick={() => {
+                              patchMark(listing.mls_num, { status: null, sold_date: null });
+                            }}
+                            className="px-1.5 py-0.5 text-xs rounded font-medium bg-orange-900/70 text-orange-200 hover:bg-orange-900 transition-colors"
+                            title="Click to unmark sold"
+                          >
+                            ✕ Sold{mark.sold_date ? ` ${mark.sold_date.slice(5)}/${mark.sold_date.slice(2,4)}` : ''}
+                          </button>
+                        ) : soldPickerMls === listing.mls_num ? (
+                          <input
+                            type="month"
+                            autoFocus
+                            className="w-28 bg-gray-700 border border-orange-500 rounded px-1 py-0.5 text-white text-xs focus:outline-none"
+                            onChange={e => {
+                              if (e.target.value) {
+                                patchMark(listing.mls_num, { status: 'sold', sold_date: e.target.value });
+                                setSoldPickerMls(null);
+                                if (filterStatus === 'all' || filterStatus === 'not-skip') {
+                                  setListings(ls => ls.filter(l => l.mls_num !== listing.mls_num));
+                                }
+                              }
+                            }}
+                            onBlur={() => setSoldPickerMls(null)}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setSoldPickerMls(listing.mls_num)}
+                            className="px-1.5 py-0.5 text-xs rounded font-medium bg-gray-700 text-gray-400 hover:bg-orange-900/40 hover:text-orange-300 transition-colors"
+                          >
+                            Sold ▾
+                          </button>
+                        )}
                         {listing.source !== 'pam' && (
                           <button
                             onClick={() => deleteListing(listing.mls_num)}
