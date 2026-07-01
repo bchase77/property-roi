@@ -183,7 +183,7 @@ export async function POST(req) {
     const body = await req.json();
     const {
       address, price, beds, baths, sqft, year_built,
-      hoa_yn, href, source = 'manual',
+      hoa_yn, href, source = 'manual', apt_number,
       rent_override, repair_costs, hoa_quarterly, notes,
     } = body;
 
@@ -194,11 +194,11 @@ export async function POST(req) {
 
     await sql`
       INSERT INTO scout_listings
-        (mls_num, address, price, beds, baths, sqft, year_built, hoa_yn, href, source, first_seen, last_seen)
+        (mls_num, address, price, beds, baths, sqft, year_built, hoa_yn, href, apt_number, source, first_seen, last_seen)
       VALUES
         (${mls_num}, ${address}, ${price ?? null}, ${beds ?? null}, ${baths ?? null},
          ${sqft ?? null}, ${year_built ?? null}, ${hoa_yn ?? null}, ${href ?? null},
-         ${source}, ${now}, ${now});
+         ${apt_number ?? null}, ${source}, ${now}, ${now});
     `;
 
     if (rent_override != null || repair_costs != null || hoa_quarterly != null || notes) {

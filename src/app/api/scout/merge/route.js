@@ -8,13 +8,14 @@ export async function POST(req) {
     const { keep_mls, drop_mls, listing_fields, mark_fields } = await req.json();
     if (!keep_mls || !drop_mls) return NextResponse.json({ error: 'keep_mls and drop_mls required' }, { status: 400 });
 
-    const { address, price, beds, baths, sqft, year_built, href } = listing_fields ?? {};
+    const { address, apt_number, price, beds, baths, sqft, year_built, href } = listing_fields ?? {};
     const { repair_costs, hoa_quarterly, rent_override, status, mark_notes } = mark_fields ?? {};
 
     // Update listing fields on the record we're keeping
     await sql`
       UPDATE scout_listings SET
         address    = COALESCE(${address ?? null},    address),
+        apt_number = COALESCE(${apt_number ?? null}, apt_number),
         price      = COALESCE(${price != null ? Number(price) : null}, price),
         beds       = COALESCE(${beds != null ? Number(beds) : null},   beds),
         baths      = COALESCE(${baths != null ? Number(baths) : null}, baths),

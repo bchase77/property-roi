@@ -227,6 +227,7 @@ export async function init() {
   await sql`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS tax_annual NUMERIC;`;
   await sql`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS tax_account_num TEXT;`;
   await sql`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS tax_fetched_at TIMESTAMPTZ;`;
+  await sql`ALTER TABLE scout_listings ADD COLUMN IF NOT EXISTS apt_number TEXT;`;
   await sql/*sql*/`
     CREATE TABLE IF NOT EXISTS scout_price_history (
       id SERIAL PRIMARY KEY,

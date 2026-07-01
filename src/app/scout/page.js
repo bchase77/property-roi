@@ -20,7 +20,7 @@ function extractState(address) {
   return m ? m[1] : '';
 }
 
-function addrKey(address) {
+function addrKey(address, apt_number) {
   if (!address) return null;
   const norm = address.toLowerCase()
     .replace(/\bdrive\b/g, 'dr').replace(/\bstreet\b/g, 'st').replace(/\bavenue\b/g, 'ave')
@@ -29,11 +29,13 @@ function addrKey(address) {
     .replace(/[.,#]/g, '').replace(/\s+/g, ' ').trim();
   const tokens = norm.split(' ');
   if (tokens.length < 2 || !/^\d+/.test(tokens[0])) return null;
-  return tokens[0] + ' ' + tokens[1]; // e.g. "1712 haven"
+  const baseKey = tokens[0] + ' ' + tokens[1]; // e.g. "1712 haven"
+  return apt_number ? `${baseKey}#${apt_number}` : baseKey;
 }
 
 const MERGE_FIELDS = [
   { key: 'address',       label: 'Address',    src: 'listing' },
+  { key: 'apt_number',    label: 'Apt/Unit',   src: 'listing' },
   { key: 'price',         label: 'Price',      src: 'listing' },
   { key: 'beds',          label: 'Beds',       src: 'listing' },
   { key: 'baths',         label: 'Baths',      src: 'listing' },
@@ -123,7 +125,7 @@ function ScoutPageInner() {
 
   // Manual-add modal
   const [addOpen, setAddOpen] = useState(false);
-  const EMPTY_FORM = { address: '', price: '', beds: '', baths: '', sqft: '', year_built: '', hoa_yn: '', href: '', rent_override: '', repair_costs: '', hoa_quarterly: '', notes: '' };
+  const EMPTY_FORM = { address: '', price: '', beds: '', baths: '', sqft: '', year_built: '', hoa_yn: '', href: '', rent_override: '', repair_costs: '', hoa_quarterly: '', notes: '', apt_number: '' };
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addSaving, setAddSaving] = useState(false);
 
@@ -401,6 +403,7 @@ function ScoutPageInner() {
     try {
       const body = {
         address: addForm.address.trim(),
+        apt_number: addForm.apt_number.trim() || null,
         price:         addForm.price        !== '' ? Number(addForm.price)        : null,
         beds:          addForm.beds         !== '' ? Number(addForm.beds)         : null,
         baths:         addForm.baths        !== '' ? Number(addForm.baths)        : null,
@@ -507,16 +510,16 @@ function ScoutPageInner() {
     const pairs = [];
     // manual vs scraped
     for (const m of manuals) {
-      const mk = addrKey(m.address);
+      const mk = addrKey(m.address, m.apt_number);
       if (!mk) continue;
       for (const s of scraped) {
-        if (addrKey(s.address) === mk) pairs.push({ manual: m, scraped: s, type: 'manual-scraped' });
+        if (addrKey(s.address, s.apt_number) === mk) pairs.push({ manual: m, scraped: s, type: 'manual-scraped' });
       }
     }
     // scraped vs scraped (re-listed under a new MLS number)
     const seenKeys = new Map(); // addrKey -> first entry found
     for (const s of scraped) {
-      const sk = addrKey(s.address);
+      const sk = addrKey(s.address, s.apt_number);
       if (!sk) continue;
       if (seenKeys.has(sk)) {
         const existing = seenKeys.get(sk);
@@ -772,6 +775,16 @@ function ScoutPageInner() {
                   value={addForm.address}
                   onChange={e => setAddForm(f => ({ ...f, address: e.target.value }))}
                   placeholder="1234 Main St, Dallas, TX 75201"
+                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-gray-400">Apt/Unit # (optional)</span>
+                <input
+                  type="text"
+                  value={addForm.apt_number}
+                  onChange={e => setAddForm(f => ({ ...f, apt_number: e.target.value }))}
+                  placeholder="e.g., 212, Unit A"
                   className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </label>
@@ -1277,12 +1290,12 @@ function ScoutPageInner() {
                           >
                             {listing.href ? (
                               <a href={listing.href} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors" onClick={e => e.stopPropagation()}>
-                                <div>{streetLine}</div>
+                                <div>{streetLine} {listing.apt_number && <span className="text-blue-400">#{listing.apt_number}</span>}</div>
                                 <div className="text-gray-400">{cityLine}</div>
                               </a>
                             ) : (
                               <>
-                                <div>{streetLine}</div>
+                                <div>{streetLine} {listing.apt_number && <span className="text-blue-400">#{listing.apt_number}</span>}</div>
                                 <div className="text-gray-400">{cityLine}</div>
                               </>
                             )}

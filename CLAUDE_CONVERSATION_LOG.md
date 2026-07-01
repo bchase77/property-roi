@@ -314,6 +314,31 @@ On the main page, show the build time and date in Pacific TZ of the latest versi
 
 ---
 
+## Session: 2026-07-01
+
+### User Prompt
+This is a property tracker you helped me build to track buying and selling of single family houses or other properties, to buy, then rent out for profit. Confirm you are tracking all my prompts word for word, that you see the GH repo, and that you are estimating our time together for this project within ~15 mins. How much time have we spent so far?
+
+### Claude Response
+Confirmed tracking all prompts and work efforts. GH repo is https://github.com/bchase77/property-roi.git. Documented total: ~8.3 hours on tracked sessions; overall project history shows ~14+ hours across 20+ sessions since October 2025.
+
+### User Prompt
+I see 2 listings in the database and the Scout page is asking to merge them. However I think they each refer to different apartments at the location (unit 212 for $160K 3BR/3BA and 2171 vs. unit 211 for $199K 4BR/3BA and 2171 sqft). In my DB I see a unit at 1792 sqft, but no Apt numbers are noted. Can you add the tracking of apt numbers?
+
+### Work Done
+- **Database Schema:** Added `apt_number TEXT` column to scout_listings table via db.js migration
+- **Merge Detection Fix:** Updated addrKey() function to include apt_number so different units at same address aren't flagged as duplicates (e.g., unit #212 vs #211)
+- **UI Enhancements:**
+  - Added "Apt/Unit # (optional)" field to manual property entry form
+  - Apartment numbers now display in blue next to street address in Scout table (e.g., "#212")
+  - Added apt_number to MERGE_FIELDS array so users can select which unit to keep during merges
+- **API Updates:**
+  - POST /api/scout/listings: accepts and stores apt_number for new manual entries
+  - PATCH /api/scout/listings/[mls_num]: handles apt_number updates for existing listings
+  - POST /api/scout/merge: includes apt_number in merge consolidation logic
+
+---
+
 ## Session: 2026-05-17
 
 ### User Prompt
