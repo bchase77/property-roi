@@ -59,9 +59,21 @@ function sourceLabel(source) {
 function getPropertyTypeColor(propertyType) {
   if (!propertyType) return '';
   const lower = propertyType.toLowerCase();
-  if (lower.includes('mobile') || lower.includes('manufactured') || lower.includes('trailer')) return 'bg-orange-900/40 border-l-2 border-orange-500';
-  if (lower.includes('apartment') || lower.includes('condo') || lower.includes('townhouse') || lower.includes('town home')) return 'bg-blue-900/40 border-l-2 border-blue-500';
-  if (lower.includes('multi') || lower.includes('duplex') || lower.includes('triplex')) return 'bg-purple-900/40 border-l-2 border-purple-500';
+  if (lower.includes('mobile') || lower.includes('manufactured') || lower.includes('trailer')) {
+    console.log(`Mobile: ${propertyType}`);
+    return 'bg-orange-900/40 border-l-2 border-orange-500';
+  }
+  if (lower.includes('apartment') || lower.includes('condo') || lower.includes('townhouse') || lower.includes('town home')) {
+    console.log(`Apartment: ${propertyType}`);
+    return 'bg-blue-900/40 border-l-2 border-blue-500';
+  }
+  if (lower.includes('multi') || lower.includes('duplex') || lower.includes('triplex')) {
+    console.log(`Multi-unit: ${propertyType}`);
+    return 'bg-purple-900/40 border-l-2 border-purple-500';
+  }
+  if (propertyType) {
+    console.log(`Unknown type: ${propertyType}`);
+  }
   return '';
 }
 
