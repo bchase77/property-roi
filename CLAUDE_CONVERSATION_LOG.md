@@ -337,6 +337,20 @@ I see 2 listings in the database and the Scout page is asking to merge them. How
   - PATCH /api/scout/listings/[mls_num]: handles apt_number updates for existing listings
   - POST /api/scout/merge: includes apt_number in merge consolidation logic
 
+### User Prompt
+For mobile homes you also need to track the unit number. For example, 7800 Mockingbird Ln, North Richland is a mobile home. Can you see that from the data scraped? Mark mobile homes and apartments in a different color in SCOUT so I can distinquish them.
+
+### Work Done
+- **Property Type Color Coding:** Added getPropertyTypeColor() function that assigns background colors based on property_type from scraped data:
+  - **Orange/orange-500**: Mobile Homes, Manufactured, Trailers
+  - **Blue/blue-500**: Apartments, Condos, Townhouses
+  - **Purple/purple-500**: Multi-unit, Duplexes, Triplexes
+  - Regular houses have no background color
+- **Scout Table Styling:** Each row is now colored by property type via bg color + left border accent
+- **Legend Added:** Visual legend displayed above filter bar showing what each color represents
+- **Unit Numbers:** apt_number field works for both apartments AND mobile homes (e.g., mobile home space #12)
+- **Data Source:** Property type is extracted by PAM scraper from IDX Broker listings and stored in scout_listings.property_type
+
 ---
 
 ## Session: 2026-05-17

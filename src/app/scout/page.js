@@ -56,6 +56,15 @@ function sourceLabel(source) {
   return source ?? '—';
 }
 
+function getPropertyTypeColor(propertyType) {
+  if (!propertyType) return '';
+  const lower = propertyType.toLowerCase();
+  if (lower.includes('mobile') || lower.includes('manufactured') || lower.includes('trailer')) return 'bg-orange-900/40 border-l-2 border-orange-500';
+  if (lower.includes('apartment') || lower.includes('condo') || lower.includes('townhouse') || lower.includes('town home')) return 'bg-blue-900/40 border-l-2 border-blue-500';
+  if (lower.includes('multi') || lower.includes('duplex') || lower.includes('triplex')) return 'bg-purple-900/40 border-l-2 border-purple-500';
+  return '';
+}
+
 function Roi5Badge({ value }) {
   if (value == null) return <span className="text-gray-500">—</span>;
   const color = value >= 15 ? 'bg-purple-900/60 text-purple-300' : value >= 10 ? 'bg-yellow-900/60 text-yellow-300' : 'bg-red-900/60 text-red-300';
@@ -949,6 +958,25 @@ function ScoutPageInner() {
         )}
       </div>
 
+      {/* Property Type Legend */}
+      <div className="flex flex-wrap gap-2 mb-4 text-xs">
+        <span className="text-gray-500">Property Type:</span>
+        <div className="flex gap-2">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 border-l-2 border-orange-500 bg-orange-900/40 rounded px-1"></div>
+            <span className="text-gray-400">Mobile Home</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 border-l-2 border-blue-500 bg-blue-900/40 rounded px-1"></div>
+            <span className="text-gray-400">Apartment/Condo</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 border-l-2 border-purple-500 bg-purple-900/40 rounded px-1"></div>
+            <span className="text-gray-400">Multi-Unit</span>
+          </div>
+        </div>
+      </div>
+
       {/* Filter / Sort Bar — Active tab only */}
       {activeTab === 'active' && <div className="flex flex-wrap gap-3 items-center mb-4">
         <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
@@ -1259,8 +1287,9 @@ function ScoutPageInner() {
                 const cityLine   = [addrParts[1]?.trim(), addrParts[2]?.trim()].filter(Boolean).join(', ');
                 const copyAddr   = [streetLine, addrParts[1]?.trim()].filter(Boolean).join(', ');
 
+                const propTypeClass = getPropertyTypeColor(listing.property_type);
                 return (
-                  <tr key={listing.mls_num} className={`hover:bg-gray-750 align-top ${touched ? 'border-l-2 border-amber-500/70' : ''}`}>
+                  <tr key={listing.mls_num} className={`hover:bg-gray-750 align-top ${propTypeClass} ${touched ? (propTypeClass ? '' : 'border-l-2 border-amber-500/70') : ''}`}>
                     {/* Address */}
                     <td className="px-3 py-2 max-w-[200px]">
                       {editingAddress === listing.mls_num ? (
