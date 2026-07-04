@@ -9,6 +9,7 @@ export function middleware(request) {
   if (
     pathname === '/login' ||
     pathname === '/investor-pitch.html' ||
+    pathname === '/api/scout/export' ||
     pathname.startsWith('/api/auth/') ||
     pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico'

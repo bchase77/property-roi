@@ -505,3 +505,33 @@ Update the investor-pitch html page: Remove 10400 Wagon Rut and 5518 Heathercres
   - Cover: Updated pill from "7.23% Fixed (Debt)" to "Bank Rate +1% (Debt)"; updated date to May 2026
   - Promote diagram: ~7.2% hurdle instead of hardcoded 7.23%
   - DB credentials issue: user needs to pull fresh connection string from Neon dashboard to fill in Mayberry Lane numbers
+
+---
+
+## Session: 2026-07-04
+
+### User Prompt
+Another Claude Code instance is putting together a real estate investment business plan. I want it to see the Scout page, and maybe other pages, from this project. What's a good way to do that? Can we give that instance an API endpoint for the Scout page? Should I move that project over to here (not my preference, since I don't want to mix code-bases), Have it query the data source directly?
+
+### Claude Response
+Recommended against moving the project or having the other instance query Postgres directly (would duplicate the ROI/cap-rate calc logic already in `calcMetrics.js`). Discussed options with user (one-time JSON export vs. authenticated live calls vs. new public export endpoint) — user chose a new dedicated export endpoint protected by a shared-secret key.
+
+### Work Done
+- **New endpoint:** `src/app/api/scout/export/route.js` — GET, returns active (non-skip/sold) Scout listings with computed metrics (cf, cap, coc, atroi, roi5, rent, rentPct) as JSON. Requires `?key=` query param matching `SCOUT_EXPORT_KEY` env var; returns 401 otherwise. Supports optional `?limit=` (default 500, max 1000).
+- **Middleware:** Added `/api/scout/export` to the public allowlist in `src/middleware.js` (bypasses the `roi_auth` cookie gate) since the route enforces its own key-based auth — same pattern already used for `/investor-pitch.html`.
+- **Secret:** Generated `SCOUT_EXPORT_KEY` and appended to local `.env.local`. **User still needs to add the same value to Vercel project env vars for production** (Project Settings → Environment Variables) and redeploy.
+- **Tested locally:** confirmed valid key returns JSON with computed metrics, invalid key returns 401, and the existing password gate on `/api/scout/listings` (used by the logged-in Scout UI) is untouched.
+- Attempted `vercel whoami` to check for CLI auth (to potentially push the env var automatically) — it triggered an OAuth device-login flow unprompted; killed it immediately, no login occurred. User will add the env var manually instead.
+
+### User Prompt
+It wants to use this, should I let it?: curl -s "https://property-roi.vercel.app/api/scout/listings?status=b" | head -c 3000
+
+### Claude Response
+No — `/api/scout/listings` is still behind the `roi_auth` cookie gate and would just 307-redirect to `/login`. Pointed the user to the new `/api/scout/export` endpoint instead, and flagged that it didn't yet support a `status` filter.
+
+### User Prompt
+Yes, it needs to filter based on status B for now. I might add more filters later, is that problematic?
+
+### Work Done
+- Added `?status=` filter to `/api/scout/export` (values: `a`, `b`, `c`, `skip`, `sold`, `unmarked`, `not-skip` [default], `all`) — mirrors the same filter semantics already used in `/api/scout/listings`, via a plain `conditions` array so more filters (price, beds, source, etc.) can be appended the same way later.
+- Tested locally with `status=b`: confirmed all 3 returned listings have `status: "b"`.

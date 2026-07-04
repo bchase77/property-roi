@@ -17,6 +17,27 @@ This application demonstrates building a sophisticated financial analysis tool w
 
 ---
 
+## Session: 2026-07-04
+
+### Session Start Announcement
+**I'm tracking all your prompts and work efforts as requested.**
+
+### Work Completed This Session
+#### Scout Data Export Endpoint for External Claude Instance (~20 minutes)
+- **Status:** Code complete; **user action required** to finish deployment (see below)
+- **User Requirement:** Let a separate Claude Code instance (drafting a real estate business plan) read Scout page data, without merging codebases or duplicating the ROI/cap-rate calculation logic.
+- **Decision:** New dedicated, secret-key-protected export endpoint rather than moving the project, direct DB access from the other project, or a fully public endpoint.
+- **Built:**
+  - `src/app/api/scout/export/route.js` — read-only GET, returns active listings with computed metrics (cf, cap, coc, atroi, roi5, rent, rentPct) as JSON, gated by `?key=` matching env var `SCOUT_EXPORT_KEY`.
+  - Added `/api/scout/export` to the public allowlist in `src/middleware.js` (same carve-out pattern as `/investor-pitch.html`).
+  - Generated `SCOUT_EXPORT_KEY` secret, added to local `.env.local`, verified working end-to-end against localhost (valid key → data, invalid key → 401).
+- **Follow-up:** Added `?status=` filter to the export endpoint (a/b/c/skip/sold/unmarked/not-skip/all), matching `/api/scout/listings` semantics, since the other instance needed status-B-only listings. Built as a plain condition list so more filters can be appended later without a redesign.
+- **Still TODO (user):**
+  1. Add `SCOUT_EXPORT_KEY` to Vercel project env vars (same value as local `.env.local`) and redeploy.
+  2. Give the other Claude Code instance the URL (`https://property-roi.vercel.app/api/scout/export?key=...&status=b`) so it can fetch the data itself.
+
+---
+
 ## Session: 2026-04-19
 
 ### Features Implemented
