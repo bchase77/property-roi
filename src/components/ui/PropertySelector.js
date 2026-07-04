@@ -39,7 +39,14 @@ function PropertyCard({ property, isSelected, onToggle }) {
           className="rounded"
         />
         <div className="flex-1">
-          <div className="font-medium text-sm text-gray-900">{property.address}</div>
+          <div className="font-medium text-sm text-gray-900 flex items-center gap-2">
+            {property.address}
+            {property._source === 'scout' && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                Scout · B
+              </span>
+            )}
+          </div>
           <div className="text-xs text-gray-500 mb-1">{property.city}, {property.state}</div>
           <div className="text-xs text-gray-700">
             ${Number(property.purchase_price).toLocaleString()} • 

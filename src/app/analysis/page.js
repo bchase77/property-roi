@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AssetValueChart from '@/components/charts/AssetValueChart';
 import NormalizedComparisonCharts from '@/components/charts/NormalizedComparisonCharts';
@@ -7,24 +7,55 @@ import PerformanceMetricsChart from '@/components/charts/PerformanceMetricsChart
 import AnnualIncomeChart from '@/components/charts/AnnualIncomeChart';
 import MetricsGrid from '@/components/ui/MetricsGrid';
 import PropertySelector from '@/components/ui/PropertySelector';
+import ScoutCandidatesPanel from '@/components/ui/ScoutCandidatesPanel';
 import ScenarioSelector from '@/components/ui/ScenarioSelector';
 import PageHeader from '@/components/ui/PageHeader';
 import MetricsDefinitions from '@/components/ui/MetricsDefinitions';
 import { analyzeWithCurrentValues, calculateCAGR, calculateHoldVsSell } from '@/lib/finance';
 import { calculateMarketInvestmentValue } from '@/lib/marketData';
+import { scoutListingToProperty } from '@/lib/scoutToProperty';
+
+const HIDDEN_MLS_KEY = 'analysisHiddenScoutMls';
+
+function loadHiddenMls() {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(HIDDEN_MLS_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
 
 function AnalysisContent() {
   const searchParams = useSearchParams();
+  const [dbProperties, setDbProperties] = useState([]);
+  const [scoutCandidates, setScoutCandidates] = useState([]);
+  const [hiddenMls, setHiddenMls] = useState(loadHiddenMls);
   const [properties, setProperties] = useState([]);
   const [selectedProperties, setSelectedProperties] = useState([]);
   const [selectedScenarios, setSelectedScenarios] = useState([]);
   const [timeRange] = useState('5y'); // 2y, 5y, 10y
   const [loading, setLoading] = useState(true);
   const [showDefinitions, setShowDefinitions] = useState(false);
+  const selectionInitialized = useRef(false);
 
   useEffect(() => {
     loadProperties();
+    loadScoutCandidates();
   }, []);
+
+  // Combine owned properties with visible Scout candidates whenever either source changes.
+  useEffect(() => {
+    const visibleScout = scoutCandidates.filter(c => !hiddenMls.has(c._mlsNum));
+    const combined = [...dbProperties, ...visibleScout];
+    setProperties(combined);
+
+    if (!selectionInitialized.current && (dbProperties.length > 0 || scoutCandidates.length > 0)) {
+      setSelectedProperties([...dbProperties.slice(0, 3), ...visibleScout]);
+      selectionInitialized.current = true;
+    }
+  }, [dbProperties, scoutCandidates, hiddenMls]);
 
   useEffect(() => {
     const propertyId = searchParams.get('property');
@@ -47,15 +78,40 @@ function AnalysisContent() {
       const res = await fetch('/api/properties', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setProperties(data);
-        // Default to first 3 properties for initial view
-        setSelectedProperties(data.slice(0, 3));
+        setDbProperties(data);
       }
     } catch (error) {
       console.error('Failed to load properties:', error);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadScoutCandidates() {
+    try {
+      const res = await fetch('/api/scout/listings?status=b&limit=50', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setScoutCandidates((data.listings || []).map(scoutListingToProperty));
+      }
+    } catch (error) {
+      console.error('Failed to load Scout candidates:', error);
+    }
+  }
+
+  function hideScoutCandidates(mlsSet) {
+    setHiddenMls(prev => {
+      const next = new Set(prev);
+      mlsSet.forEach(m => next.add(m));
+      window.localStorage.setItem(HIDDEN_MLS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+    setSelectedProperties(prev => prev.filter(p => !(p._source === 'scout' && mlsSet.has(p._mlsNum))));
+  }
+
+  function showHiddenScoutCandidates() {
+    setHiddenMls(new Set());
+    window.localStorage.removeItem(HIDDEN_MLS_KEY);
   }
 
   const togglePropertySelection = (property) => {
@@ -95,10 +151,18 @@ function AnalysisContent() {
         </div>
 
       {/* Property Selection */}
-      <PropertySelector 
+      <PropertySelector
         properties={properties}
         selectedProperties={selectedProperties}
         onToggleProperty={togglePropertySelection}
+      />
+
+      {/* Scout Candidates (graded B) — dismiss ones no longer available */}
+      <ScoutCandidatesPanel
+        candidates={scoutCandidates.filter(c => !hiddenMls.has(c._mlsNum))}
+        hiddenCount={hiddenMls.size}
+        onHide={hideScoutCandidates}
+        onShowHidden={showHiddenScoutCandidates}
       />
 
       {/* Scenario Selection */}

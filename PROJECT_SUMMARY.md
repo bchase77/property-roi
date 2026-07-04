@@ -32,9 +32,19 @@ This application demonstrates building a sophisticated financial analysis tool w
   - Added `/api/scout/export` to the public allowlist in `src/middleware.js` (same carve-out pattern as `/investor-pitch.html`).
   - Generated `SCOUT_EXPORT_KEY` secret, added to local `.env.local`, verified working end-to-end against localhost (valid key → data, invalid key → 401).
 - **Follow-up:** Added `?status=` filter to the export endpoint (a/b/c/skip/sold/unmarked/not-skip/all), matching `/api/scout/listings` semantics, since the other instance needed status-B-only listings. Built as a plain condition list so more filters can be appended later without a redesign.
-- **Still TODO (user):**
-  1. Add `SCOUT_EXPORT_KEY` to Vercel project env vars (same value as local `.env.local`) and redeploy.
-  2. Give the other Claude Code instance the URL (`https://property-roi.vercel.app/api/scout/export?key=...&status=b`) so it can fetch the data itself.
+- **Deployed:** Committed (`fb452d9`) and pushed to `main`; confirmed live in production via curl (`property-roi.vercel.app/api/scout/export?key=...&status=b` → 200 JSON). The other Claude instance's initial failure was a timing/stale-URL issue on its end, not a deploy problem.
+
+#### Scout 'B' Candidates on Investment Analysis Page (~45 minutes)
+- **Status:** ✅ Complete, verified end-to-end with Playwright
+- **User Requirement:** Pull the 3 Scout listings graded 'b' into `/analysis` alongside owned portfolio properties, plus a checkbox+button way to hide ones no longer available.
+- **Key architectural finding:** `/analysis`'s charts (`AssetValueChart.js`, etc.) already treat `purchased: false` properties as valid projections and skip their per-property historical-year fetch — so Scout listings could be synthesized into `properties`-shaped objects client-side with **zero database schema changes** (no backup protocol needed).
+- **Built:**
+  - `src/lib/scoutToProperty.js` — maps a Scout listing into a `properties`-table-shaped object using the same default assumptions as Scout's own `calcMetrics.js` (25% down, 6.4% rate, 2.3% tax, etc.)
+  - `src/components/ui/ScoutCandidatesPanel.js` — new panel on `/analysis` with its own checkboxes + "Hide Selected" button + "Show hidden (n)" undo, kept separate from the existing per-card "include in charts" checkbox
+  - `src/app/analysis/page.js` — fetches `/api/scout/listings?status=b`, merges into existing `properties`/`selectedProperties` state (auto-selected on load), persists hidden mls_nums to browser `localStorage`
+  - `src/components/ui/PropertySelector.js` — "Scout · B" badge on Scout-sourced cards
+- **Verified with a real Playwright browser session** (not just compile checks): logged in, confirmed 3 badges render and are pre-selected, hid one via checkbox+button (count 3→2), reloaded page (stayed hidden), unhid (back to 3), zero console errors.
+- **Not yet pushed** — awaiting user go-ahead to commit/push this feature.
 
 ---
 

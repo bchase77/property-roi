@@ -535,3 +535,39 @@ Yes, it needs to filter based on status B for now. I might add more filters late
 ### Work Done
 - Added `?status=` filter to `/api/scout/export` (values: `a`, `b`, `c`, `skip`, `sold`, `unmarked`, `not-skip` [default], `all`) — mirrors the same filter semantics already used in `/api/scout/listings`, via a plain `conditions` array so more filters (price, beds, source, etc.) can be appended the same way later.
 - Tested locally with `status=b`: confirmed all 3 returned listings have `status: "b"`.
+
+### User Prompt
+It wants to use this, should I let it?: curl -s "https://property-roi.vercel.app/api/scout/listings?status=b" | head -c 3000
+
+### Claude Response
+Same as above — pointed the user back to the correct `/api/scout/export` URL/key.
+
+### User Prompt
+I added the key. Push the changes.
+
+### Work Done
+- Confirmed `.env.local` (containing `SCOUT_EXPORT_KEY`) is gitignored, staged only the intended files, committed (`fb452d9`, "Add key-protected Scout export endpoint for external consumers"), and pushed to `origin/main`.
+- Verified in production with curl: `https://property-roi.vercel.app/api/scout/export?key=...&status=b` returns 200 JSON with real listing data.
+
+### User Prompt
+The other Claude cannot get access [pasted its own diagnostic message about /api/scout/export redirecting to /login].
+
+### Claude Response
+Re-tested the exact production URL myself — it returned 200 with valid JSON, no redirect. The deploy was fine; the other instance's failure was likely a timing issue (testing before the deploy finished) or a stale URL. Gave it the confirmed-working URL to retry.
+
+### User Prompt
+In the SCOUT page, how can I select 3 properties for deeper analysis and comparison to the others in the portfolio?
+
+### Claude Response
+Explained the current mechanism (grade listings A/B/C on Scout, use "Compare Potentials" to compare Scout candidates against each other) and the gap: that comparison never includes the real owned portfolio (`properties` table / `/analysis` page), since Scout and Portfolio are separate data models with separate calc engines (`calcMetrics.js` vs `finance.js`). Asked the user to clarify what they actually wanted.
+
+### User Prompt
+I want to pull in the 3 SCOUT properties marked 'b' into the investment analysis page. And on that Investment Analysis page, I want a way to 'hide' some that are listed, since they are no longer available. I am OK to mark some checkboxes then click a button 'hide' for example.
+
+### Work Done — Plan approved, then implemented (see `/Users/bmc/.claude/plans/woolly-foraging-reef.md`)
+- **Key finding:** The Analysis page's charts/metrics already treat `purchased: false` properties as valid "projected" entries (from the earlier "any property can be analyzed" fix) — `AssetValueChart.js` only fetches per-property historical years `if (property.purchased)`, so a synthetic, non-DB-backed property with `purchased: false` is safely skipped there. This meant the feature needed **zero database schema changes**.
+- **New:** `src/lib/scoutToProperty.js` — maps a `/api/scout/listings` row into a `properties`-table-shaped object (using the same assumption defaults as Scout's own `calcMetrics.js` `DEFAULTS`: 25% down, 6.4% rate, 30yr, 2.3% tax, etc.), tagged `_source: 'scout'` / `_mlsNum`.
+- **New:** `src/components/ui/ScoutCandidatesPanel.js` — lists Scout-sourced properties on `/analysis` with their own checkboxes (kept separate from the existing "include in charts" checkboxes to avoid overloading one control with two meanings) + a "Hide Selected" button + a "Show hidden (n)" undo link.
+- **Edit:** `src/app/analysis/page.js` — fetches `/api/scout/listings?status=b&limit=50` alongside the existing `/api/properties` load, merges them into the same `properties`/`selectedProperties` state (Scout candidates auto-selected by default per user's choice), and persists hidden mls_nums to `localStorage['analysisHiddenScoutMls']` (browser-scoped, no backend involved — CLAUDE.md's DB schema-change/backup protocol doesn't apply since nothing touches the database).
+- **Edit:** `src/components/ui/PropertySelector.js` — added a small "Scout · B" badge on cards sourced from Scout.
+- **Verified end-to-end with Playwright** (logged in via `/api/auth/login`, drove real browser): confirmed 3 "Scout · B" badges render and are auto-selected, checked one candidate + clicked "Hide Selected" → count dropped to 2, reloaded the page → stayed hidden (localStorage persisted), clicked "Show hidden (1)" → back to 3. Zero console/page errors from the new code.
