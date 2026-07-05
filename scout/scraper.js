@@ -83,13 +83,34 @@ function buildBands(minPrice, maxPrice) {
   return bands;
 }
 
+// ─── Navigate with retry — 7am runs sometimes fire right as the laptop wakes
+// from sleep, before WiFi has reconnected, causing transient ERR_INTERNET_DISCONNECTED
+// or timeouts. Retry with backoff instead of failing the whole run over one blip.
+async function gotoWithRetry(page, url, opts = {}, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000, ...opts });
+    } catch (e) {
+      if (attempt === retries) throw e;
+      const delay = attempt * 4000;
+      console.warn(`    goto failed (attempt ${attempt}/${retries}): ${e.message.split('\n')[0]} — retrying in ${delay / 1000}s…`);
+      await page.waitForTimeout(delay);
+    }
+  }
+}
+
 // ─── Scrape all pages for one price band ─────────────────────────────────────
 async function scrapeBand(page, url, cfg, label) {
   console.log(`\n  ── Band ${label}: navigating…`);
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  await page.waitForTimeout(5000);
-
   const bandListings = [];
+
+  try {
+    await gotoWithRetry(page, url);
+  } catch (e) {
+    console.warn(`    Band ${label} navigation failed after retries (${e.message.split('\n')[0]}) — skipping band, will retry next run`);
+    return bandListings;
+  }
+  await page.waitForTimeout(5000);
 
   const p1appeared = await page.waitForSelector('li.IDX-results--cell', { timeout: 20_000 })
     .then(() => true).catch(() => false);
@@ -115,7 +136,12 @@ async function scrapeBand(page, url, cfg, label) {
   const maxPages = Math.min(pageUrls.length + 1, cfg.max_pages ?? 10);
   for (let i = 0; i < pageUrls.length && bandListings.length < (maxPages - 1) * 250; i++) {
     console.log(`    Page ${i + 2}/${maxPages}…`);
-    await page.goto(pageUrls[i], { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    try {
+      await gotoWithRetry(page, pageUrls[i]);
+    } catch (e) {
+      console.warn(`    Page ${i + 2} navigation failed after retries (${e.message.split('\n')[0]}) — stopping band early, will retry next run`);
+      break;
+    }
     await page.waitForTimeout(5000);
     const html = await page.content();
     if (html.includes('cf-turnstile') || html.includes('security verification')) {
@@ -190,7 +216,7 @@ async function scrape() {
     // ── 1. Check for login requirement using the first band URL ───────────
     const band0url = bandUrl(cfg, bands[0].lp, bands[0].hp);
     console.log('\n→ Loading first band to check login…');
-    await page.goto(band0url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await gotoWithRetry(page, band0url);
     await page.waitForTimeout(5000);
 
     const currentUrl = page.url();
@@ -199,7 +225,7 @@ async function scrape() {
     if (needsLogin) {
       console.log('→ Login required — signing in…');
       await login(page);
-      await page.goto(band0url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await gotoWithRetry(page, band0url);
       await page.waitForTimeout(5000);
     }
 
@@ -459,7 +485,7 @@ async function scrape() {
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 async function login(page) {
-  await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' });
+  await gotoWithRetry(page, LOGIN_URL);
   await page.waitForTimeout(1000);
 
   // Try common field selectors

@@ -18,7 +18,8 @@ export async function GET(req) {
 
   await init();
 
-  const limit  = Math.min(1000, Math.max(1, parseInt(searchParams.get('limit') || '500', 10)));
+  const parsedLimit = parseInt(searchParams.get('limit') || '500', 10);
+  const limit = Math.min(1000, Math.max(1, Number.isNaN(parsedLimit) ? 500 : parsedLimit));
   const status = searchParams.get('status') || 'not-skip';
 
   // Mirrors the status filter semantics in /api/scout/listings.

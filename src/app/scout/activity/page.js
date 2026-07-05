@@ -26,7 +26,7 @@ export default function ActivityPage() {
   return (
     <main className="min-h-screen bg-gray-900 text-white p-6">
       <div className="flex items-center justify-between mb-4">
-        <PageHeader title="Activity" subtitle="Recent Scout DB updates" currentPage="/scout/activity" />
+        <PageHeader title="Activity" subtitle="Recent Scout DB updates" currentPage="/scout/activity" dark />
         <div className="flex gap-3 items-center">
           <button
             onClick={load}

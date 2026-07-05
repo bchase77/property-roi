@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-export default function PageHeader({ title, subtitle, currentPage }) {
+export default function PageHeader({ title, subtitle, currentPage, dark = false }) {
   const [versionString, setVersionString] = useState('Loading...');
   const [connectionStatus, setConnectionStatus] = useState('online');
   const [syncStatus, setSyncStatus] = useState({
@@ -137,7 +137,7 @@ export default function PageHeader({ title, subtitle, currentPage }) {
     <header className="flex justify-between items-start mb-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">{title}</h1>
-  {subtitle && <p className="text-gray-200">{subtitle}</p>}
+  {subtitle && <p className={dark ? 'text-gray-300' : 'text-gray-600'}>{subtitle}</p>}
       </div>
       
       <div className="text-right">

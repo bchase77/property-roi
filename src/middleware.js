@@ -18,7 +18,7 @@ export function middleware(request) {
   }
 
   const token = request.cookies.get(COOKIE)?.value;
-  if (token && token === process.env.SITE_PASSWORD) {
+  if (token && token === process.env.SESSION_SECRET) {
     return NextResponse.next();
   }
 

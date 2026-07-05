@@ -132,7 +132,7 @@ export default function ScoutComparePage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-6">
-        <PageHeader title="Scout: Compare" subtitle="Potential properties side-by-side" currentPage="/scout/compare" />
+        <PageHeader title="Scout: Compare" subtitle="Potential properties side-by-side" currentPage="/scout/compare" dark />
         <p className="text-gray-400">Loading…</p>
       </main>
     );
@@ -142,7 +142,7 @@ export default function ScoutComparePage() {
     <main className="min-h-screen bg-gray-900 text-white p-6">
       <div className="flex items-start gap-4 mb-6">
         <div className="flex-1">
-          <PageHeader title="Scout: Compare" subtitle="Potential properties side-by-side" currentPage="/scout/compare" />
+          <PageHeader title="Scout: Compare" subtitle="Potential properties side-by-side" currentPage="/scout/compare" dark />
         </div>
         <button
           onClick={() => router.push('/scout')}

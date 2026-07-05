@@ -607,7 +607,7 @@ function ScoutPageInner() {
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-6">
-        <PageHeader title="Scout" subtitle="PAMS Texas &amp; REI Nation listings" currentPage="/scout" />
+        <PageHeader title="Scout" subtitle="PAMS Texas &amp; REI Nation listings" currentPage="/scout" dark />
         <p className="text-gray-400">Loading…</p>
       </main>
     );
@@ -617,7 +617,7 @@ function ScoutPageInner() {
     <main className="min-h-screen bg-gray-900 text-white p-6">
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
-          <PageHeader title="Scout" subtitle="PAMS Texas &amp; REI Nation listings" currentPage="/scout" />
+          <PageHeader title="Scout" subtitle="PAMS Texas &amp; REI Nation listings" currentPage="/scout" dark />
         </div>
         <div className="flex gap-2 mt-1 ml-4">
           <button

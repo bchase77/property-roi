@@ -44,7 +44,27 @@ This application demonstrates building a sophisticated financial analysis tool w
   - `src/app/analysis/page.js` — fetches `/api/scout/listings?status=b`, merges into existing `properties`/`selectedProperties` state (auto-selected on load), persists hidden mls_nums to browser `localStorage`
   - `src/components/ui/PropertySelector.js` — "Scout · B" badge on Scout-sourced cards
 - **Verified with a real Playwright browser session** (not just compile checks): logged in, confirmed 3 badges render and are pre-selected, hid one via checkbox+button (count 3→2), reloaded page (stayed hidden), unhid (back to 3), zero console errors.
-- **Not yet pushed** — awaiting user go-ahead to commit/push this feature.
+- **Pushed** (`6185620`).
+
+#### Subtitle Contrast Fix Across Light-Background Pages (~10 minutes)
+- **Status:** ✅ Complete
+- **User Requirement:** Comparison page subtitle was light gray on white, hard to read.
+- **Root Cause:** Shared `PageHeader.js` hardcoded subtitle to `text-gray-200` — fine on Scout/Rent Research's dark background, invisible on the 10 other pages with light/white backgrounds.
+- **Fix:** Added a `dark` prop to `PageHeader` (default off); light pages now get `text-gray-600`, dark pages keep `text-gray-300`. Updated the 4 call sites on dark pages (`scout`, `scout/activity`, `scout/compare`, `rent-research`) to pass `dark`. Comparison and 9 other light pages get the fix automatically.
+- **Verified with Playwright:** Comparison subtitle now dark-on-white; Scout/Rent Research subtitles unchanged (light-on-dark), no regression.
+- **Not yet pushed** — awaiting user go-ahead.
+
+#### Scout Scraper Reliability + Broader Security Hardening (~40 minutes)
+- **Status:** ✅ Complete locally, **not yet pushed/deployed**
+- **Trigger:** User asked to look at "scrape-pams" functionality; investigation found the scheduled scraper had silently stopped running.
+- **LaunchAgent fix:** `com.propertyroi.scout` (Mon/Wed/Fri 7am scraper) had fallen out of launchd after a June 29 reboot — hadn't run since June 26. Reloaded via `launchctl bootstrap`.
+- **Scraper reliability fix** (`scout/scraper.js`): zero retry logic previously existed; a single transient network blip (plausible at 7am right after wake-from-sleep) killed the entire run before any DB write. Added `gotoWithRetry()` (3 attempts w/ backoff) on every navigation; made per-band failures non-fatal so one bad band doesn't lose the whole run's data.
+- **Security audit (codebase level):** confirmed good baseline (no secrets in git history, parameterized SQL everywhere). Found and fixed on user's request:
+  - Login cookie previously equaled the literal `SITE_PASSWORD` — now a random `SESSION_SECRET` token instead (`src/app/api/auth/login/route.js`, `src/middleware.js`). Verified with Playwright: new cookie is random hex, old-style forged cookies are correctly rejected.
+  - Removed a stale (already-rotated) Neon DB password that was hardcoded into a `.claude/settings.local.json` permission rule instead of `.env.local`.
+  - Fixed a minor `LIMIT NaN` edge case in `/api/scout/export`.
+  - Deliberately **did not** run `npm audit fix --force` for the 2 moderate PostCSS vulnerabilities — would downgrade Next.js to 9.3.3; the vulnerable path is build-time only, never touches runtime user input here.
+- **CRITICAL before deploying:** `SESSION_SECRET` must be added to Vercel's production env vars *before* this is pushed, or production login breaks completely (everyone locked out) until it's added.
 
 ---
 

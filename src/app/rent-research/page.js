@@ -112,14 +112,14 @@ export default function RentResearchPage() {
 
   if (loading) return (
     <main className="min-h-screen bg-gray-900 text-white p-6">
-      <PageHeader title="Rent Research" currentPage="/rent-research" />
+      <PageHeader title="Rent Research" currentPage="/rent-research" dark />
       <p className="text-gray-400">Loading…</p>
     </main>
   );
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-6">
-      <PageHeader title="Rent Research" subtitle="Set min/max rent ranges and see how they affect your metrics" currentPage="/rent-research" />
+      <PageHeader title="Rent Research" subtitle="Set min/max rent ranges and see how they affect your metrics" currentPage="/rent-research" dark />
 
       <div className="bg-gray-800 rounded-xl overflow-x-auto">
         <table className="w-full text-sm">

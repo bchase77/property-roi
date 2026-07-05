@@ -571,3 +571,33 @@ I want to pull in the 3 SCOUT properties marked 'b' into the investment analysis
 - **Edit:** `src/app/analysis/page.js` — fetches `/api/scout/listings?status=b&limit=50` alongside the existing `/api/properties` load, merges them into the same `properties`/`selectedProperties` state (Scout candidates auto-selected by default per user's choice), and persists hidden mls_nums to `localStorage['analysisHiddenScoutMls']` (browser-scoped, no backend involved — CLAUDE.md's DB schema-change/backup protocol doesn't apply since nothing touches the database).
 - **Edit:** `src/components/ui/PropertySelector.js` — added a small "Scout · B" badge on cards sourced from Scout.
 - **Verified end-to-end with Playwright** (logged in via `/api/auth/login`, drove real browser): confirmed 3 "Scout · B" badges render and are auto-selected, checked one candidate + clicked "Hide Selected" → count dropped to 2, reloaded the page → stayed hidden (localStorage persisted), clicked "Show hidden (1)" → back to 3. Zero console/page errors from the new code.
+- Committed (`6185620`) and pushed to `main`.
+
+### User Prompt
+Make this text easier to see (comparison page). It's light gray on white: Compare properties side-by-side with sortable metrics to identify the best investment opportunities
+
+### Work Done
+- Root cause: the shared `PageHeader.js` component hardcoded the subtitle to `text-gray-200`, which reads fine on Scout/Rent Research's dark (`bg-gray-900`) pages but is nearly invisible on the 10 other pages (Comparison, Analysis, Portfolio, Dashboard, etc.) that use the default light/white background.
+- Added a `dark` boolean prop to `PageHeader` (default `false`): subtitle renders `text-gray-300` when `dark`, `text-gray-600` otherwise (per the existing `text-gray-600` readability convention in this file's UI guidelines).
+- Passed `dark` at the 4 call sites that actually use the dark background: `src/app/scout/page.js`, `src/app/scout/activity/page.js`, `src/app/scout/compare/page.js`, `src/app/rent-research/page.js`. Left the other 10 pages (including Comparison) on the new default, fixing the same contrast bug there for free.
+- Verified with Playwright: Comparison subtitle now renders as dark gray (`lab(35.6...)`) on white; Scout and Rent Research subtitles unchanged (`lab(85.1...)`, light on dark) — no regression.
+
+### User Prompt (new session after restart)
+Are the new security changes in place? if so, next look at the scrape-pams functionality.
+
+### Claude Response
+Confirmed CLAUDE.md Security section, `.claude/settings.json`, and `.claude/settings.local.json` changes all survived the restart (git status unaffected by app restart, as expected). Explored `scout/scraper.js` (PAMS Texas IDX Broker scraper via Playwright — login, price-band pagination, dedup, DB upsert, disappearance/relisting tracking, scoring). Found two operational problems: (1) the `com.propertyroi.scout` LaunchAgent (scheduled Mon/Wed/Fri 7am) was **not loaded into launchd** — machine rebooted June 29, last successful log entry June 26, so it silently missed at least 3 scheduled runs; (2) `scout-error.log` had ~30 fatal errors, all `page.goto` network timeouts/`ERR_INTERNET_DISCONNECTED`, with zero retry logic anywhere in the scraper — a single transient blip (plausible right at 7am if the laptop just woke up) kills the entire run before anything is written to the DB.
+
+### User Prompt
+Reload and let's fix all these issues and make this project secure.
+
+### Work Done
+- **Reloaded the LaunchAgent**: `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.propertyroi.scout.plist` — confirmed registered via `launchctl print`.
+- **Scraper reliability fix** (`scout/scraper.js`): added a `gotoWithRetry()` helper (3 attempts, backoff) and applied it to every `page.goto` call (band navigation, pagination, login, initial login-check). Made per-band failures non-fatal — `scrapeBand()` now catches a retry-exhausted failure and returns partial results / skips the band instead of throwing and aborting the entire run, so a network blip on one band no longer loses all other bands' data for that run.
+- **Broader security audit** (codebase level, not just Claude Code config): confirmed `.env*` never committed to git history, no hardcoded secrets in tracked files, all API routes use parameterized `sql\`...\`` queries. Found: (1) the `roi_auth` login cookie was set to the literal `SITE_PASSWORD` value rather than a derived session token — a leaked cookie would leak the real password; (2) `.claude/settings.local.json` had a Neon Postgres connection string with a **plaintext password hardcoded into a Bash permission rule** (turned out to be a stale, already-rotated credential — didn't match current `POSTGRES_URL` in `.env.local`); (3) `npm audit` shows 2 moderate vulnerabilities in `next`'s bundled `postcss` (CSS-stringify XSS) — recommended **not** fixing since `npm audit fix --force` would downgrade Next.js to 9.3.3, and the vulnerable code path only runs at build time, never touches runtime user input in this app.
+- **User chose to fix both moderate items:**
+  - Removed the stale hardcoded Neon credential from `.claude/settings.local.json` entirely.
+  - Added `SESSION_SECRET` (random 64-char hex) to `.env.local`. Changed `src/app/api/auth/login/route.js` to set the `roi_auth` cookie to `SESSION_SECRET` instead of `SITE_PASSWORD`, and `src/middleware.js` to validate against `SESSION_SECRET` instead of `SITE_PASSWORD`.
+  - Also fixed a minor edge case in `/api/scout/export`: an invalid `?limit=` param produced `LIMIT NaN` (500 error) instead of falling back to the default.
+- **Verified with Playwright**: fresh login now sets a random hex cookie (not the password); a forged cookie using the *old* scheme (literal password as cookie value) is correctly rejected, forcing re-login — confirms the fix works and old sessions are safely invalidated.
+- **Critical deployment note flagged to user**: `SESSION_SECRET` must be added to Vercel's production env vars *before* this change is deployed, or production login breaks entirely (cookie would compare against `undefined`, locking everyone out) until it's added.

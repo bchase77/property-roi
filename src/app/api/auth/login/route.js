@@ -7,7 +7,7 @@ export async function POST(req) {
 
   if (password === process.env.SITE_PASSWORD) {
     const response = NextResponse.redirect(new URL(from, req.url), { status: 303 });
-    response.cookies.set('roi_auth', process.env.SITE_PASSWORD, {
+    response.cookies.set('roi_auth', process.env.SESSION_SECRET, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
