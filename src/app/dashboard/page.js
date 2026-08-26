@@ -111,7 +111,7 @@ export default function Analysis() {
       </section>
 
       {/* Quick Actions */}
-      <section className="grid md:grid-cols-3 text-gray-600 gap-6">
+      <section className="grid md:grid-cols-4 text-gray-600 gap-6">
         <ActionCard
           title="Add New Property"
           description="Enter details for a potential investment property"
@@ -132,6 +132,14 @@ export default function Analysis() {
           href="/portfolio"
           buttonText="Manage Properties"
           icon="🏠"
+        />
+        <ActionCard
+          title="Investor Pitch"
+          description="Fund structure, financing terms, and current properties"
+          href="/investor-pitch.html"
+          buttonText="View Pitch Deck"
+          icon="📄"
+          external
         />
       </section>
 
@@ -172,18 +180,29 @@ function MetricCard({ title, value, subtitle }) {
   );
 }
 
-function ActionCard({ title, description, href, buttonText, icon }) {
+function ActionCard({ title, description, href, buttonText, icon, external }) {
   return (
     <div className="bg-white rounded-lg border p-6">
       <div className="text-3xl mb-3">{icon}</div>
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       <p className="text-gray-600 text-sm mb-4">{description}</p>
-      <Link 
-        href={href}
-        className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-      >
-        {buttonText}
-      </Link>
+      {external ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+        >
+          {buttonText}
+        </a>
+      ) : (
+        <Link
+          href={href}
+          className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+        >
+          {buttonText}
+        </Link>
+      )}
     </div>
   );
 }
