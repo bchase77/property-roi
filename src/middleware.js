@@ -5,10 +5,11 @@ const COOKIE = 'roi_auth';
 export function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // Always allow: login page, auth API, Next.js internals, public pitch deck
+  // Always allow: login page, auth API, Next.js internals, public pitch deck, project catalog
   if (
     pathname === '/login' ||
     pathname === '/investor-pitch.html' ||
+    pathname === '/ai-projects.html' ||
     pathname === '/api/scout/export' ||
     pathname.startsWith('/api/auth/') ||
     pathname.startsWith('/_next/') ||
