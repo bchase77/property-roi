@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Workshop — Bryan Chase</title>
+<style>
+  :root {
+    --bg: #f2efe9;
+    --surface: #ffffff;
+    --surface-2: #eae5da;
+    --ink: #1f2421;
+    --ink-muted: #5b645d;
+    --ink-faint: #8b9088;
+    --line: #d8d2c4;
+    --accent: #3f6b52;
+    --accent-ink: #ffffff;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+    --cat-infra: #3f6b52;
+    --cat-infra-bg: #e5ede8;
+    --cat-web: #3a5f8a;
+    --cat-web-bg: #e4ebf3;
+    --cat-games: #a56a1f;
+    --cat-games-bg: #f4ead9;
+    --cat-hw: #8a3a3a;
+    --cat-hw-bg: #f3e3e2;
+    --cat-fin: #5b4a8a;
+    --cat-fin-bg: #eae4f3;
+    --cat-early: #6b6459;
+    --cat-early-bg: #ece8de;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141815;
+      --surface: #1c211d;
+      --surface-2: #232922;
+      --ink: #e9ece7;
+      --ink-muted: #a3aca1;
+      --ink-faint: #6e766c;
+      --line: #2d342d;
+      --accent: #6fae8c;
+      --accent-ink: #0d150f;
+
+      --cat-infra: #6fae8c; --cat-infra-bg: #1c2a22;
+      --cat-web: #7ba3d4;   --cat-web-bg: #1c2733;
+      --cat-games: #d9a45c; --cat-games-bg: #302518;
+      --cat-hw: #d47f7f;    --cat-hw-bg: #331f1f;
+      --cat-fin: #a993d9;   --cat-fin-bg: #251f33;
+      --cat-early: #a3a89c; --cat-early-bg: #24261f;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); }
+
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 1.5rem 6rem;
+  }
+
+  header.top {
+    padding: 4rem 0 2.5rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 2.5rem;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 0.7rem;
+    display: block;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.9rem;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+
+  .dek {
+    color: var(--ink-muted);
+    font-size: 1.08rem;
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  section.category { margin: 3.2rem 0; }
+
+  .cat-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    margin-bottom: 1.3rem;
+    border-left: 3px solid var(--cat-color, var(--accent));
+    padding-left: 0.9rem;
+  }
+
+  .cat-head h2 { margin: 0; font-size: 1.35rem; }
+  .cat-head .count {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+  }
+
+  .cards { display: flex; flex-direction: column; gap: 0.9rem; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.2rem 1.35rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.4rem 1rem;
+    align-items: start;
+  }
+
+  .card h3 { margin: 0; font-size: 1.05rem; grid-column: 1; }
+  .card h3 a { color: var(--ink); text-decoration: none; }
+  .card h3 a:hover { color: var(--accent); text-decoration: underline; }
+
+  .card p {
+    margin: 0.35rem 0 0;
+    color: var(--ink-muted);
+    font-size: 0.92rem;
+    grid-column: 1;
+  }
+
+  .status {
+    grid-column: 2;
+    grid-row: 1;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 0.22rem 0.55rem;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .status.live { background: var(--cat-infra-bg); color: var(--cat-infra); }
+  .status.dev { background: var(--cat-web-bg); color: var(--cat-web); }
+  .status.proto { background: var(--cat-early-bg); color: var(--cat-early); }
+  .status.deprecated { background: var(--cat-hw-bg); color: var(--cat-hw); }
+
+  .card .link-row {
+    grid-column: 1;
+    margin-top: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  footer.foot {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="top">
+    <span class="eyebrow">Bryan Chase &middot; Project Workshop</span>
+    <h1>Things I've been building</h1>
+    <p class="dek">A running catalog of independent projects — home infrastructure, web tools, games, firmware, and a couple of business concepts — built collaboratively with Claude Code across many separate sessions.</p>
+  </header>
+
+  <section class="category" style="--cat-color: var(--cat-infra);">
+    <div class="cat-head">
+      <h2>Home Infrastructure</h2>
+      <span class="count">2 projects</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3>UpGReadyNAS</h3>
+        <span class="status dev">In Progress</span>
+        <p>Migrating a Netgear ReadyNAS to a self-managed Debian box, alongside a Synology NAS — RAID rebuild, deduplication, automated local + offsite backups, and eventually a family photo-sharing setup with an auto-updating picture-frame display.</p>
+      </div>
+      <div class="card">
+        <h3>Local AI / Home Lab</h3>
+        <span class="status dev">In Progress</span>
+        <p>Tailscale networking, local LLM serving via Ollama, and GPU-offload experiments on a small home server — the tooling backbone the other home-infra work runs on.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="category" style="--cat-color: var(--cat-web);">
+    <div class="cat-head">
+      <h2>Web Apps &amp; Tools</h2>
+      <span class="count">3 projects</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3><a href="https://puppyviewer.vercel.app" target="_blank" rel="noopener noreferrer">Puppy Viewer</a></h3>
+        <span class="status live">Live</span>
+        <p>An installable Progressive Web App showing random dog photos via the Dog CEO API — works offline, supports favorites, installs like a native app on Android.</p>
+        <div class="link-row"><a href="https://puppyviewer.vercel.app" target="_blank" rel="noopener noreferrer">puppyviewer.vercel.app →</a></div>
+      </div>
+      <div class="card">
+        <h3><a href="https://bc-options-dash.vercel.app" target="_blank" rel="noopener noreferrer">Options Dashboard</a></h3>
+        <span class="status live">Live</span>
+        <p>A personal options-trading dashboard — ticker tracking, put-candidate screening, and portfolio views.</p>
+      </div>
+      <div class="card">
+        <h3>BCIVR</h3>
+        <span class="status dev">In Progress</span>
+        <p>A DVR-style internet broadcast recorder, originally built to reliably capture San Jose Sharks games from online streams.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="category" style="--cat-color: var(--cat-games);">
+    <div class="cat-head">
+      <h2>Games</h2>
+      <span class="count">3 projects</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3><a href="https://studio.boardgamearena.com/studiogame?game=totaltakedown" target="_blank" rel="noopener noreferrer">Total Takedown</a></h3>
+        <span class="status dev">In Development</span>
+        <p>A wrestling-themed board game, in active development on the Board Game Arena Studio — the current, actively-developed successor to an earlier prototype.</p>
+        <div class="link-row"><a href="https://studio.boardgamearena.com/studiogame?game=totaltakedown" target="_blank" rel="noopener noreferrer">BGA Studio →</a></div>
+      </div>
+      <div class="card">
+        <h3>Liverpool Rummy</h3>
+        <span class="status dev">In Development</span>
+        <p>A digital implementation of the classic Liverpool Rummy card game, also built for Board Game Arena.</p>
+      </div>
+      <div class="card">
+        <h3>MatRevX</h3>
+        <span class="status deprecated">Deprecated</span>
+        <p>An earlier wrestling-game prototype — superseded by Total Takedown, kept around for reference.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="category" style="--cat-color: var(--cat-fin);">
+    <div class="cat-head">
+      <h2>Business Concepts</h2>
+      <span class="count">2 projects</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3><a href="/investor-pitch.html">Real Estate Investment Fund</a></h3>
+        <span class="status dev">Fundraising</span>
+        <p>A 2-fund equity structure for acquiring and holding single-family rental properties in Fort Worth, TX. Full pitch deck covers fund structure, financing terms, and current property candidates.</p>
+        <div class="link-row"><a href="/investor-pitch.html">View investor pitch →</a></div>
+      </div>
+      <div class="card">
+        <h3>Property ROI</h3>
+        <span class="status live">Live</span>
+        <p>The analysis tool behind the fund concept above — underwriting, portfolio tracking, and deal comparison for prospective rental properties. This site is built on it.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="category" style="--cat-color: var(--cat-hw);">
+    <div class="cat-head">
+      <h2>Firmware &amp; Hardware</h2>
+      <span class="count">1 project</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3>Security Camera Firmware</h3>
+        <span class="status proto">Prototype</span>
+        <p>Custom firmware for an Ambiq Apollo510 EVB driving an ArduCam 5MP SPI camera module.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="category" style="--cat-color: var(--cat-early);">
+    <div class="cat-head">
+      <h2>Early-Stage Explorations</h2>
+      <span class="count">2 projects</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3>Periodic Table — Two Views</h3>
+        <span class="status proto">Prototype</span>
+        <p>An interactive periodic table visualization, exploring two different ways of laying out the same data.</p>
+      </div>
+      <div class="card">
+        <h3>3D Head Tracking Illusion</h3>
+        <span class="status proto">Prototype</span>
+        <p>A Mac app experimenting with a parallax "window into another world" illusion, driven by real-time head tracking.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Built with Claude Code, one project at a time.
+  </footer>
+
+</div>
+</body>
+</html>
