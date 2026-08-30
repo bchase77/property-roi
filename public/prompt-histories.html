@@ -22,6 +22,8 @@
     --cat-infra-bg: #e5ede8;
     --cat-web: #3a5f8a;
     --cat-web-bg: #e4ebf3;
+    --cat-fin: #5b4a8a;
+    --cat-fin-bg: #eae4f3;
     --cat-early: #6b6459;
     --cat-early-bg: #ece8de;
   }
@@ -40,6 +42,7 @@
 
       --cat-infra: #6fae8c; --cat-infra-bg: #1c2a22;
       --cat-web: #7ba3d4;   --cat-web-bg: #1c2733;
+      --cat-fin: #a993d9;   --cat-fin-bg: #251f33;
       --cat-early: #a3a89c; --cat-early-bg: #24261f;
     }
   }
@@ -209,12 +212,16 @@
     </div>
     <p class="proj-desc">
       A DVR for internet-broadcast games (Sharks, 49ers) built to replace a dying TiVo/CableCARD setup — HDMI capture off a physical Roku, a FastAPI web app, an Android TV app, and now some Claude-run automation (schedule verification, email alerts) on top. This project tracks every prompt and a per-session time estimate in its own chat log, so the total above is a real sum, not a guess.
-      <span class="note">22 sessions logged, mid-June through late August 2026. Showing 19 of roughly 890 prompts.</span>
+      <span class="note">22 sessions logged, mid-June through late August 2026. Showing 23 of roughly 890 prompts, including a few where verifying a claim (is this really 30fps? is it really live? which file is actually playing?) turned into its own piece of work.</span>
     </p>
     <div class="prompts">
       <div class="prompt"><span class="n">#1</span><p class="q">Make a permanenet note in this project to track all prompts I give you word for word. Also track our time spent together within about 15mins. I want a GH repo created for this project. It is an internet video recorder, like a DVR or Tivo. I mainly want to record San Jose Sharks games which are broadcast over the internet.</p></div>
       <div class="prompt"><span class="n">#2</span><p class="q">This project is a video recorder for video broadcast on the internet, like a DVR or Tivo. It's first priority is to record San Jose Sharks games. The reason is, we have Tivo now, but Comcast is removing support for cablecards, so when tivo dies, I will have no way to record Sharks games and watch them the next day. I have a Comcast account, and/or may subscribe to some broadcast account. However, I need a way to record locally the video, even though I can view it on a browser. That's what this project is for. I will not share the video with any other users. I have other projects hosted on Vercel. Is that a good target for this? I will need to save about 5-10 games in total. What's a good architecture and host for this?</p></div>
       <div class="prompt"><span class="n">#3</span><p class="q">I have Comcast. Mostly they broadcast on NBC Bay Area Sports CA or some channel name like that. I record and watch on Tivo now. I want to be able to pause the playback for 1 or 5 mins, then resume later. I also want the feature where you click a button on the remote and it goes back 7 seconds. And slo-mo too. Some games during the season are broadcast only on ESPN+ (1 or 2 per season) which is pissing me off. I want to record EVERY ONE. I think one or two might be on Amazon Prime or whatever.</p></div>
+      <div class="prompt"><span class="n">#356</span><p class="q">Are you checking for the logo in the guide after you navigate down? You should do that, and if you navigate too far or not enough, then go to the right one. They might change the entries over time. We should double check this every week or so, to track where NBCSBA is in the guide before you need to record.</p></div>
+      <div class="prompt"><span class="n">#386</span><p class="q">I'm playing it but there is still stutter. The link ends with ".mp4&has_tv=1" is it really playing the right file or should I refresh or something?</p></div>
+      <div class="prompt"><span class="n">#387</span><p class="q">The video quality looks pretty good, not sure if it's best. Are you sure it's 30FPS? The motion is smooth but it doesn't look 30FPS. However for file "1551 YouTube TV" the video stalled after about 7 to 10 seconds for several seconds (I can double check if you need it) but the audio continued. Now it's playing and they are very much misaligned, perhaps 20 seconds off. center button still pause/play and does not select the focused button.</p></div>
+      <div class="prompt"><span class="n">#734</span><p class="q">Good call, but I think it's marked as tomorrow because it's using GMT or server time. Yes, please verify each claim on its own and then tell me your recommendation. I will be AFK for about 8h now.</p></div>
       <div class="prompt"><span class="n">#752</span><p class="q">I put the roku into another power cube. on the TV, iDVR app, I chose to STOP recording bananaball program. I selected STOP. It asked Sure? I clicked the SURE. The screen cleared like it was going to stop, but then the menu still shows that program recording. You can stop it now. Do your testing now. I stopped the AI process which was running.</p></div>
       <div class="prompt"><span class="n">#753</span><p class="q">Delete it and push both commits</p></div>
       <div class="prompt"><span class="n">#754</span><p class="q">After 1.5h from now, find something in the Roku to record with the hardware method for about 1 to 2h and record it. Then wait at least 1 hour, find a 2nd thing to record with the HW method, ideally another sports event, and record that too.</p></div>
@@ -231,6 +238,27 @@
       <div class="prompt"><span class="n">#792</span><p class="q">What's next in the GH issues list?</p></div>
       <div class="prompt"><span class="n">#795</span><p class="q">Are there any 49ers games already recorded?</p></div>
       <div class="prompt"><span class="n">#798</span><p class="q">What length are you recoding all the sports games? Both should be 4h long.</p></div>
+    </div>
+  </section>
+
+  <section class="project" style="--cat-color: var(--cat-fin); --cat-color-bg: var(--cat-fin-bg);">
+    <div class="proj-head">
+      <h2>Property ROI</h2>
+      <span class="time-badge">~14 hours across 12+ sessions</span>
+    </div>
+    <p class="proj-desc">
+      A real estate investment analysis dashboard — charts, CAGR/IRR/Cash-on-Cash metrics, a portfolio scraper. The recurring thread here wasn't building features, it was trust: a chart can render a confident-looking number that's just wrong, and the only way to catch that is spotting when a result doesn't match intuition and then figuring out what would actually prove it right or wrong. These are picked specifically for that pattern.
+      <span class="note">Total dev time is this project's own tracked figure, from its project summary file.</span>
+    </p>
+    <div class="prompts">
+      <div class="prompt"><span class="n">Archive &middot; #16</span><p class="q">Are the CAGRs high to start because I didn't tell you the mortgage costs and equity value in each property? I bought all properties with mortgages but later paid them off. What data do I need to give you to calculate more meaningful CAGRs?</p></div>
+      <div class="prompt"><span class="n">Archive &middot; #17</span><p class="q">I know the payoff dates for each property. Should I enter the amount paid per year for mortgage payments into the database? Would you need to know the payoff date or just note when the amounts paid to mortgage per year go to zero, then they are paid off?</p></div>
+      <div class="prompt"><span class="n">Archive &middot; #18</span><p class="q">I will enter Mortgage Payoff dates for each property, can you use that?</p></div>
+      <div class="prompt"><span class="n">Archive &middot; #20</span><p class="q">I entered the mortgage payoff dates. The CAGRs still start very high, &gt;75% still above 30% even after 3 years. Doesn't seem right.</p></div>
+      <div class="prompt"><span class="n">Archive &middot; #31</span><p class="q"><span class="redact">[Property A]</span> and <span class="redact">[Property B]</span> look reasonable I guess (20 to 40%) However the first years of <span class="redact">[Property C]</span> are &gt;55% which doesn't seem right, is it?</p></div>
+      <div class="prompt"><span class="n">Archive 2 &middot; #144</span><p class="q">It's close but the 30yATROI algorithm needs a couple changes. Your method makes sense, so perhaps keep that as a longer term method to compare properties. However I need my method too since I have used it in the past and what to compare in the same way for awhile, until I'm comfortable with your method. For my version: Ensure total income includes rental income factoring in vacancy loss. Don't presume any propety value appreciation. Ensure total expenses includes all taxes, insurance, mortgage payments, maintenance cost of 1% of the original purchase price per year, property management fees, HOA fees and any other expenses. Don't presume any yearly increase in rent.</p></div>
+      <div class="prompt"><span class="n">2026-03-26</span><p class="q">Can the scraper check if it got 500 properties? because it would mean it probably did not get them all from IDX</p></div>
+      <div class="prompt"><span class="n">2026-03-26</span><p class="q">Why is there only 2 or 3 listings on page 1, then 3 or 2 listings on page 2?</p></div>
     </div>
   </section>
 
