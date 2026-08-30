@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Histories — Bryan Chase</title>
+<style>
+  :root {
+    --bg: #f2efe9;
+    --surface: #ffffff;
+    --surface-2: #eae5da;
+    --ink: #1f2421;
+    --ink-muted: #5b645d;
+    --ink-faint: #8b9088;
+    --line: #d8d2c4;
+    --accent: #3f6b52;
+    --accent-ink: #ffffff;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+    --cat-infra: #3f6b52;
+    --cat-infra-bg: #e5ede8;
+    --cat-web: #3a5f8a;
+    --cat-web-bg: #e4ebf3;
+    --cat-early: #6b6459;
+    --cat-early-bg: #ece8de;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141815;
+      --surface: #1c211d;
+      --surface-2: #232922;
+      --ink: #e9ece7;
+      --ink-muted: #a3aca1;
+      --ink-faint: #6e766c;
+      --line: #2d342d;
+      --accent: #6fae8c;
+      --accent-ink: #0d150f;
+
+      --cat-infra: #6fae8c; --cat-infra-bg: #1c2a22;
+      --cat-web: #7ba3d4;   --cat-web-bg: #1c2733;
+      --cat-early: #a3a89c; --cat-early-bg: #24261f;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); }
+
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 1.5rem 6rem;
+  }
+
+  header.top {
+    padding: 4rem 0 2.5rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 2.5rem;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 0.7rem;
+    display: block;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.9rem;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+
+  .dek {
+    color: var(--ink-muted);
+    font-size: 1.08rem;
+    max-width: 62ch;
+    margin: 0 0 1rem;
+  }
+
+  .back-link {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+  }
+
+  section.project { margin: 3.5rem 0; }
+
+  .proj-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.6rem 1.2rem;
+    margin-bottom: 0.6rem;
+    border-left: 3px solid var(--cat-color, var(--accent));
+    padding-left: 0.9rem;
+  }
+
+  .proj-head h2 { margin: 0; font-size: 1.45rem; }
+
+  .time-badge {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--cat-color, var(--accent));
+    background: var(--cat-color-bg, var(--surface-2));
+    padding: 0.25rem 0.6rem;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+
+  .proj-desc {
+    color: var(--ink-muted);
+    font-size: 0.95rem;
+    margin: 0.8rem 0 1.5rem;
+    padding-left: 0.9rem;
+    max-width: 68ch;
+  }
+
+  .proj-desc .note {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+  }
+
+  .prompts { display: flex; flex-direction: column; gap: 0.7rem; padding-left: 0.9rem; }
+
+  .prompt {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    gap: 0.8rem;
+  }
+
+  .prompt .n {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+    padding-top: 0.15rem;
+  }
+
+  .prompt .q {
+    margin: 0;
+    font-size: 0.92rem;
+    color: var(--ink);
+  }
+  .prompt .q .redact {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+
+  .unavailable {
+    background: var(--surface);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 1.1rem 1.3rem;
+    color: var(--ink-muted);
+    font-size: 0.92rem;
+    margin-left: 0.9rem;
+  }
+
+  footer.foot {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="top">
+    <span class="eyebrow">Bryan Chase &middot; Project Workshop</span>
+    <h1>Prompt histories</h1>
+    <p class="dek">A sample of the actual, word-for-word prompts behind a few of the projects on the workshop page — plus roughly how long each took. Trimmed for length and with anything sensitive (passwords, account names, dollar amounts, physical addresses) removed or generalized; everything shown is otherwise verbatim.</p>
+    <a class="back-link" href="/ai-projects.html">&larr; Back to Project Workshop</a>
+  </header>
+
+  <section class="project" style="--cat-color: var(--cat-infra); --cat-color-bg: var(--cat-infra-bg);">
+    <div class="proj-head">
+      <h2>bcivr &mdash; Internet DVR</h2>
+      <span class="time-badge">~83 hours logged</span>
+    </div>
+    <p class="proj-desc">
+      A DVR for internet-broadcast games (Sharks, 49ers) built to replace a dying TiVo/CableCARD setup — HDMI capture off a physical Roku, a FastAPI web app, an Android TV app, and now some Claude-run automation (schedule verification, email alerts) on top. This project tracks every prompt and a per-session time estimate in its own chat log, so the total above is a real sum, not a guess.
+      <span class="note">22 sessions logged, mid-June through late August 2026. Showing 19 of roughly 890 prompts.</span>
+    </p>
+    <div class="prompts">
+      <div class="prompt"><span class="n">#1</span><p class="q">Make a permanenet note in this project to track all prompts I give you word for word. Also track our time spent together within about 15mins. I want a GH repo created for this project. It is an internet video recorder, like a DVR or Tivo. I mainly want to record San Jose Sharks games which are broadcast over the internet.</p></div>
+      <div class="prompt"><span class="n">#2</span><p class="q">This project is a video recorder for video broadcast on the internet, like a DVR or Tivo. It's first priority is to record San Jose Sharks games. The reason is, we have Tivo now, but Comcast is removing support for cablecards, so when tivo dies, I will have no way to record Sharks games and watch them the next day. I have a Comcast account, and/or may subscribe to some broadcast account. However, I need a way to record locally the video, even though I can view it on a browser. That's what this project is for. I will not share the video with any other users. I have other projects hosted on Vercel. Is that a good target for this? I will need to save about 5-10 games in total. What's a good architecture and host for this?</p></div>
+      <div class="prompt"><span class="n">#3</span><p class="q">I have Comcast. Mostly they broadcast on NBC Bay Area Sports CA or some channel name like that. I record and watch on Tivo now. I want to be able to pause the playback for 1 or 5 mins, then resume later. I also want the feature where you click a button on the remote and it goes back 7 seconds. And slo-mo too. Some games during the season are broadcast only on ESPN+ (1 or 2 per season) which is pissing me off. I want to record EVERY ONE. I think one or two might be on Amazon Prime or whatever.</p></div>
+      <div class="prompt"><span class="n">#752</span><p class="q">I put the roku into another power cube. on the TV, iDVR app, I chose to STOP recording bananaball program. I selected STOP. It asked Sure? I clicked the SURE. The screen cleared like it was going to stop, but then the menu still shows that program recording. You can stop it now. Do your testing now. I stopped the AI process which was running.</p></div>
+      <div class="prompt"><span class="n">#753</span><p class="q">Delete it and push both commits</p></div>
+      <div class="prompt"><span class="n">#754</span><p class="q">After 1.5h from now, find something in the Roku to record with the hardware method for about 1 to 2h and record it. Then wait at least 1 hour, find a 2nd thing to record with the HW method, ideally another sports event, and record that too.</p></div>
+      <div class="prompt"><span class="n">#755</span><p class="q">I see only the SportCenter recording in the My Shows list now. What happened?</p></div>
+      <div class="prompt"><span class="n">#756</span><p class="q">The SportCenter recording looks and sounds good. Can you see the channel now? Put it on the small preview screen on the GUIDE channel right now.</p></div>
+      <div class="prompt"><span class="n">#760</span><p class="q">Yes, fix the crontab bug you found. As for typing, can you give it a ENTER button or maybe BACK or DOWN to go to that channel?</p></div>
+      <div class="prompt"><span class="n">#763</span><p class="q">Can you find the episode of Master Chef called The Wall and record it? The original recording did not fully record due to some sports game so we need to get it some other way. Also can you make note to record all the new SF 49ers games for the 2026-2027 season. Also do you see any NHL games in the next 7 days we can record, to test the system?</p></div>
+      <div class="prompt"><span class="n">#767</span><p class="q">Don't mess up the MasterChef recording</p></div>
+      <div class="prompt"><span class="n">#769</span><p class="q">Add issues to GH: 1) When deleting a program, move the cursor up 1 item in the list. Now it seems to go all the way to the top, and you have to do many keypresses to get back to where you were. 2) When moving an episode, after a folder is chosen, if another episode is moved have the MOVE TO screen default to the last place the most recent episode was moved to. 3) Add a feature where I can move or delete episodes in bulk... 4) Now when I go to delete something, the word SURE? appears... Make it sit on SURE? for a longer period of time, perhaps 500mSec, before executing. 5) I entered the name of a new folder I made. in the keyboard pop-up, I chose the GO FORWARD button... The keyboard did not disappear but should have.</p></div>
+      <div class="prompt"><span class="n">#775</span><p class="q">How about 49ers games? Over the next 6 months, Sharks games are higher priority, but if you can record new 49ers games on the Roku hardware then do it. Add those games to the schedule in the iDVR app on the TV. And 1 day before each game, double check the time and day and channel for each game.</p></div>
+      <div class="prompt"><span class="n">#776</span><p class="q">I want to connect this to a specific gmail account. How to do that?</p></div>
+      <div class="prompt"><span class="n">#779</span><p class="q">How to limit it so it cannot read and take prompts from incoming email?</p></div>
+      <div class="prompt"><span class="n">#786</span><p class="q">I ran 'myaccount.google.com/apppasswords' from <span class="redact">[account]</span> but it said The setting you are looking for is not available for your account. Go to your Google Account. And when I clicked that it changed to the <span class="redact">[other account]</span> account!</p></div>
+      <div class="prompt"><span class="n">#792</span><p class="q">What's next in the GH issues list?</p></div>
+      <div class="prompt"><span class="n">#795</span><p class="q">Are there any 49ers games already recorded?</p></div>
+      <div class="prompt"><span class="n">#798</span><p class="q">What length are you recoding all the sports games? Both should be 4h long.</p></div>
+    </div>
+  </section>
+
+  <section class="project" style="--cat-color: var(--cat-web); --cat-color-bg: var(--cat-web-bg);">
+    <div class="proj-head">
+      <h2>Home Lab / Local AI</h2>
+      <span class="time-badge">~2 intensive days logged</span>
+    </div>
+    <p class="proj-desc">
+      Standing up a home server (Ubuntu, local LLMs via Ollama, Open WebUI, Plex &rarr; Jellyfin, NAS security hardening) from a bare mini PC, entirely over chat — including a fair amount of "what do I click now" during the actual Ubuntu install. This project's prompt log doesn't have bcivr's per-session time-tracking, so the estimate here is rougher: based on two clearly-dated, very dense sessions rather than a real timestamp sum.
+      <span class="note">243 prompts logged across June 19&ndash;20, 2026. Showing 18.</span>
+    </p>
+    <div class="prompts">
+      <div class="prompt"><span class="n">#1</span><p class="q">What is GLM-5.2?</p></div>
+      <div class="prompt"><span class="n">#3</span><p class="q">I'm evaluating options for running something on a GEEKOM IT12 Business Mini PC for Plex Server &amp; Home Office(3-Year Coverage), with Intel i5-12450H Mini Computer Windows 11, Quiet Low-Power PC 16 RAM/512GB SSD(Not LPDDR) Desktop, Dual USB4 8K.</p></div>
+      <div class="prompt"><span class="n">#5</span><p class="q">What if later I wanted to make a mobile app for our phones, to access the home model. How would the picture change?</p></div>
+      <div class="prompt"><span class="n">#39</span><p class="q">I think I might have unique files and directories on both NAS. Honestly I've lost track over time. I don't want you to read all the contents on both systems, but I want a clean, secure and redundant setup so that if 1 NAS fails, the data can be recovered from the other... I have some spare multi-TB drives around too. I can tell you the model numbers and let's plan a system for using those when the NAS drives fail... Can you suggest a big plan and then we'll go through it?</p></div>
+      <div class="prompt"><span class="n">#41</span><p class="q">Tell me more about Backblaze. Is it a company? A service by Synology or AWS?</p></div>
+      <div class="prompt"><span class="n">#43</span><p class="q">I'm setting up a home lab. Read <span class="redact">[session context file]</span> for full context. We're in the middle of verifying an Ubuntu 24.04.4 ISO before flashing it to a USB stick to install on a GEEKOM IT12 mini PC. I just need to download the SHA256SUMS file — pick up from there.</p></div>
+      <div class="prompt"><span class="n">#54</span><p class="q">It shows a white box on the left, with a blue box with a smaller lighter blue box in it, and an even smaller teal box in that. And there is a teal circle nearby. On the right it's telling me "Sit back and relax while the magic happens" with a spinning blue/gray wheel.</p></div>
+      <div class="prompt"><span class="n">#78</span><p class="q">can i monitor it from here yet? im in an inconvenient place physically</p></div>
+      <div class="prompt"><span class="n">#93</span><p class="q">yes [install Ollama]</p></div>
+      <div class="prompt"><span class="n">#96</span><p class="q">Hello! [ollama run llama3.2 response]</p></div>
+      <div class="prompt"><span class="n">#111</span><p class="q">mount the ReadyNAS and add those TiVo videos. I want to practice recording some shows from my Comcast account, with the internet DVR we are going to make soon. But these will be a good start. I can watch them from remote, yes?</p></div>
+      <div class="prompt"><span class="n">#131</span><p class="q">Why did we add Plex?</p></div>
+      <div class="prompt"><span class="n">#132</span><p class="q">Yes. Do that [switch to Jellyfin]</p></div>
+      <div class="prompt"><span class="n">#141</span><p class="q">It works on the phone. However I just noticed something when playing a movie on my browser. The left side is cut off (maybe right side too). I see this on the phone too. [screenshot of a movie playing with left side cut off]</p></div>
+      <div class="prompt"><span class="n">#145</span><p class="q">yes [start security review]</p></div>
+      <div class="prompt"><span class="n">#195</span><p class="q">What can we do with the local LLM in the mean time? Are the models up and running? Tell me about them - when were they trained? Can they write code? What do they know?</p></div>
+      <div class="prompt"><span class="n">#196</span><p class="q">Can I set one up to be a RAG? I've heard a good pairing is with a local memory system. How would that work?</p></div>
+      <div class="prompt"><span class="n">#242</span><p class="q">also let's get nomic-embed-txt, qwen2.5:7b, phi4, and deepseek, and get the gemma3:4b for the rag, like you suggested</p></div>
+    </div>
+  </section>
+
+  <section class="project" style="--cat-color: var(--cat-early); --cat-color-bg: var(--cat-early-bg);">
+    <div class="proj-head">
+      <h2>Puppy Viewer</h2>
+      <span class="time-badge">history unavailable</span>
+    </div>
+    <p class="unavailable">
+      This one can't be included — unlike bcivr and the home lab project, Puppy Viewer never had a dedicated prompt log, and its raw conversation transcripts aren't retained on this machine anymore. All that's left is a summarized project-memory note (not verbatim prompts), which isn't something to pass off as a real prompt history. If you want this one included, the fix is starting a prompt log for it going forward — I can't reconstruct the past conversations.
+    </p>
+  </section>
+
+  <footer class="foot">
+    Built with Claude Code, one project at a time.
+  </footer>
+
+</div>
+</body>
+</html>
