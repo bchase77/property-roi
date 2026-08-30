@@ -10,6 +10,7 @@ export function middleware(request) {
     pathname === '/login' ||
     pathname === '/investor-pitch.html' ||
     pathname === '/ai-projects.html' ||
+    pathname === '/prompt-histories.html' ||
     pathname === '/api/scout/export' ||
     pathname.startsWith('/api/auth/') ||
     pathname.startsWith('/_next/') ||
