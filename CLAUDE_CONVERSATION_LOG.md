@@ -609,3 +609,9 @@ Look at this grid of option strike dates and  strike prices. This is MDT. It's p
 
 ### Claude Response
 Question only (no code changes; the options app in the screenshot is not in this repo). Explained that each cell looks like "fixed cost to close the Jan 2027 $90 contract (~$4.64) minus the bid of the new weekly call"; far-OTM weeklies near expiration (especially 9/25, expiring today) have ~$0 bids, so every cell converges to the same ~-$4.64. Flagged quote-quality issues: non-monotonic cells (e.g. 10/9: 89 beats 88, 91 beats 90, 94 beats 93) and 9/25 88-strike implying a price below intrinsic, which indicate stale/wide bid-ask quotes rather than true values. Suggested using mid prices / limit orders and checking live chain.
+
+### User Prompt
+[image of a backlit control panel] What is this?
+
+### Claude Response
+Identified it as the top control panel of a Sony ULT-series party speaker (most likely the ULT TOWER 10 / SRS-ULT1000): red "ULT" bass button, power button, NFC mark, backlit touch controls, pink ambient lighting, smartphone holder slot. No code changes.
