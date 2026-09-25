@@ -325,3 +325,6 @@ I still need your estimates for the earlier work completed today:
 ---
 
 *This summary will be updated with time tracking as we continue development.*
+
+## Session: 2026-09-25
+- Answered MDT option roll-grid pricing question (why costs are flat across strikes; bid/ask and stale-quote effects). No code changes. Time: ~0.25 hr.

@@ -601,3 +601,11 @@ Reload and let's fix all these issues and make this project secure.
   - Also fixed a minor edge case in `/api/scout/export`: an invalid `?limit=` param produced `LIMIT NaN` (500 error) instead of falling back to the default.
 - **Verified with Playwright**: fresh login now sets a random hex cookie (not the password); a forged cookie using the *old* scheme (literal password as cookie value) is correctly rejected, forcing re-login — confirms the fix works and old sessions are safely invalidated.
 - **Critical deployment note flagged to user**: `SESSION_SECRET` must be added to Vercel's production env vars *before* this change is deployed, or production login breaks entirely (cookie would compare against `undefined`, locking everyone out) until it's added.
+
+## Session: 2026-09-25 (MDT option grid question)
+
+### User Prompt
+Look at this grid of option strike dates and  strike prices. This is MDT. It's price now is about $88 for the underlying symbol. I own a contract for Jan 15 2027 at strike $90. The negative numbers in the cells show my how much I would have to pay for each. Why would the cost be nearly the same even though the strike prices are higher? Are these values real? What in the market can cause this?
+
+### Claude Response
+Question only (no code changes; the options app in the screenshot is not in this repo). Explained that each cell looks like "fixed cost to close the Jan 2027 $90 contract (~$4.64) minus the bid of the new weekly call"; far-OTM weeklies near expiration (especially 9/25, expiring today) have ~$0 bids, so every cell converges to the same ~-$4.64. Flagged quote-quality issues: non-monotonic cells (e.g. 10/9: 89 beats 88, 91 beats 90, 94 beats 93) and 9/25 88-strike implying a price below intrinsic, which indicate stale/wide bid-ask quotes rather than true values. Suggested using mid prices / limit orders and checking live chain.
