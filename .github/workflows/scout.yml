@@ -23,6 +23,9 @@ on:
   # Allow manual trigger from the GitHub Actions UI ("Run workflow" button)
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
