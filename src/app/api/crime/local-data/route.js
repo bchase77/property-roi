@@ -9,6 +9,10 @@ export async function POST(request) {
       return NextResponse.json({ message: 'City and state are required' }, { status: 400 });
     }
 
+    if (!/^[A-Za-z]{2}$/.test(state)) {
+      return NextResponse.json({ message: 'State must be a 2-letter abbreviation' }, { status: 400 });
+    }
+
     console.log('🔍 Fetching local crime data for:', { city, state, address });
 
     const crimeData = await fetchLocalCrimeData(city, state, latitude, longitude, address);
@@ -190,6 +194,10 @@ async function fetchFBIFallbackData(city, state) {
   
   if (!apiKey) {
     throw new Error('FBI API key not available');
+  }
+
+  if (!/^[A-Za-z]{2}$/.test(state)) {
+    throw new Error('Invalid state abbreviation');
   }
 
   const agenciesUrl = `${baseUrl}/agency/byStateAbbr/${state.toUpperCase()}?API_KEY=${apiKey}`;

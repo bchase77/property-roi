@@ -57,7 +57,6 @@ function normalizeAddr(raw) {
     .replace(/\bCOURT\b/g,   'CT')   .replace(/\bCIRCLE\b/g,  'CIR')
     .replace(/\bPLACE\b/g,   'PL')   .replace(/\bTRAIL\b/g,   'TRL')
     .replace(/\bPARKWAY\b/g, 'PKWY') .replace(/\bTERRACE\b/g, 'TER')
-    .replace(/\bCOURT\b/g,   'CT')   .replace(/\bWAY\b/g,     'WAY')
     .replace(/\s+/g, ' ').trim();
 }
 

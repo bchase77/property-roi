@@ -177,7 +177,7 @@ async function getWiderAreaComparables(address, propertyDetails, apiKey, respons
     const state = parts[2]?.trim();
     const searchArea = `${city}, ${state}`;
 
-    console.log(`Searching wider area for comparables near ${searchArea}:`, propertyDetails);
+    console.log('Searching wider area for comparables near %s:', searchArea, propertyDetails);
 
     // Try multiple rental and property APIs with wider radius
     const apis = [
@@ -260,7 +260,7 @@ async function getNearbyComparables(address, propertyDetails, apiKey, responseLo
     const state = parts[2]?.trim();
     const searchArea = `${city}, ${state}`;
 
-    console.log(`Searching for comparables near ${searchArea}:`, propertyDetails);
+    console.log('Searching for comparables near %s:', searchArea, propertyDetails);
 
     // Try rental listing APIs for nearby properties
     const apis = [

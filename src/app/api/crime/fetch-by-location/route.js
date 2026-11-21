@@ -9,6 +9,10 @@ export async function POST(request) {
       return NextResponse.json({ message: 'City and state are required' }, { status: 400 });
     }
 
+    if (!/^[A-Za-z]{2}$/.test(state)) {
+      return NextResponse.json({ message: 'State must be a 2-letter abbreviation' }, { status: 400 });
+    }
+
     // FBI Crime Data Explorer API base URL (using working endpoint from 2025)
     const baseUrl = 'https://api.usa.gov/crime/fbi/cde';
     
@@ -21,8 +25,7 @@ export async function POST(request) {
     // Step 1: Find the agency for the given city/state using working endpoint format from 2025 examples
     const agenciesUrl = `${baseUrl}/agency/byStateAbbr/${state.toUpperCase()}?API_KEY=${apiKey}`;
     
-    console.log('📡 Fetching agencies:', agenciesUrl);
-    console.log('🔑 API Key (first 10 chars):', apiKey ? apiKey.substring(0, 10) + '...' : 'Missing');
+    console.log('📡 Fetching agencies for state:', state.toUpperCase());
 
     const authHeaders = {
       'Accept': 'application/json',
@@ -107,7 +110,7 @@ export async function POST(request) {
     const currentYear = new Date().getFullYear();
     const estimatesUrl = `${baseUrl}/estimates/states/${state.toUpperCase()}/${currentYear - 1}?API_KEY=${apiKey}`;
     
-    console.log('📊 Fetching crime estimates:', estimatesUrl);
+    console.log('📊 Fetching crime estimates for:', state.toUpperCase(), currentYear - 1);
     
     const estimatesResponse = await fetch(estimatesUrl, {
       headers: authHeaders
